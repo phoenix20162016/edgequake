@@ -61,7 +61,7 @@ export function DocumentFilters({
         onValueChange={(v) => onStatusChange(v as DocStatus)}
       >
         <SelectTrigger
-          className="h-9 w-40 shrink-0"
+          className="h-9 w-auto min-w-[9.5rem] max-w-[14rem] shrink-0"
           aria-label={t('documents.filter.status', 'Filter by status')}
         >
           <SelectValue placeholder={t('documents.filter.status')} />

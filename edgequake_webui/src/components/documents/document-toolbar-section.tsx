@@ -147,9 +147,9 @@ export function DocumentToolbarSection({
           className="@container min-w-0 border-b pb-2"
           data-testid="spec099-primary-toolbar"
         >
-          <div className="flex min-w-0 flex-col gap-2 @md:flex-row @md:items-center">
+          <div className="flex min-w-0 flex-col gap-2 @md:flex-row @md:items-center @md:justify-between">
             <DocumentSearchBar
-              className="w-full @md:min-w-0 @md:flex-1"
+              className="w-full @md:max-w-sm @md:flex-none"
               value={searchQuery}
               onChange={onSearchChange}
             />
