@@ -178,11 +178,17 @@ else
 fi
 echo "${explorer_hdr}" | tee -a "${LOG}"
 echo "${api_hdr}" | tee -a "${LOG}"
-# Frontend auth gate: 307/302 to /login (not bare Axum 404).
-echo "${explorer_hdr}" | grep -qiE '^HTTP/.* (302|307)\b' \
-  || { log "FAIL: /api-explorer not redirected by frontend (got non-3xx)"; exit 1; }
-echo "${explorer_hdr}" | grep -qiE '^[Ll]ocation:[[:space:]]*.*/login' \
-  || { log "FAIL: /api-explorer Location is not /login (Caddy /api* collision?)"; exit 1; }
+# Frontend owns /api-explorer (SPEC-035): Next 200 HTML or auth 3xx to /login.
+# A Caddy /api* steal would be Axum JSON 401 with no HTML.
+echo "${explorer_hdr}" | grep -qiE '^HTTP/.* (200|302|307)\b' \
+  || { log "FAIL: /api-explorer not served by frontend (got non-200/3xx)"; exit 1; }
+if echo "${explorer_hdr}" | grep -qiE '^HTTP/.* (302|307)\b'; then
+  echo "${explorer_hdr}" | grep -qiE '^[Ll]ocation:[[:space:]]*.*/login' \
+    || { log "FAIL: /api-explorer Location is not /login (Caddy /api* collision?)"; exit 1; }
+else
+  echo "${explorer_hdr}" | grep -qiE '^[Cc]ontent-[Tt]ype:[[:space:]]*text/html' \
+    || { log "FAIL: /api-explorer 200 is not HTML (Caddy /api* collision?)"; exit 1; }
+fi
 # API still owns /api/v1/*: expect auth challenge, not Next login redirect.
 echo "${api_hdr}" | grep -qiE '^HTTP/.* (401|403)\b' \
   || { log "FAIL: /api/v1/auth/me not served by api (expected 401/403)"; exit 1; }
