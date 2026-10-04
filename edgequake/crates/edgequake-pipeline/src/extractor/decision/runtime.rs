@@ -417,7 +417,9 @@ mod tests {
     fn bad_stored_value_errors() {
         let mut ws = HashMap::new();
         ws.insert("decision_pack_size".to_string(), json!(99));
-        let err = runtime(DecisionGate::ForcedOn).effective_settings(&ws, None).unwrap_err();
+        let err = runtime(DecisionGate::ForcedOn)
+            .effective_settings(&ws, None)
+            .unwrap_err();
         assert_eq!(err.code(), "invalid_decision_setting");
     }
 

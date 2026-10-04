@@ -26,7 +26,10 @@ pub struct DecisionStatusQuery {
 
 /// Load workspace metadata from `X-Workspace-ID` when the header is a UUID.
 async fn workspace_meta(state: &AppState, tenant_ctx: &TenantContext) -> HashMap<String, Value> {
-    let Some(id) = tenant_ctx.workspace_id.as_deref().and_then(|raw| Uuid::parse_str(raw.trim()).ok())
+    let Some(id) = tenant_ctx
+        .workspace_id
+        .as_deref()
+        .and_then(|raw| Uuid::parse_str(raw.trim()).ok())
     else {
         return HashMap::new();
     };

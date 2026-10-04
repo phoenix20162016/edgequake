@@ -75,9 +75,7 @@ pub fn evaluate_range(header: Option<&str>, len: u64) -> ByteRange {
                     Err(_) => return ByteRange::Unsatisfiable,
                 }
             };
-            if start >= len {
-                ByteRange::Unsatisfiable
-            } else if end < start {
+            if start >= len || end < start {
                 ByteRange::Unsatisfiable
             } else {
                 ByteRange::Partial { start, end }

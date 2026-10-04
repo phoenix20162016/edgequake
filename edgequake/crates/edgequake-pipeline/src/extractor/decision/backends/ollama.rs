@@ -187,7 +187,10 @@ impl OllamaBackend {
             return Ok(false);
         }
         if !resp.status().is_success() {
-            return Err(format!("/api/show answered HTTP {}", resp.status().as_u16()));
+            return Err(format!(
+                "/api/show answered HTTP {}",
+                resp.status().as_u16()
+            ));
         }
         let body: Value = resp
             .json()

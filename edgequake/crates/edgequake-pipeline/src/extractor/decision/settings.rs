@@ -400,9 +400,7 @@ fn is_inherit(raw: &str) -> bool {
 
 /// True when the workspace metadata opts the engine on.
 pub fn workspace_decision_enabled(meta: &HashMap<String, Value>) -> bool {
-    meta.get(META_DECISION_ENABLED)
-        .and_then(Value::as_bool)
-        == Some(true)
+    meta.get(META_DECISION_ENABLED).and_then(Value::as_bool) == Some(true)
 }
 
 /// A workspace write request for the decision keys.

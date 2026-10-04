@@ -1299,7 +1299,7 @@ mod tests {
                 decision_gate_preset: None,
                 decision_model: None,
                 decision_pack_size: None,
-            decision_enabled: None,
+                decision_enabled: None,
                 entity_type_colors: None,
                 relation_types: None,
                 relation_types_strict: None,
