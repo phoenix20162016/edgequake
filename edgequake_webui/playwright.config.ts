@@ -98,10 +98,15 @@ export default defineConfig({
       name: "mock-api",
       use: {
         ...devices["Desktop Chrome"],
+        // macOS: installed Chrome + Metal WebGL (bundled Chromium/swiftshader
+        // often fails Sigma). Linux CI keeps Chromium + swiftshader.
+        ...(process.platform === "darwin" ? { channel: "chrome" as const } : {}),
         launchOptions: {
           args: [
             "--use-gl=angle",
-            "--use-angle=swiftshader-webgl",
+            process.platform === "darwin"
+              ? "--use-angle=metal"
+              : "--use-angle=swiftshader-webgl",
             "--enable-webgl",
             "--ignore-gpu-blocklist",
           ],

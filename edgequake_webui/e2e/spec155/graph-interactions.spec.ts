@@ -198,4 +198,127 @@ test.describe("SPEC-155 graph interactions @spec155", () => {
     // selection survives the menu round-trip
     await expect(page.getByTestId("ego-clear")).toBeVisible();
   });
+
+  test("click lifts selection above neighbours; Escape restores z-order without moving nodes", async ({
+    page,
+  }) => {
+    await openGraph(page);
+    const a = await nodeByDegree(page, 0);
+    expect(a.neighbours.length).toBeGreaterThan(0);
+    const neighbour = a.neighbours[0]!;
+    const outsider = await page.evaluate((a0) => {
+      const sigma = (window as any).__eqSigma;
+      const g = sigma.getGraph();
+      const keep = new Set([a0.id, ...a0.neighbours]);
+      for (const n of g.nodes()) {
+        if (!keep.has(n) && !g.getNodeAttribute(n, "hidden")) return n;
+      }
+      return null;
+    }, a);
+    expect(outsider).not.toBeNull();
+
+    const edgePair = await page.evaluate(
+      ({ seed, far }) => {
+        const sigma = (window as any).__eqSigma;
+        const g = sigma.getGraph();
+        const incident = g.edges(seed)[0] as string | undefined;
+        let outsiderEdge: string | null = null;
+        for (const e of g.edges()) {
+          if (g.source(e) === seed || g.target(e) === seed) continue;
+          if (g.source(e) === far || g.target(e) === far) {
+            outsiderEdge = e;
+            break;
+          }
+        }
+        if (!outsiderEdge) {
+          for (const e of g.edges()) {
+            if (g.source(e) !== seed && g.target(e) !== seed) {
+              outsiderEdge = e;
+              break;
+            }
+          }
+        }
+        return { incident: incident ?? null, outsiderEdge };
+      },
+      { seed: a.id, far: outsider! },
+    );
+    expect(edgePair.incident).not.toBeNull();
+    expect(edgePair.outsiderEdge).not.toBeNull();
+
+    const snapshot = (ids: string[]) =>
+      page.evaluate((nodeIds) => {
+        const sigma = (window as any).__eqSigma;
+        const g = sigma.getGraph();
+        return Object.fromEntries(
+          nodeIds.map((id) => {
+            const display = sigma.getNodeDisplayData(id);
+            return [
+              id,
+              {
+                x: g.getNodeAttribute(id, "x") as number,
+                y: g.getNodeAttribute(id, "y") as number,
+                zIndex: display?.zIndex ?? 0,
+                highlighted: Boolean(display?.highlighted),
+              },
+            ];
+          }),
+        );
+      }, ids);
+
+    const edgeZ = (edgeId: string) =>
+      page.evaluate(
+        (id) => (window as any).__eqSigma.getEdgeDisplayData(id)?.zIndex ?? 0,
+        edgeId,
+      );
+
+    const ids = [a.id, neighbour, outsider!];
+    const before = await snapshot(ids);
+
+    await page.mouse.click(a.pt.x, a.pt.y);
+    await expect(page.getByTestId("ego-clear")).toBeVisible();
+    await expect
+      .poll(async () => (await snapshot(ids))[a.id]!.zIndex)
+      .toBeGreaterThan(0);
+
+    const lifted = await snapshot(ids);
+    expect(lifted[a.id]!.zIndex).toBeGreaterThan(lifted[neighbour]!.zIndex);
+    expect(lifted[neighbour]!.zIndex).toBeGreaterThan(lifted[outsider!]!.zIndex);
+    // Bright selection set redraws above focusEdges; outsider stays under.
+    expect(lifted[a.id]!.highlighted).toBe(true);
+    expect(lifted[neighbour]!.highlighted).toBe(true);
+    expect(lifted[outsider!]!.highlighted).toBe(false);
+    for (const id of ids) {
+      expect(lifted[id]!.x).toBe(before[id]!.x);
+      expect(lifted[id]!.y).toBe(before[id]!.y);
+    }
+
+    // Selected links lift among edges and get a canvas overlay above nodes.
+    await expect
+      .poll(async () => edgeZ(edgePair.incident!))
+      .toBeGreaterThan(0);
+    expect(await edgeZ(edgePair.incident!)).toBeGreaterThan(
+      await edgeZ(edgePair.outsiderEdge!),
+    );
+    await expect(
+      page.locator("[data-graph-engine] .sigma-focusEdges").first(),
+    ).toHaveCount(1);
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("ego-clear")).toHaveCount(0);
+    // Leave the node so hover preview does not keep the lift after deselection.
+    await page.mouse.move(8, 8);
+    await expect
+      .poll(async () => (await snapshot(ids))[a.id]!.zIndex)
+      .toBe(0);
+
+    const released = await snapshot(ids);
+    for (const id of ids) {
+      expect(released[id]!.zIndex).toBe(0);
+      expect(released[id]!.highlighted).toBe(false);
+      expect(released[id]!.x).toBe(before[id]!.x);
+      expect(released[id]!.y).toBe(before[id]!.y);
+    }
+    await expect.poll(async () => edgeZ(edgePair.incident!)).toBe(0);
+    await expect.poll(async () => edgeZ(edgePair.outsiderEdge!)).toBe(0);
+  });
 });

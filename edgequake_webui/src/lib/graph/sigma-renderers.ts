@@ -148,6 +148,11 @@ export function drawNodeHoverWithCard(
   data: PartialButFor<NodeDisplayData, 'x' | 'y' | 'size' | 'label' | 'color'>,
   settings: Settings,
 ): void {
+  // Selection lifts the disc via Sigma's highlighted/hoverNodes layer; the card
+  // is only for the node under the pointer (set by the engine reducer).
+  const showCard = (data as Record<string, unknown>)._showHoverCard;
+  if (showCard === false) return;
+
   const size = settings.labelSize ?? 11;
   const font = settings.labelFont ?? 'Inter, ui-sans-serif, system-ui, sans-serif';
 

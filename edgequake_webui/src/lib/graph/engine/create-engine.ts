@@ -23,11 +23,20 @@ import { LayoutScheduler, markAllPlaced } from "./layout-scheduler";
 import { exportGraphImage, type ExportImageOptions } from "./export";
 import { filterGraphData } from "./filter-pipeline";
 import {
+  bindFocusEdgeOverlay,
+  type FocusEdgeOverlayHandle,
+} from "./focus-edge-overlay";
+import {
   edgeReducerAttrs,
+  edgeStackZIndex,
   focusModeFromHoverSelect,
   isEdgeDimmed,
+  isLiftedFocusEdge,
   isNodeDimmed,
+  nodeNeedsHoverLayer,
   nodeReducerAttrs,
+  nodeStackZIndex,
+  resolveNodeStackRole,
   type FocusContext,
 } from "./focus-strategies";
 import { labelColorForTheme, resolveGraphTheme } from "./theme";
@@ -104,6 +113,7 @@ export class GraphEngine {
   private readonly layoutScheduler: LayoutScheduler;
   private perfTierKey = "";
   private interactions: InteractionHandle | null = null;
+  private focusEdgeOverlay: FocusEdgeOverlayHandle | null = null;
   /** Node whose context menu is open (kept emphasised; selection untouched). */
   private contextTargetId: string | null = null;
 
@@ -396,6 +406,8 @@ export class GraphEngine {
     this.stopLayout();
     this.interactions?.unbind();
     this.interactions = null;
+    this.focusEdgeOverlay?.unbind();
+    this.focusEdgeOverlay = null;
     this.sigma?.kill();
     this.sigma = null;
     this.container.removeAttribute("data-graph-engine-id");
@@ -544,18 +556,23 @@ export class GraphEngine {
     const nodeReducer = (node: string, attrs: Record<string, unknown>) => {
       const ctx = this.focusContext();
       const dimmed = isNodeDimmed(node, ctx);
-      const emphasized =
-        this.selectedNodeId === node ||
-        this.hoveredNodeId === node ||
-        this.contextTargetId === node ||
-        (this.focus.mode !== "none" && this.focus.ids.includes(node));
-      return nodeReducerAttrs(
-        attrs,
+      const role = resolveNodeStackRole({
+        nodeId: node,
+        selectedNodeId: this.selectedNodeId,
+        hoveredNodeId: this.hoveredNodeId,
+        contextTargetId: this.contextTargetId,
+        focus: this.focus,
+        neighborIds: this.neighborIds,
         dimmed,
-        emphasized,
-        this.theme.focus,
-        this.ringFade(node),
-      );
+      });
+      const emphasized = role === "focus" || role === "hover";
+      return nodeReducerAttrs(attrs, dimmed, emphasized, this.theme.focus, {
+        fade: this.ringFade(node),
+        zIndex: nodeStackZIndex(role),
+        // Bright set redraws above focusEdges; card only while the pointer is on it.
+        highlighted: nodeNeedsHoverLayer(role),
+        showHoverCard: this.hoveredNodeId === node,
+      });
     };
 
     const edgeReducer = (edge: string, attrs: Record<string, unknown>) => {
@@ -578,6 +595,12 @@ export class GraphEngine {
         {
           showLabel: this.shouldLabelEdge(edge),
           fade: Math.min(this.ringFade(source), this.ringFade(target)),
+          zIndex: edgeStackZIndex({
+            dimmed,
+            emphasized,
+            focus: ctx.focus,
+            highlightNeighbors: ctx.highlightNeighbors,
+          }),
         },
       );
     };
@@ -626,6 +649,29 @@ export class GraphEngine {
       });
       this.sigma = sigma;
       this.bindInteractions(sigma);
+      this.focusEdgeOverlay = bindFocusEdgeOverlay(sigma, {
+        getColor: () => this.theme.focus,
+        isLifted: (edgeId) => {
+          const ctx = this.focusContext();
+          if (!this.graph.hasEdge(edgeId)) return false;
+          const source = this.graph.source(edgeId);
+          const target = this.graph.target(edgeId);
+          const dimmed = isEdgeDimmed(edgeId, source, target, ctx);
+          const touchesFocus =
+            this.hoveredNodeId === source ||
+            this.hoveredNodeId === target ||
+            this.selectedNodeId === source ||
+            this.selectedNodeId === target;
+          const emphasized =
+            touchesFocus || this.hoveredEdgeId === edgeId;
+          return isLiftedFocusEdge({
+            dimmed,
+            emphasized,
+            focus: ctx.focus,
+            highlightNeighbors: ctx.highlightNeighbors,
+          });
+        },
+      });
     } catch (error) {
       const err =
         error instanceof Error

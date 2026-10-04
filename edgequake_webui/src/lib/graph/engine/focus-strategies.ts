@@ -10,6 +10,112 @@ export const DIM_EDGE_OPACITY = 0.12;
 export const FOCUS_NODE_OPACITY = 1;
 export const FOCUS_EDGE_OPACITY = 1;
 
+/** Draw-order tiers (Sigma program index when `zIndex: true`). */
+export const Z_NODE_REST = 0;
+export const Z_NODE_NEIGHBOR = 1;
+export const Z_NODE_HOVER = 2;
+export const Z_NODE_FOCUS = 3;
+export const Z_EDGE_REST = 0;
+export const Z_EDGE_FOCUS = 1;
+
+export type NodeStackRole = "rest" | "neighbor" | "hover" | "focus";
+
+/** Map a stack role to its Sigma `zIndex` (higher draws later / on top). */
+export function nodeStackZIndex(role: NodeStackRole): number {
+  switch (role) {
+    case "focus":
+      return Z_NODE_FOCUS;
+    case "hover":
+      return Z_NODE_HOVER;
+    case "neighbor":
+      return Z_NODE_NEIGHBOR;
+    default:
+      return Z_NODE_REST;
+  }
+}
+
+/**
+ * Bright selection-set discs redraw on Sigma's hoverNodes layer (above the
+ * focusEdges overlay) so lifted edges sit only over non-selected nodes.
+ */
+export function nodeNeedsHoverLayer(role: NodeStackRole): boolean {
+  return role !== "rest";
+}
+
+export interface NodeStackInput {
+  nodeId: string;
+  selectedNodeId: string | null;
+  hoveredNodeId: string | null;
+  contextTargetId: string | null;
+  focus: FocusState;
+  neighborIds: Set<string>;
+  /** True when the node is dimmed by filters / out-of-neighbourhood. */
+  dimmed: boolean;
+}
+
+/**
+ * Resolve draw-order role for a node. Selection / context / explicit focus ids
+ * outrank hover; bright neighbours sit above the rest; dimmed nodes stay at rest.
+ */
+export function resolveNodeStackRole(input: NodeStackInput): NodeStackRole {
+  const {
+    nodeId,
+    selectedNodeId,
+    hoveredNodeId,
+    contextTargetId,
+    focus,
+    neighborIds,
+    dimmed,
+  } = input;
+  if (
+    selectedNodeId === nodeId ||
+    contextTargetId === nodeId ||
+    (focus.mode !== "none" && focus.ids.includes(nodeId))
+  ) {
+    return "focus";
+  }
+  if (hoveredNodeId === nodeId) return "hover";
+  if (
+    !dimmed &&
+    (focus.mode === "hover" ||
+      focus.mode === "select" ||
+      focus.mode === "ego") &&
+    neighborIds.has(nodeId)
+  ) {
+    return "neighbor";
+  }
+  return "rest";
+}
+
+export interface EdgeStackInput {
+  dimmed: boolean;
+  emphasized: boolean;
+  focus: FocusState;
+  highlightNeighbors: boolean;
+}
+
+/**
+ * True for edges that should lift (among-edge zIndex + focusEdges overlay).
+ * Emphasized edges always lift; otherwise lit neighbourhood / answer / path edges.
+ */
+export function isLiftedFocusEdge(opts: EdgeStackInput): boolean {
+  const { dimmed, emphasized, focus, highlightNeighbors } = opts;
+  if (emphasized) return true;
+  if (dimmed || focus.mode === "none") return false;
+  if (focus.mode === "answer" || focus.mode === "path") return true;
+  return (
+    highlightNeighbors &&
+    (focus.mode === "hover" ||
+      focus.mode === "select" ||
+      focus.mode === "ego")
+  );
+}
+
+/** Lit focus edges draw above the background edge field. */
+export function edgeStackZIndex(opts: EdgeStackInput): number {
+  return isLiftedFocusEdge(opts) ? Z_EDGE_FOCUS : Z_EDGE_REST;
+}
+
 export interface FocusContext {
   focus: FocusState;
   filters: GraphFiltersState;
@@ -116,14 +222,43 @@ export function focusModeFromHoverSelect(
   return { mode: "none", ids: [] };
 }
 
+export interface NodeReducerOptions {
+  /** 1 = full strength; <1 softens outer neighbourhood rings (see hopFade). */
+  fade?: number;
+  /** Sigma draw order; always set explicitly so a prior lift cannot stick. */
+  zIndex?: number;
+  /**
+   * Redraw on Sigma's hoverNodes layer (above labels). Used for the focus node
+   * so the selection is never buried under overlapping label pills.
+   */
+  highlighted?: boolean;
+  /**
+   * When false, `drawNodeHoverWithCard` paints only the WebGL re-draw ring path
+   * skip — the disc still lifts via `highlighted`, without a sticky card.
+   */
+  showHoverCard?: boolean;
+}
+
 export function nodeReducerAttrs(
   attrs: Record<string, unknown>,
   dimmed: boolean,
   emphasized: boolean,
   focusColor: string,
-  /** 1 = full strength; <1 softens outer neighbourhood rings (see hopFade). */
-  fade = 1,
+  /** Options bag, or a bare fade number for older call sites. */
+  options: NodeReducerOptions | number = {},
 ): Record<string, unknown> {
+  const opts: NodeReducerOptions =
+    typeof options === "number" ? { fade: options } : options;
+  const fade = opts.fade ?? 1;
+  const zIndex = opts.zIndex ?? Z_NODE_REST;
+  const highlighted = opts.highlighted ?? false;
+  const showHoverCard = opts.showHoverCard ?? false;
+  const stack = {
+    zIndex,
+    highlighted,
+    _showHoverCard: showHoverCard,
+  };
+
   if (emphasized) {
     return {
       ...attrs,
@@ -133,11 +268,11 @@ export function nodeReducerAttrs(
       // Ring in the focus colour = unmistakable "this one" marker.
       borderColor: focusColor,
       borderSize: 0.3,
-      zIndex: 100,
       forceLabel: true,
       // Sigma uses size / color; opacity via custom attr read by reducer consumers
       _dimmed: false,
       _opacity: FOCUS_NODE_OPACITY,
+      ...stack,
     };
   }
   if (dimmed) {
@@ -152,6 +287,7 @@ export function nodeReducerAttrs(
         typeof attrs.color === "string" ? attrs.color : "#94a3b8",
         DIM_NODE_OPACITY,
       ),
+      ...stack,
     };
   }
   if (fade < 1) {
@@ -164,6 +300,7 @@ export function nodeReducerAttrs(
         typeof attrs.color === "string" ? attrs.color : "#94a3b8",
         fade,
       ),
+      ...stack,
     };
   }
   return {
@@ -171,6 +308,7 @@ export function nodeReducerAttrs(
     hidden: false,
     _dimmed: false,
     _opacity: FOCUS_NODE_OPACITY,
+    ...stack,
   };
 }
 
@@ -179,6 +317,8 @@ export interface EdgeReducerOptions {
   showLabel?: boolean;
   /** <1 softens edges in the outer neighbourhood rings. */
   fade?: number;
+  /** Sigma draw order among edges; always set explicitly. */
+  zIndex?: number;
 }
 
 export function edgeReducerAttrs(
@@ -187,7 +327,7 @@ export function edgeReducerAttrs(
   emphasized: boolean,
   focusColor: string,
   defaultEdgeColor: string,
-  { showLabel = true, fade = 1 }: EdgeReducerOptions = {},
+  { showLabel = true, fade = 1, zIndex = Z_EDGE_REST }: EdgeReducerOptions = {},
 ): Record<string, unknown> {
   if (emphasized) {
     return {
@@ -197,6 +337,7 @@ export function edgeReducerAttrs(
       size: (typeof attrs.size === "number" ? attrs.size : 2) * 1.6,
       forceLabel: showLabel && !!attrs.label,
       _dimmed: false,
+      zIndex,
     };
   }
   if (!dimmed && fade < 1) {
@@ -205,6 +346,7 @@ export function edgeReducerAttrs(
       hidden: false,
       color: softenColor(defaultEdgeColor, fade),
       _dimmed: false,
+      zIndex,
     };
   }
   if (dimmed) {
@@ -214,9 +356,10 @@ export function edgeReducerAttrs(
       color: softenColor(defaultEdgeColor, DIM_EDGE_OPACITY),
       forceLabel: false,
       _dimmed: true,
+      zIndex,
     };
   }
-  return { ...attrs, hidden: false, _dimmed: false };
+  return { ...attrs, hidden: false, _dimmed: false, zIndex };
 }
 
 /** Approximate alpha blend onto a light canvas (no true WebGL opacity in node programs). */
