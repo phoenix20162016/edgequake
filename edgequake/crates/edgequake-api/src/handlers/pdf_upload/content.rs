@@ -1,16 +1,22 @@
+use axum::body::{Body, Bytes};
 use axum::extract::{Path, State};
+use axum::http::{header, HeaderValue, StatusCode};
+use axum::response::IntoResponse;
 use axum::Json;
+use futures::stream::unfold;
 use serde::Serialize;
 use tracing::debug;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::byte_range::{evaluate_range, ByteRange};
+use super::byte_range::{
+    evaluate_range, pdf_body_plan, pdf_content_disposition, range_windows, ByteRange, PdfBodyPlan,
+};
 use super::helpers::get_pdf_storage;
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::TenantContext;
 use crate::state::AppState;
-use edgequake_storage::PdfProcessingStatus;
+use edgequake_storage::{PdfDocumentStorage, PdfProcessingStatus};
 
 // ============================================================================
 // PDF Content Download Endpoints (SPEC-002: Document Viewer)
@@ -111,21 +117,16 @@ pub async fn download_pdf(
         pdf_id, info.filename, info.total_bytes, range_header, range
     );
 
-    let body = match range {
-        ByteRange::Full => {
-            let pdf = pdf_storage
-                .get_pdf(&pdf_id)
-                .await
-                .map_err(|e| ApiError::Internal(format!("Failed to get PDF: {}", e)))?
-                .ok_or_else(|| ApiError::NotFound("PDF not found".to_string()))?;
-            pdf.pdf_data
+    let plan = pdf_body_plan(range, info.total_bytes);
+    let (body, body_len) = match plan {
+        PdfBodyPlan::Unsatisfiable | PdfBodyPlan::Empty => (Body::empty(), 0),
+        PdfBodyPlan::Stream { start, end } => {
+            let body_len = end.saturating_sub(start).saturating_add(1);
+            (
+                pdf_byte_stream(pdf_storage.clone(), pdf_id, start, end),
+                body_len,
+            )
         }
-        ByteRange::Partial { start, end } => pdf_storage
-            .get_pdf_bytes_range(&pdf_id, start, end)
-            .await
-            .map_err(|e| ApiError::Internal(format!("Failed to read PDF range: {}", e)))?
-            .ok_or_else(|| ApiError::NotFound("PDF not found".to_string()))?,
-        ByteRange::Unsatisfiable => Vec::new(),
     };
 
     Ok(build_pdf_response(
@@ -133,6 +134,35 @@ pub async fn download_pdf(
         info.total_bytes,
         range,
         body,
+        body_len,
+    ))
+}
+
+/// Stream `start..=end` in [`super::byte_range::PDF_RANGE_CHUNK`] windows.
+///
+/// Each poll of the body awaits at most one storage read, so pdf.js aborting
+/// the unranged probe after headers costs at most one chunk (never `get_pdf`).
+fn pdf_byte_stream(
+    storage: std::sync::Arc<dyn PdfDocumentStorage>,
+    pdf_id: Uuid,
+    start: u64,
+    end: u64,
+) -> Body {
+    let windows = range_windows(start, end).into_iter();
+    Body::from_stream(unfold(
+        (storage, pdf_id, windows),
+        |(storage, pdf_id, mut windows)| async move {
+            let (s, e) = windows.next()?;
+            let item = match storage.get_pdf_bytes_range(&pdf_id, s, e).await {
+                Ok(Some(chunk)) => Ok(Bytes::from(chunk)),
+                Ok(None) => Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "PDF not found",
+                )),
+                Err(err) => Err(std::io::Error::other(err.to_string())),
+            };
+            Some((item, (storage, pdf_id, windows)))
+        },
     ))
 }
 
@@ -147,41 +177,45 @@ fn build_pdf_response(
     filename: &str,
     total: u64,
     range: ByteRange,
-    body: Vec<u8>,
+    body: Body,
+    body_len: u64,
 ) -> axum::response::Response<axum::body::Body> {
-    use axum::http::{header, StatusCode};
-    use axum::response::IntoResponse;
+    let content_disposition = pdf_content_disposition(filename);
+    let content_length = HeaderValue::from_str(&body_len.to_string())
+        .unwrap_or_else(|_| HeaderValue::from_static("0"));
 
-    let content_disposition = format!("inline; filename=\"{}\"", filename);
-    let common = [
-        (header::CONTENT_TYPE, "application/pdf".to_string()),
-        (header::CONTENT_DISPOSITION, content_disposition),
-        (header::CACHE_CONTROL, "private, max-age=3600".to_string()),
-        (header::ACCEPT_RANGES, "bytes".to_string()),
-        (header::CONTENT_ENCODING, "identity".to_string()),
-    ];
+    let mut builder = axum::http::Response::builder()
+        .header(header::CONTENT_TYPE, "application/pdf")
+        .header(header::CONTENT_DISPOSITION, content_disposition)
+        .header(header::CACHE_CONTROL, "private, max-age=3600")
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::CONTENT_ENCODING, "identity")
+        .header(header::CONTENT_LENGTH, content_length);
 
     match range {
-        ByteRange::Full => (StatusCode::OK, common, body).into_response(),
-        ByteRange::Partial { start, end } => (
-            StatusCode::PARTIAL_CONTENT,
-            common,
-            [(
+        ByteRange::Full => {
+            builder = builder.status(StatusCode::OK);
+        }
+        ByteRange::Partial { start, end } => {
+            builder = builder.status(StatusCode::PARTIAL_CONTENT).header(
                 header::CONTENT_RANGE,
                 format!("bytes {start}-{end}/{total}"),
-            )],
-            body,
-        )
-            .into_response(),
-        ByteRange::Unsatisfiable => (
-            StatusCode::RANGE_NOT_SATISFIABLE,
-            [
-                (header::ACCEPT_RANGES, "bytes".to_string()),
-                (header::CONTENT_RANGE, format!("bytes */{total}")),
-            ],
-        )
-            .into_response(),
+            );
+        }
+        ByteRange::Unsatisfiable => {
+            builder = builder
+                .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                .header(header::CONTENT_RANGE, format!("bytes */{total}"));
+        }
     }
+
+    builder.body(body).unwrap_or_else(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "failed to build PDF response",
+        )
+            .into_response()
+    })
 }
 
 /// Get PDF content metadata including markdown.
@@ -258,25 +292,28 @@ pub async fn get_pdf_content(
 
 #[cfg(test)]
 mod range_response_tests {
-    use super::{build_pdf_response, evaluate_range};
+    use super::{build_pdf_response, evaluate_range, pdf_body_plan, PdfBodyPlan};
+    use axum::body::Body;
     use axum::http::{header, StatusCode};
 
     fn sample() -> Vec<u8> {
         (0u8..100).collect()
     }
 
-    /// Mirror of the handler: evaluate the header, then slice like storage does.
+    /// Mirror of the handler: evaluate the header, then emit a sized body.
     fn respond(range_header: Option<&str>) -> axum::response::Response<axum::body::Body> {
         let data = sample();
-        let range = evaluate_range(range_header, data.len() as u64);
-        let body = match range {
-            super::ByteRange::Full => data.clone(),
-            super::ByteRange::Partial { start, end } => {
-                data[start as usize..=end as usize].to_vec()
+        let total = data.len() as u64;
+        let range = evaluate_range(range_header, total);
+        let (body, body_len) = match pdf_body_plan(range, total) {
+            PdfBodyPlan::Unsatisfiable | PdfBodyPlan::Empty => (Body::empty(), 0),
+            PdfBodyPlan::Stream { start, end } => {
+                let slice = data[start as usize..=end as usize].to_vec();
+                let len = slice.len() as u64;
+                (Body::from(slice), len)
             }
-            super::ByteRange::Unsatisfiable => Vec::new(),
         };
-        build_pdf_response("a.pdf", data.len() as u64, range, body)
+        build_pdf_response("a.pdf", total, range, body, body_len)
     }
 
     #[tokio::test]
@@ -285,6 +322,11 @@ mod range_response_tests {
         assert_eq!(res.status(), StatusCode::OK);
         assert_eq!(res.headers()[header::ACCEPT_RANGES], "bytes");
         assert_eq!(res.headers()[header::CONTENT_ENCODING], "identity");
+        assert_eq!(res.headers()[header::CONTENT_LENGTH], "100");
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(body.len(), 100);
     }
 
     #[tokio::test]
@@ -292,6 +334,7 @@ mod range_response_tests {
         let res = respond(Some("bytes=10-19"));
         assert_eq!(res.status(), StatusCode::PARTIAL_CONTENT);
         assert_eq!(res.headers()[header::CONTENT_RANGE], "bytes 10-19/100");
+        assert_eq!(res.headers()[header::CONTENT_LENGTH], "10");
         let body = axum::body::to_bytes(res.into_body(), usize::MAX)
             .await
             .unwrap();
@@ -299,9 +342,42 @@ mod range_response_tests {
     }
 
     #[tokio::test]
+    async fn suffix_and_open_ended_set_content_length() {
+        let open = respond(Some("bytes=90-"));
+        assert_eq!(open.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(open.headers()[header::CONTENT_RANGE], "bytes 90-99/100");
+        assert_eq!(open.headers()[header::CONTENT_LENGTH], "10");
+
+        let suffix = respond(Some("bytes=-5"));
+        assert_eq!(suffix.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(suffix.headers()[header::CONTENT_RANGE], "bytes 95-99/100");
+        assert_eq!(suffix.headers()[header::CONTENT_LENGTH], "5");
+    }
+
+    #[tokio::test]
     async fn out_of_bounds_range_returns_416() {
         let res = respond(Some("bytes=500-"));
         assert_eq!(res.status(), StatusCode::RANGE_NOT_SATISFIABLE);
         assert_eq!(res.headers()[header::CONTENT_RANGE], "bytes */100");
+        assert_eq!(res.headers()[header::CONTENT_LENGTH], "0");
+    }
+
+    #[tokio::test]
+    async fn malformed_range_returns_416_not_full_body() {
+        let res = respond(Some("bytes=0-9,20-29"));
+        assert_eq!(res.status(), StatusCode::RANGE_NOT_SATISFIABLE);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert!(body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn disposition_never_embeds_crlf() {
+        let range = super::ByteRange::Full;
+        let res = build_pdf_response("evil\r\nX-Injected: 1.pdf", 0, range, Body::empty(), 0);
+        let disp = res.headers()[header::CONTENT_DISPOSITION].to_str().unwrap();
+        assert!(!disp.contains('\r'));
+        assert!(!disp.contains('\n'));
     }
 }

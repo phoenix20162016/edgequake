@@ -22,6 +22,7 @@ import { ResizablePanel } from '@/components/ui/resizable-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePageSyncController } from '@/hooks/use-page-sync-controller';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { shouldUsePdfReprocessPanel } from '@/hooks/use-reprocess-tracking';
 import {
     getDocument,
@@ -68,6 +69,7 @@ export default function DocumentViewPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const documentId = params.id as string;
+  const isLgUp = useMediaQuery('(min-width: 1024px)');
   const { selectedWorkspaceId } = useTenantStore();
   const queryClient = useQueryClient();
 
@@ -745,8 +747,8 @@ export default function DocumentViewPage() {
           inside the viewer flex-col stacked it under the PDF and let lineage height
           collapse the viewer to empty whitespace (broken detail view). */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* OODA-43: Desktop layout with PDF side-by-side support */}
-        <div className="hidden min-h-0 lg:flex lg:flex-1 lg:flex-row lg:overflow-hidden">
+        {isLgUp ? (
+        <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
           {/* Main column: page health + document viewer */}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             {/* Quiet header: no idle page selector. Progress banner only while a
@@ -906,9 +908,8 @@ export default function DocumentViewPage() {
             </ResizablePanel>
           )}
         </div>
-
-        {/* Mobile/Tablet: Tabbed layout */}
-        <div className="flex-1 lg:hidden overflow-hidden">
+        ) : (
+        <div className="flex-1 overflow-hidden">
           <Tabs defaultValue="content" className="h-full flex flex-col">
             {/* SPEC-100: always 3-col tab slot so async PDF detection does not widen tabs. */}
             <TabsList
@@ -1000,6 +1001,7 @@ export default function DocumentViewPage() {
             </TabsContent>
           </Tabs>
         </div>
+        )}
       </div>
     </div>
   );

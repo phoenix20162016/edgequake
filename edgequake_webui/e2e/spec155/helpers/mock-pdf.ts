@@ -94,8 +94,9 @@ export async function mockRangePdfRoute(
     stats.log.push(range ?? "full");
     const m = supportRange ? /^bytes=(\d+)-(\d*)$/.exec(range ?? "") : null;
     if (!m) {
-      // A range-capable server's unranged probe is cancelled by pdf.js once
-      // the headers show `Accept-Ranges`; model that as one chunk of waste.
+      // pdf.js's unranged probe is aborted after headers when Accept-Ranges is
+      // advertised. The API streams 128 KiB windows; model transferred probe
+      // waste as one chunk.
       stats.bytesServed += supportRange ? Math.min(pdf.length, PROBE_WASTE) : pdf.length;
       await route.fulfill({
         status: 200,

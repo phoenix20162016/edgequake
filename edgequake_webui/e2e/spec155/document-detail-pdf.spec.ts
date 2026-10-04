@@ -4,8 +4,8 @@
  * Contract:
  *  - the viewer never downloads the whole file up front; pdf.js issues `Range`
  *    requests and first paint transfers a fraction of the bytes;
- *  - only a small window of pages around the reading position is rasterised,
- *    even for short documents;
+ *  - only a small window of pages around the reading position is rasterised
+ *    once the document has more than 6 pages (short documents render every page);
  *  - a server that ignores `Range` still renders (graceful 200 fallback).
  */
 import { expect, test } from "@playwright/test";
@@ -31,9 +31,11 @@ const DOC = {
 
 async function openDetail(
   page: import("@playwright/test").Page,
-  opts: { supportRange?: boolean; query?: string } = {},
+  opts: { supportRange?: boolean; query?: string; pages?: number } = {},
 ) {
-  await prepareSpec155Page(page, { documents: [DOC] });
+  const pageCount = opts.pages ?? PAGES;
+  const doc = { ...DOC, page_count: pageCount };
+  await prepareSpec155Page(page, { documents: [doc] });
   await page.route(/\/api\/v1\/documents\/pdf\/[^/?]+$/, (route) =>
     route.fulfill({
       status: 200,
@@ -41,7 +43,7 @@ async function openDetail(
       body: JSON.stringify({
         pdf_id: DOC_ID,
         document_id: DOC_ID,
-        filename: DOC.file_name,
+        filename: doc.file_name,
         file_size_bytes: 1,
         content_type: "application/pdf",
         markdown_content: "# Mock\n\nBody text.",
@@ -49,7 +51,7 @@ async function openDetail(
       }),
     }),
   );
-  const pdf = buildMockPdf(PAGES);
+  const pdf = buildMockPdf(pageCount);
   const stats = await mockRangePdfRoute(page, pdf, {
     supportRange: opts.supportRange ?? true,
   });
@@ -57,7 +59,7 @@ async function openDetail(
   await page.goto(`/documents/${DOC_ID}${opts.query ?? ""}`, {
     waitUntil: "domcontentloaded",
   });
-  await expect(page.getByTestId("pdf-page-indicator")).toContainText(`/ ${PAGES}`, {
+  await expect(page.getByTestId("pdf-page-indicator")).toContainText(`/ ${pageCount}`, {
     timeout: 30_000,
   });
   return stats;
@@ -85,6 +87,14 @@ test.describe("SPEC-155 document detail — PDF on demand @spec155", () => {
     expect(canvases).toBeGreaterThan(0);
     expect(canvases).toBeLessThanOrEqual(5);
     expect(await page.getByTestId("pdf-page-sheet").count()).toBe(PAGES);
+  });
+
+  test("short documents rasterise every page", async ({ page }) => {
+    await openDetail(page, { pages: 4 });
+    await expect(page.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(500);
+    expect(await page.getByTestId("pdf-page-sheet").count()).toBe(4);
+    expect(await page.locator("[data-testid='pdf-page-sheet'] canvas").count()).toBe(4);
   });
 
   test("deep link to a late page does not pull the whole file", async ({ page }) => {

@@ -113,6 +113,28 @@ impl PdfDocumentStorage for MemoryPdfStorage {
         Ok(pdfs.get(pdf_id).cloned())
     }
 
+    async fn get_pdf_blob_info(&self, pdf_id: &Uuid) -> Result<Option<PdfBlobInfo>> {
+        let pdfs = self.pdfs.read().map_err(map_lock_err)?;
+        Ok(pdfs.get(pdf_id).map(|pdf| PdfBlobInfo {
+            workspace_id: pdf.workspace_id,
+            filename: pdf.filename.clone(),
+            total_bytes: pdf.pdf_data.len() as u64,
+        }))
+    }
+
+    async fn get_pdf_bytes_range(
+        &self,
+        pdf_id: &Uuid,
+        start: u64,
+        end: u64,
+    ) -> Result<Option<Vec<u8>>> {
+        let pdfs = self.pdfs.read().map_err(map_lock_err)?;
+        Ok(pdfs.get(pdf_id).and_then(|pdf| {
+            let (s, e) = (start as usize, end as usize);
+            (e < pdf.pdf_data.len() && s <= e).then(|| pdf.pdf_data[s..=e].to_vec())
+        }))
+    }
+
     async fn find_pdf_by_checksum(
         &self,
         workspace_id: &Uuid,

@@ -1,12 +1,12 @@
 /**
- * Resolve PDF sources that require API auth into in-memory bytes.
+ * Authenticated PDF sources for react-pdf / pdf.js.
  *
- * react-pdf / pdf.js cannot attach Authorization on a bare download URL.
- * Demo (auth_enabled) returns 401 for HEAD/GET without Bearer — same class of
- * bug as AuthenticatedMarkdownImage.
+ * react-pdf cannot attach Authorization on a bare download URL. Demo
+ * (auth_enabled) returns 401 for GET without Bearer — same class of bug as
+ * AuthenticatedMarkdownImage.
  *
- * We return `{ data: Uint8Array }` (not a blob: URL) so pdf.js never re-fetches
- * and we avoid revoke races with React effect cleanup.
+ * Viewing uses `{ url, httpHeaders }` so pdf.js issues HTTP Range requests.
+ * `fetchAuthenticatedPdfData` remains for callers that need the whole file.
  */
 
 import { buildHeaders } from "@/lib/api/client";

@@ -35,6 +35,15 @@ import {
   scrollTopForPage,
 } from '@/lib/documents/page-scroll';
 import {
+  SPARSE_SHEET_THRESHOLD,
+  isAuthFailureMessage,
+  pageInRenderWindow,
+  placeholderHeightForPage,
+  prefixSumStarts,
+  sparseMountedPages,
+  sparseSpacerHeights,
+} from '@/lib/documents/pdf-render-window';
+import {
   PDF_LOAD_OPTIONS,
   buildAuthenticatedPdfSource,
   extractPdfSourceUrl,
@@ -62,28 +71,29 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 type PDFFileSource = PdfFileSource;
 
-const Document = dynamic(() => import('react-pdf').then((mod) => mod.Document), {
-  ssr: false,
-  loading: () => <PDFLoadingSkeleton />,
-});
+const Document = dynamic(
+  () =>
+    import('react-pdf').then((mod) => {
+      mod.pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+      return mod.Document;
+    }),
+  {
+    ssr: false,
+    loading: () => <PDFLoadingSkeleton />,
+  },
+);
 
-const Page = dynamic(() => import('react-pdf').then((mod) => mod.Page), {
-  ssr: false,
-});
+const Page = dynamic(
+  () =>
+    import('react-pdf').then((mod) => {
+      mod.pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+      return mod.Page;
+    }),
+  { ssr: false },
+);
 
-if (typeof window !== 'undefined') {
-  import('react-pdf').then(({ pdfjs }) => {
-    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-  });
-}
-
-/**
- * Windowed render kicks in above this page count (SPEC-143). Every mounted
- * <Page> owns a canvas + text layer, so keep the live window small: only
- * pages near the reading position are rasterised and fetched (range requests).
- */
-const WINDOW_THRESHOLD = 6;
-const WINDOW_RADIUS = 2;
+const DEVICE_PIXEL_RATIO =
+  typeof window === 'undefined' ? 1 : Math.min(window.devicePixelRatio || 1, 2);
 
 interface PDFViewerProps {
   file: PDFFileSource;
@@ -214,7 +224,7 @@ export function PDFViewer({
   const [isFullWidth, setIsFullWidth] = useState(false);
   const [overlayOn, setOverlayOn] = useState(false);
   const [pageBox, setPageBox] = useState<{ width: number; height: number } | null>(null);
-  const [basePageHeight, setBasePageHeight] = useState(800);
+  const [pageHeights, setPageHeights] = useState<Map<number, number>>(() => new Map());
   const [chips, setChips] = useState<OverlayChips>({
     figures: true,
     charts: true,
@@ -230,8 +240,10 @@ export function PDFViewer({
   const lastEmittedRef = useRef<number | null>(null);
   const suppressScrollEmitRef = useRef(false);
   const followRafRef = useRef<number | null>(null);
-  /** True while the user is gesturing on the PDF pane (wheel / pointer / keys). */
+  /** True while the user is gesturing on the PDF pane (wheel / pointer / keys / toolbar). */
   const pdfGestureRef = useRef(false);
+  const gestureEndTimerRef = useRef<number | null>(null);
+  const authRetriedRef = useRef(false);
   const onGestureStartRef = useRef(onGestureStart);
   onGestureStartRef.current = onGestureStart;
   const onGestureEndRef = useRef(onGestureEnd);
@@ -251,6 +263,7 @@ export function PDFViewer({
     stickToTop: boolean;
   } | null>(null);
   const isControlled = currentPage !== undefined;
+  const useSparseSheets = numPages > SPARSE_SHEET_THRESHOLD;
 
   const scheduleAlign = useCallback(() => {
     if (pdfGestureRef.current) return;
@@ -261,6 +274,33 @@ export function PDFViewer({
       setLayoutTick((n) => n + 1);
     });
   }, []);
+
+  const beginUserGesture = useCallback(() => {
+    if (gestureEndTimerRef.current != null) {
+      window.clearTimeout(gestureEndTimerRef.current);
+    }
+    pdfGestureRef.current = true;
+    if (holdRef.current) holdRef.current.stickToTop = false;
+    onGestureStartRef.current?.();
+    gestureEndTimerRef.current = window.setTimeout(() => {
+      pdfGestureRef.current = false;
+      onGestureEndRef.current?.();
+      gestureEndTimerRef.current = null;
+      scheduleAlign();
+    }, 150);
+  }, [scheduleAlign]);
+
+  const endUserGesture = useCallback(() => {
+    if (gestureEndTimerRef.current != null) {
+      window.clearTimeout(gestureEndTimerRef.current);
+    }
+    gestureEndTimerRef.current = window.setTimeout(() => {
+      pdfGestureRef.current = false;
+      onGestureEndRef.current?.();
+      gestureEndTimerRef.current = null;
+      scheduleAlign();
+    }, 150);
+  }, [scheduleAlign]);
 
   /** Controlled page is SSOT for toolbar when provided. */
   const displayPage =
@@ -288,6 +328,9 @@ export function PDFViewer({
   });
 
   const collectSheetStarts = useCallback((): Map<number, number> => {
+    if (useSparseSheets) {
+      return prefixSumStarts(numPages, pageHeights, scale);
+    }
     const root = scrollRef.current;
     const map = new Map<number, number>();
     if (!root) return map;
@@ -295,7 +338,7 @@ export function PDFViewer({
       map.set(p, offsetTopWithin(root, el));
     });
     return map;
-  }, []);
+  }, [useSparseSheets, numPages, pageHeights, scale]);
 
   const emitPage = useCallback(
     (page: number) => {
@@ -316,9 +359,11 @@ export function PDFViewer({
         numPages > 0 ? Math.max(1, Math.min(numPages, page)) : Math.max(1, page);
       setPageNumber(clamped);
       if (!root) return;
-      const el = sheetRefs.current.get(clamped);
-      if (!el) return;
       const starts = collectSheetStarts();
+      if (!useSparseSheets) {
+        const el = sheetRefs.current.get(clamped);
+        if (!el) return;
+      }
       const maxScroll = Math.max(0, root.scrollHeight - root.clientHeight);
       const top = scrollTopForPage(starts, clamped, maxScroll);
       const result = scrollPaneTo(root, top);
@@ -326,7 +371,7 @@ export function PDFViewer({
         beginScrollSuppress(root, suppressScrollEmitRef);
       }
     },
-    [numPages, collectSheetStarts],
+    [numPages, collectSheetStarts, useSparseSheets],
   );
 
   // Bottom spacer so every page (including the last) can sit at the reading line.
@@ -334,19 +379,20 @@ export function PDFViewer({
     const root = scrollRef.current;
     if (!root || numPages < 1) return;
     const measure = () => {
-      const last = sheetRefs.current.get(numPages);
-      if (!last) {
+      const lastH = useSparseSheets
+        ? placeholderHeightForPage(numPages, pageHeights, scale)
+        : sheetRefs.current.get(numPages)?.getBoundingClientRect().height;
+      if (!lastH) {
         setBottomSpacer(0);
         return;
       }
-      const lastH = last.getBoundingClientRect().height;
       setBottomSpacer(Math.max(0, Math.round(root.clientHeight - lastH)));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(root);
     return () => ro.disconnect();
-  }, [numPages, scale, pageBox]);
+  }, [numPages, scale, pageBox, useSparseSheets, pageHeights]);
 
   // Follow controlled page (deeplink / markdown sync).
   // Do not snap back while the user is scrolling this pane — that race
@@ -363,8 +409,7 @@ export function PDFViewer({
 
     const root = scrollRef.current;
     if (!root || numPages < 1) return;
-    const el = sheetRefs.current.get(clamped);
-    if (!el) return;
+    if (!useSparseSheets && !sheetRefs.current.get(clamped)) return;
 
     const starts = collectSheetStarts();
     const start = starts.get(clamped);
@@ -393,7 +438,7 @@ export function PDFViewer({
       scrollTop: root.scrollTop,
       stickToTop,
     };
-  }, [currentPage, numPages, scale, pageBox, bottomSpacer, layoutTick, collectSheetStarts]);
+  }, [currentPage, numPages, scale, pageBox, bottomSpacer, layoutTick, collectSheetStarts, useSparseSheets]);
 
   // Page canvases change stack height after the first scroll. Re-align the
   // controlled page once the user is not mid-gesture.
@@ -430,6 +475,9 @@ export function PDFViewer({
     };
 
     const onScroll = () => {
+      if (pdfGestureRef.current) {
+        endUserGesture();
+      }
       if (followRafRef.current != null) cancelAnimationFrame(followRafRef.current);
       followRafRef.current = requestAnimationFrame(() => {
         followRafRef.current = null;
@@ -437,44 +485,39 @@ export function PDFViewer({
       });
     };
 
-    let endTimer: number | null = null;
-    const markGesture = () => {
-      if (endTimer != null) {
-        window.clearTimeout(endTimer);
-        endTimer = null;
+    const finishGesture = () => {
+      if (gestureEndTimerRef.current != null) {
+        window.clearTimeout(gestureEndTimerRef.current);
       }
-      pdfGestureRef.current = true;
-      if (holdRef.current) holdRef.current.stickToTop = false;
-      onGestureStartRef.current?.();
-    };
-    const endGesture = () => {
-      // Delay clear so rAF scroll pick can run after scrollend.
-      if (endTimer != null) window.clearTimeout(endTimer);
-      endTimer = window.setTimeout(() => {
+      gestureEndTimerRef.current = window.setTimeout(() => {
         const wasUser = pdfGestureRef.current;
         if (wasUser) pickActivePage();
         pdfGestureRef.current = false;
         onGestureEndRef.current?.();
-        endTimer = null;
+        gestureEndTimerRef.current = null;
         if (wasUser) scheduleAlign();
-      }, 120);
+      }, 150);
     };
 
     root.addEventListener('scroll', onScroll, { passive: true });
-    root.addEventListener('wheel', markGesture, { passive: true });
-    root.addEventListener('pointerdown', markGesture, { passive: true });
-    root.addEventListener('scrollend', endGesture);
-    root.addEventListener('pointerup', endGesture, { passive: true });
+    root.addEventListener('wheel', beginUserGesture, { passive: true });
+    root.addEventListener('pointerdown', beginUserGesture, { passive: true });
+    root.addEventListener('scrollend', finishGesture);
+    root.addEventListener('pointerup', finishGesture, { passive: true });
 
     return () => {
       root.removeEventListener('scroll', onScroll);
-      root.removeEventListener('wheel', markGesture);
-      root.removeEventListener('pointerdown', markGesture);
-      root.removeEventListener('scrollend', endGesture);
-      root.removeEventListener('pointerup', endGesture);
+      root.removeEventListener('wheel', beginUserGesture);
+      root.removeEventListener('pointerdown', beginUserGesture);
+      root.removeEventListener('scrollend', finishGesture);
+      root.removeEventListener('pointerup', finishGesture);
       if (followRafRef.current != null) cancelAnimationFrame(followRafRef.current);
+      if (gestureEndTimerRef.current != null) {
+        window.clearTimeout(gestureEndTimerRef.current);
+        gestureEndTimerRef.current = null;
+      }
     };
-  }, [numPages, emitPage, scale, collectSheetStarts, isControlled, scheduleAlign]);
+  }, [numPages, emitPage, scale, collectSheetStarts, isControlled, scheduleAlign, beginUserGesture, endUserGesture]);
 
   // Keyboard: PageUp/Down, Arrows — only when PDF pane focused or hovered
   useEffect(() => {
@@ -500,21 +543,23 @@ export function PDFViewer({
       const active = displayPage;
       if (e.key === 'PageDown' || e.key === 'ArrowDown') {
         e.preventDefault();
-        onGestureStartRef.current?.();
+        beginUserGesture();
         const next = Math.min(numPages, active + 1);
         scrollToPage(next);
         emitPage(next);
+        endUserGesture();
       } else if (e.key === 'PageUp' || e.key === 'ArrowUp') {
         e.preventDefault();
-        onGestureStartRef.current?.();
+        beginUserGesture();
         const prev = Math.max(1, active - 1);
         scrollToPage(prev);
         emitPage(prev);
+        endUserGesture();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [overlayDisabled, numPages, displayPage, scrollToPage, emitPage]);
+  }, [overlayDisabled, numPages, displayPage, scrollToPage, emitPage, beginUserGesture, endUserGesture]);
 
   const [urlOk, setUrlOk] = useState<boolean | null>(null);
   const [probeError, setProbeError] = useState<string | null>(null);
@@ -523,10 +568,15 @@ export function PDFViewer({
   );
   const [authRetryKey, setAuthRetryKey] = useState(0);
 
-  // Auth-enabled demo: bare download URLs 401 without Bearer. Fetch with
-  // buildHeaders → in-memory bytes (same pattern as AuthenticatedMarkdownImage).
+  // Auth-protected API URLs: hand pdf.js the URL + session headers so it
+  // range-fetches. No whole-file download before first paint.
   useEffect(() => {
     let cancelled = false;
+    authRetriedRef.current = false;
+    setNumPages(0);
+    setPageHeights(new Map());
+    setPageBox(null);
+    setError(null);
 
     const sourceUrl = extractPdfSourceUrl(file);
     Promise.resolve().then(async () => {
@@ -559,9 +609,6 @@ export function PDFViewer({
         return;
       }
 
-      // Auth-protected API URL: hand pdf.js the URL + session headers so it
-      // streams and range-fetches. No whole-file download before first paint;
-      // HTTP failures surface through <Document onLoadError>.
       if (!cancelled) {
         setResolvedFile(buildAuthenticatedPdfSource(sourceUrl));
         setUrlOk(true);
@@ -583,46 +630,70 @@ export function PDFViewer({
     [onLoadSuccess],
   );
 
+  const retryAuthOnce = useCallback((err: Error) => {
+    if (!isAuthFailureMessage(err.message || '')) {
+      return false;
+    }
+    if (authRetriedRef.current) {
+      return false;
+    }
+    authRetriedRef.current = true;
+    setAuthRetryKey((k) => k + 1);
+    return true;
+  }, []);
+
   const handleLoadError = useCallback(
     (err: Error) => {
+      if (retryAuthOnce(err)) return;
       setError(err.message || 'Failed to load PDF');
       setIsLoading(false);
       onLoadError?.(err);
     },
-    [onLoadError],
+    [onLoadError, retryAuthOnce],
+  );
+
+  const handlePageError = useCallback(
+    (err: Error) => {
+      retryAuthOnce(err);
+    },
+    [retryAuthOnce],
   );
 
   const goToPreviousPage = useCallback(() => {
-    onGestureStartRef.current?.();
+    beginUserGesture();
     const prev = Math.max(1, displayPage - 1);
     scrollToPage(prev);
     emitPage(prev);
-    window.setTimeout(() => {
-      onGestureEndRef.current?.();
-    }, 300);
-  }, [displayPage, scrollToPage, emitPage]);
+    endUserGesture();
+  }, [displayPage, scrollToPage, emitPage, beginUserGesture, endUserGesture]);
 
   const goToNextPage = useCallback(() => {
-    onGestureStartRef.current?.();
+    beginUserGesture();
     const next = Math.min(numPages, displayPage + 1);
     scrollToPage(next);
     emitPage(next);
-    window.setTimeout(() => {
-      onGestureEndRef.current?.();
-    }, 300);
-  }, [numPages, displayPage, scrollToPage, emitPage]);
+    endUserGesture();
+  }, [numPages, displayPage, scrollToPage, emitPage, beginUserGesture, endUserGesture]);
 
   const zoomIn = useCallback(() => setScale((prev) => Math.min(3.0, prev + 0.25)), []);
   const zoomOut = useCallback(() => setScale((prev) => Math.max(0.5, prev - 0.25)), []);
   const toggleFullWidth = useCallback(() => setIsFullWidth((prev) => !prev), []);
 
-  const useWindowing = numPages > WINDOW_THRESHOLD;
   const pageList = useMemo(() => {
     if (numPages < 1) return [];
+    if (useSparseSheets) {
+      return sparseMountedPages(displayPage, numPages);
+    }
     return Array.from({ length: numPages }, (_, i) => i + 1);
-  }, [numPages]);
+  }, [numPages, useSparseSheets, displayPage]);
 
-  const placeholderHeight = Math.max(200, Math.round(basePageHeight * scale));
+  const sparseSpacers = useMemo(
+    () =>
+      useSparseSheets
+        ? sparseSpacerHeights(numPages, displayPage, pageHeights, scale)
+        : { top: 0, bottom: 0 },
+    [useSparseSheets, numPages, displayPage, pageHeights, scale],
+  );
 
   if (!file) {
     return (
@@ -795,7 +866,7 @@ export function PDFViewer({
       <div
         ref={scrollRef}
         className={cn(
-          'flex-1 min-h-0 overflow-y-auto overflow-x-hidden',
+          'flex-1 min-h-0 overflow-y-auto overflow-x-auto',
           'bg-muted/10',
         )}
         style={{
@@ -813,9 +884,16 @@ export function PDFViewer({
             loading={<PDFLoadingSkeleton />}
             className="pdf-document w-full flex flex-col items-center gap-4"
           >
+            {useSparseSheets && sparseSpacers.top > 0 ? (
+              <div
+                aria-hidden="true"
+                data-testid="pdf-sparse-top"
+                style={{ height: sparseSpacers.top, width: 1, flexShrink: 0 }}
+              />
+            ) : null}
             {pageList.map((n) => {
-              const inWindow =
-                !useWindowing || Math.abs(n - displayPage) <= WINDOW_RADIUS;
+              const inWindow = pageInRenderWindow(n, displayPage, numPages);
+              const placeholderHeight = placeholderHeightForPage(n, pageHeights, scale);
               return (
                 <div
                   key={n}
@@ -842,12 +920,21 @@ export function PDFViewer({
                       className="shadow-md"
                       renderTextLayer={n === displayPage}
                       renderAnnotationLayer={n === displayPage}
+                      devicePixelRatio={DEVICE_PIXEL_RATIO}
+                      onLoadError={handlePageError}
+                      onRenderError={handlePageError}
                       onRenderSuccess={(page) => {
                         if (n === displayPage || !pageBox) {
                           setPageBox({ width: page.width, height: page.height });
                         }
                         if (scale > 0) {
-                          setBasePageHeight(page.height / scale);
+                          const base = page.height / scale;
+                          setPageHeights((prev) => {
+                            if (prev.get(n) === base) return prev;
+                            const next = new Map(prev);
+                            next.set(n, base);
+                            return next;
+                          });
                         }
                         scheduleAlign();
                       }}
@@ -883,6 +970,13 @@ export function PDFViewer({
                 </div>
               );
             })}
+            {useSparseSheets && sparseSpacers.bottom > 0 ? (
+              <div
+                aria-hidden="true"
+                data-testid="pdf-sparse-bottom"
+                style={{ height: sparseSpacers.bottom, width: 1, flexShrink: 0 }}
+              />
+            ) : null}
           </Document>
           {bottomSpacer > 0 ? (
             <div

@@ -68,11 +68,12 @@ fn cors_fail_closed_headers() -> [HeaderName; 8] {
 }
 
 /// Response headers a cross-origin PDF viewer must read to use byte-range loading.
-fn cors_exposed_headers() -> [HeaderName; 3] {
+fn cors_exposed_headers() -> [HeaderName; 4] {
     [
         header::CONTENT_RANGE,
         header::ACCEPT_RANGES,
         header::CONTENT_LENGTH,
+        header::CONTENT_ENCODING,
     ]
 }
 
