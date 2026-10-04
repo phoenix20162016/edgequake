@@ -58,6 +58,10 @@ import { degreeTotal } from '@/types/graph';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import {
+  entityHandoffFromNode,
+  useQueryHandoff,
+} from '@/hooks/use-query-handoff';
+import {
     ArrowLeft,
     ArrowRight,
     Calendar,
@@ -71,10 +75,12 @@ import {
     Hash,
     Info,
     Link2,
+    MessageSquareText,
     Sparkles,
     Trash2
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { EntityEditDialog } from './entity-edit-dialog';
 import { RelationshipEditDialog } from './relationship-edit-dialog';
@@ -148,6 +154,8 @@ function PropertyValue({
 }
 
 export function NodeDetails({ node }: NodeDetailsProps) {
+  const { t } = useTranslation();
+  const { ask: askQuery } = useQueryHandoff();
   const { colorFor } = useEntityTypeColors();
   const { focusNode, edges, nodes } = useGraphStore();
   const queryClient = useQueryClient();
@@ -242,6 +250,24 @@ export function NodeDetails({ node }: NodeDetailsProps) {
               {formatEntityLabel(node.label, 80)}
             </h4>
             <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 shrink-0 hover:bg-muted/80"
+                    aria-label={t('graph.details.askAboutThis', 'Ask about this')}
+                    title={t('graph.details.askAboutThis', 'Ask about this')}
+                    data-testid="node-details-ask"
+                    onClick={() => askQuery(entityHandoffFromNode(node))}
+                  >
+                    <MessageSquareText className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t('graph.details.askAboutThis', 'Ask about this')}
+                </TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

@@ -82,5 +82,25 @@ export function useQueryScope() {
     [setQuerySettings],
   );
 
-  return { ids, titles, addDocument, removeDocument, setDocumentIds, rememberTitle };
+  const replaceDocuments = useCallback(
+    (docs: Array<{ id: string; title: string }>) => {
+      setQuerySettings({
+        scopedDocumentIds: docs.map((d) => d.id),
+        scopedDocumentTitles: Object.fromEntries(
+          docs.map((d) => [d.id, d.title]),
+        ),
+      });
+    },
+    [setQuerySettings],
+  );
+
+  return {
+    ids,
+    titles,
+    addDocument,
+    removeDocument,
+    setDocumentIds,
+    replaceDocuments,
+    rememberTitle,
+  };
 }

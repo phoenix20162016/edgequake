@@ -509,7 +509,10 @@
       }
     },
     "detail": {
-      "viewInGraph": "在知识图谱中查看"
+      "viewInGraph": "在知识图谱中查看",
+      "askAboutPage": "就此页提问",
+      "askAboutDocument": "就此文档提问",
+      "askShort": "提问"
     }
   },
   "graph": {
@@ -552,8 +555,12 @@
       "viewDetails": "查看详情",
       "expandNeighborhood": "展开邻域",
       "findRelated": "查找相关",
+      "askAboutThis": "就此提问",
       "viewDocuments": "查看文档",
       "copyId": "复制 ID"
+    },
+    "details": {
+      "askAboutThis": "就此提问"
     },
     "filters": {
       "title": "筛选器",
@@ -568,6 +575,9 @@
       "allHiddenHint": "所有类型已隐藏。请至少显示一个类别。",
       "noTypes": "当前图谱中没有实体类型。",
       "noMatchingTypes": "无匹配类型",
+      "noMatchingNodes": "没有匹配的节点",
+      "noMatchingNodesHint": "调整筛选或搜索以显示实体（变暗的节点仍保留在画布上）。",
+      "dismissNoMatching": "关闭",
       "documentScoped": "文档视图"
     },
     "legend": {
@@ -649,6 +659,9 @@
   "query": {
     "title": "查询",
     "subtitle": "询问有关知识图谱的问题",
+    "handoff": {
+      "ready": "已准备好提问：{{label}}"
+    },
     "placeholder": "提问...",
     "submit": "发送",
     "showOnGraph": "在图谱中显示",
@@ -866,18 +879,32 @@
       "source": "来源",
       "graph": "图谱",
       "close": "关闭面板",
+      "split": "分栏",
+      "splitGraph": "在聊天旁显示图谱",
       "openFullPage": "整页打开",
       "openStudio": "在图谱工作室中打开",
       "resize": "调整侧边面板大小",
       "announceOpenSource": "来源已在聊天旁打开",
       "announceOpenGraph": "答案图谱已在聊天旁打开",
+      "announceOpenNeighborhood": "实体邻域已在聊天旁打开",
+      "announceOpenWorkspaceGraph": "知识图谱已在聊天旁打开",
       "announceClosed": "面板已关闭",
+      "emptyWorkspaceGraph": "此工作区尚无实体",
+      "emptyWorkspaceGraphHint": "处理文档以构建知识图谱，或打开图谱工作室。",
+      "workspaceGraphFailed": "无法加载知识图谱",
+      "retry": "重试",
+      "neighborhoodSummary": "{{nodes}} 个实体 · {{edges}} 条关系 · 1 跳",
+      "emptyNeighborhood": "1 跳内无邻居",
+      "emptyNeighborhoodHint": "该实体在知识图谱中尚无连接节点。",
+      "entityNotFound": "此工作区中未找到该实体",
+      "neighborhoodFailed": "无法加载邻域",
       "entities": "实体",
       "relationships": "关系",
       "context": "上下文",
       "collapsePassage": "收起段落",
       "expandPassage": "展开段落",
       "askAboutThis": "就此提问",
+      "quoteIntoQuestion": "引用到问题中",
       "inScope": "已限定范围",
       "scopeToDoc": "限定为此文档",
       "viewMode": "视图",
@@ -885,6 +912,8 @@
       "viewText": "文本",
       "viewCanvas": "图谱",
       "viewList": "列表",
+      "viewQuery": "查询",
+      "askAction": "提问",
       "sourceGone": "此文档已不可用",
       "sourceGoneHint": "自生成此回答以来，它可能已被删除。",
       "errorSource": "无法加载此来源",

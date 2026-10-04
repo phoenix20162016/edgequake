@@ -1,12 +1,15 @@
 /**
- * SPEC-157 — Query companion pane: pure state model + URL codec.
+ * SPEC-157 / SPEC-159 — Query companion pane: pure state model + URL codec.
  *
  * The companion shows ONE thing beside the chat: a document source ("pdf")
- * or the answer subgraph ("graph"). Everything the user can see is
- * addressable in the query string (LAW-157-3):
+ * or a graph ("graph" = answer evidence via msg, or Ask neighborhood via entity).
+ * Everything the user can see is addressable in the query string (LAW-157-3 /
+ * LAW-159-5):
  *
  *   /query?pane=pdf&doc=<id>&page=3&chunk=<cid>&lines=12-30
  *   /query?pane=graph&msg=<messageId>
+ *   /query?pane=graph&entity=<entityId>
+ *   /query?pane=graph                      (workspace snapshot, no seed)
  *
  * No React, no storage — unit-tested in isolation.
  */
@@ -36,12 +39,23 @@ export type CompanionTarget = {
   kind: CompanionKind;
   source: SourceLocation | null;
   messageId: string | null;
+  /** SPEC-159: Ask neighborhood seed (mutually exclusive with messageId). */
+  entityId: string | null;
 };
 
 export const CLOSED_TARGET: CompanionTarget = Object.freeze({
   kind: "none",
   source: null,
   messageId: null,
+  entityId: null,
+}) as CompanionTarget;
+
+/** Graph companion with no answer message and no Ask entity (workspace KG). */
+export const WORKSPACE_GRAPH_TARGET: CompanionTarget = Object.freeze({
+  kind: "graph",
+  source: null,
+  messageId: null,
+  entityId: null,
 }) as CompanionTarget;
 
 /** Query keys owned by the companion — everything else is preserved. */
@@ -52,6 +66,7 @@ export const COMPANION_PARAMS = [
   "chunk",
   "lines",
   "msg",
+  "entity",
 ] as const;
 
 const ID_RE = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -100,6 +115,7 @@ export function decodeCompanionSearch(params: ParamsReader): CompanionTarget {
     return {
       kind: "pdf",
       messageId: null,
+      entityId: null,
       source: {
         documentId,
         page: cleanPage(parsePageParam(params.get("page"))),
@@ -110,9 +126,18 @@ export function decodeCompanionSearch(params: ParamsReader): CompanionTarget {
     };
   }
   if (pane === "graph") {
+    // SPEC-159: entity wins over msg when both present (EC-159-07).
+    const rawEntity = params.get("entity");
+    if (rawEntity != null && rawEntity !== "") {
+      const entityId = cleanId(rawEntity);
+      if (!entityId) return CLOSED_TARGET;
+      return { kind: "graph", source: null, messageId: null, entityId };
+    }
     const messageId = cleanId(params.get("msg"));
-    if (!messageId) return CLOSED_TARGET;
-    return { kind: "graph", source: null, messageId };
+    if (messageId) {
+      return { kind: "graph", source: null, messageId, entityId: null };
+    }
+    return { ...WORKSPACE_GRAPH_TARGET };
   }
   return CLOSED_TARGET;
 }
@@ -142,9 +167,14 @@ export function encodeCompanionSearch(
     if (s !== undefined && e !== undefined && e >= s) {
       next.set("lines", `${s}-${e}`);
     }
-  } else if (target.kind === "graph" && cleanId(target.messageId)) {
+  } else if (target.kind === "graph") {
     next.set("pane", "graph");
-    next.set("msg", target.messageId as string);
+    const entityId = cleanId(target.entityId);
+    if (entityId) {
+      next.set("entity", entityId);
+    } else if (cleanId(target.messageId)) {
+      next.set("msg", target.messageId as string);
+    }
   }
   return next;
 }

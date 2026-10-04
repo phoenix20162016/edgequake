@@ -41,6 +41,7 @@ import {
     Copy,
     Eye,
     FileText,
+    MessageSquareText,
     Minimize2,
     Network,
     Search,
@@ -62,6 +63,8 @@ interface NodeContextMenuProps {
   onExpandNeighborhood: (node: GraphNode) => void;
   onPruneNode?: (node: GraphNode) => void;
   onFindRelated: (node: GraphNode) => void;
+  /** SPEC-159: open Query with neighborhood + seed (menu node, not ambient selection). */
+  onAskAboutThis?: (node: GraphNode) => void;
   onViewDocuments: (node: GraphNode) => void;
   onCopyId: (node: GraphNode) => void;
   onDelete?: (node: GraphNode) => void;
@@ -76,6 +79,7 @@ export function NodeContextMenu({
   onExpandNeighborhood,
   onPruneNode,
   onFindRelated,
+  onAskAboutThis,
   onViewDocuments,
   onCopyId,
   onDelete,
@@ -183,6 +187,17 @@ export function NodeContextMenu({
           <Search />
           <span className="flex-1">{t('graph.contextMenu.findRelated', 'Find Related')}</span>
         </DropdownMenuItem>
+        {onAskAboutThis && (
+          <DropdownMenuItem
+            onSelect={() => onAskAboutThis(node)}
+            data-testid="node-context-menu-ask"
+          >
+            <MessageSquareText />
+            <span className="flex-1">
+              {t('graph.contextMenu.askAboutThis', 'Ask about this')}
+            </span>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator />
 

@@ -25,6 +25,7 @@ import { formatChunkPageBadge } from '@/lib/utils/document-url';
 import { cn } from '@/lib/utils';
 
 import { useHoverIntent } from './use-hover-intent';
+import { CitationKgButton } from './citation-kg-button';
 
 export interface InlineCitationProps {
   index: number;
@@ -79,6 +80,7 @@ export function InlineCitation({ index, chunk, className }: InlineCitationProps)
   };
 
   return (
+    <span className="inline-flex items-center gap-0.5 align-middle">
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
         <button
@@ -181,5 +183,9 @@ export function InlineCitation({ index, chunk, className }: InlineCitationProps)
         </Link>
       </PopoverContent>
     </Popover>
+    {chunk.document_id ? (
+      <CitationKgButton documentId={chunk.document_id} />
+    ) : null}
+    </span>
   );
 }

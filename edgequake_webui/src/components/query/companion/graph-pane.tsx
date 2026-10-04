@@ -15,13 +15,14 @@ import {
   type AnswerGraphModel,
 } from "@/lib/query/answer-graph";
 import type { QueryMessage } from "@/lib/query/query-interface-types";
-import { cn } from "@/lib/utils";
+import type { GraphNode } from "@/types/graph";
 import { ExternalLink, Network, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { AnswerGraphList } from "./answer-graph-list";
+import { CompanionViewAskBar } from "./companion-view-ask-bar";
 import { GraphNodeCard } from "./graph-node-card";
 import { PaneNotice } from "./pane-notice";
 
@@ -32,9 +33,15 @@ interface GraphPaneProps {
   messages: QueryMessage[];
   /** The conversation is still loading — don't claim the answer is missing. */
   isLoading: boolean;
+  onAskEntity?: (node: GraphNode) => void;
 }
 
-export function GraphPane({ messageId, messages, isLoading }: GraphPaneProps) {
+export function GraphPane({
+  messageId,
+  messages,
+  isLoading,
+  onAskEntity,
+}: GraphPaneProps) {
   const { t } = useTranslation();
   const message = messages.find((m) => m.id === messageId);
   const base = useMemo(
@@ -62,15 +69,24 @@ export function GraphPane({ messageId, messages, isLoading }: GraphPaneProps) {
     );
   }
   // Remount per answer so local selection/expansion never leaks across answers.
-  return <AnswerGraphView key={messageId} messageId={messageId} base={base} />;
+  return (
+    <AnswerGraphView
+      key={messageId}
+      messageId={messageId}
+      base={base}
+      onAskEntity={onAskEntity}
+    />
+  );
 }
 
 function AnswerGraphView({
   messageId,
   base,
+  onAskEntity,
 }: {
   messageId: string;
   base: AnswerGraphModel;
+  onAskEntity?: (node: GraphNode) => void;
 }) {
   const { t } = useTranslation();
   const { model, expand, expanding, expanded } = useAnswerGraphModel(base);
@@ -113,31 +129,24 @@ function AnswerGraphView({
               })}`
             : ""}
         </p>
-        <div
-          role="group"
-          aria-label={t("query.companion.viewMode", "View")}
-          className="flex shrink-0 rounded-md bg-muted p-0.5"
-        >
-          {(["canvas", "list"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              aria-pressed={view === v}
-              onClick={() => setView(v)}
-              className={cn(
-                "rounded px-2 py-0.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                view === v
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              data-testid={`companion-graph-view-${v}`}
-            >
-              {v === "canvas"
-                ? t("query.companion.viewCanvas", "Graph")
-                : t("query.companion.viewList", "List")}
-            </button>
-          ))}
-        </div>
+        <CompanionViewAskBar
+          view={view}
+          onViewChange={setView}
+          onAsk={
+            onAskEntity
+              ? () => {
+                  const target =
+                    selected ??
+                    model.nodes.find((n) =>
+                      model.answerNodeIds.includes(n.id),
+                    ) ??
+                    model.nodes[0];
+                  if (target) onAskEntity(target);
+                }
+              : undefined
+          }
+          testIdPrefix="companion-graph-view"
+        />
       </div>
 
       <div className="min-h-0 flex-1">
@@ -163,6 +172,7 @@ function AnswerGraphView({
           isExpanded={expanded.has(selected.id)}
           onExpand={() => void handleExpand(selected.id)}
           onClose={() => setSelectedId(null)}
+          onAskAboutThis={onAskEntity}
         />
       ) : null}
 

@@ -509,7 +509,10 @@
       }
     },
     "detail": {
-      "viewInGraph": "Voir dans le graphe de connaissances"
+      "viewInGraph": "Voir dans le graphe de connaissances",
+      "askAboutPage": "Poser une question sur cette page",
+      "askAboutDocument": "Poser une question sur ce document",
+      "askShort": "Demander"
     }
   },
   "graph": {
@@ -552,8 +555,12 @@
       "viewDetails": "Voir les détails",
       "expandNeighborhood": "Étendre le voisinage",
       "findRelated": "Trouver les connexions",
+      "askAboutThis": "Poser une question",
       "viewDocuments": "Voir les documents",
       "copyId": "Copier l'ID"
+    },
+    "details": {
+      "askAboutThis": "Poser une question"
     },
     "filters": {
       "title": "Filtres",
@@ -568,6 +575,9 @@
       "allHiddenHint": "Tous les types sont masqués. Affichez au moins une catégorie.",
       "noTypes": "Aucun type d'entité dans le graphe actuel.",
       "noMatchingTypes": "Aucun type correspondant",
+      "noMatchingNodes": "Aucun nœud correspondant",
+      "noMatchingNodesHint": "Ajustez les filtres ou la recherche pour afficher les entités (les nœuds atténués restent sur le canevas).",
+      "dismissNoMatching": "Fermer",
       "documentScoped": "Vue document"
     },
     "legend": {
@@ -649,6 +659,9 @@
   "query": {
     "title": "Requête",
     "subtitle": "Posez des questions sur votre graphe de connaissances",
+    "handoff": {
+      "ready": "Prêt à poser une question sur {{label}}"
+    },
     "placeholder": "Posez une question...",
     "submit": "Envoyer",
     "showOnGraph": "Afficher sur le graphe",
@@ -866,18 +879,32 @@
       "source": "Source",
       "graph": "Graphe",
       "close": "Fermer le volet",
+      "split": "Scinder",
+      "splitGraph": "Afficher le graphe à côté du chat",
       "openFullPage": "Ouvrir en pleine page",
       "openStudio": "Ouvrir dans Graph Studio",
       "resize": "Redimensionner le volet compagnon",
       "announceOpenSource": "Source ouverte à côté du chat",
       "announceOpenGraph": "Graphe de la réponse ouvert à côté du chat",
+      "announceOpenNeighborhood": "Voisinage de l'entité ouvert à côté du chat",
+      "announceOpenWorkspaceGraph": "Graphe de connaissances ouvert à côté du chat",
       "announceClosed": "Volet fermé",
+      "emptyWorkspaceGraph": "Aucune entité dans cet espace pour l’instant",
+      "emptyWorkspaceGraphHint": "Traitez des documents pour construire le graphe, ou ouvrez Graph Studio.",
+      "workspaceGraphFailed": "Impossible de charger le graphe de connaissances",
+      "retry": "Réessayer",
+      "neighborhoodSummary": "{{nodes}} entités · {{edges}} relations · 1 saut",
+      "emptyNeighborhood": "Aucun voisin à 1 saut",
+      "emptyNeighborhoodHint": "Cette entité n'a pas encore de nœuds connectés dans le graphe.",
+      "entityNotFound": "Entité introuvable dans cet espace de travail",
+      "neighborhoodFailed": "Impossible de charger le voisinage",
       "entities": "Entités",
       "relationships": "Relations",
       "context": "contexte",
       "collapsePassage": "Réduire le passage",
       "expandPassage": "Développer le passage",
       "askAboutThis": "Poser une question",
+      "quoteIntoQuestion": "Citer dans la question",
       "inScope": "Dans le périmètre",
       "scopeToDoc": "Limiter à ce document",
       "viewMode": "Vue",
@@ -885,6 +912,8 @@
       "viewText": "Texte",
       "viewCanvas": "Graphe",
       "viewList": "Liste",
+      "viewQuery": "Requête",
+      "askAction": "Demander",
       "sourceGone": "Ce document n'est plus disponible",
       "sourceGoneHint": "Il a peut-être été supprimé depuis cette réponse.",
       "errorSource": "Impossible de charger cette source",

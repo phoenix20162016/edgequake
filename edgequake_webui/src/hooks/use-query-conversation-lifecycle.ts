@@ -4,6 +4,10 @@ import { useConversation, useConversations } from "@/hooks/use-conversations";
 import { useProvidersHealth } from "@/hooks/use-models";
 import { useLlmModels as useProviderLlmModels } from "@/hooks/use-providers";
 import { isConversationNotFoundError } from "@/lib/query/conversation-errors";
+import {
+  isQueryHandoffNewConversation,
+  pickResumedConversationId,
+} from "@/lib/query/query-handoff";
 import { sanitizeQueryModelSelection } from "@/lib/query-model-selection";
 import { useActiveConversationId, useQueryUIStore } from "@/stores/use-query-ui-store";
 import { useSettingsStore } from "@/stores/use-settings-store";
@@ -111,11 +115,20 @@ export function useQueryConversationLifecycle({
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
-    const firstPage = conversationsData?.pages?.[0];
-    if (!activeConversationId && firstPage?.items && firstPage.items.length > 0) {
-      setActiveConversation(firstPage.items[0].id);
-    }
+    const nextId = pickResumedConversationId({
+      hasInitialized: false,
+      activeConversationId,
+      latestId: conversationsData?.pages?.[0]?.items?.[0]?.id,
+      handoffNew: isQueryHandoffNewConversation(),
+    });
+    if (nextId === undefined) return;
+    setActiveConversation(nextId);
   }, [activeConversationId, conversationsData, setActiveConversation]);
+
+  useEffect(() => {
+    if (!isQueryHandoffNewConversation()) return;
+    if (activeConversationId) setActiveConversation(null);
+  }, [activeConversationId, setActiveConversation]);
 
   useEffect(() => {
     if (prevTenantRef.current === null && prevWorkspaceRef.current === null) {

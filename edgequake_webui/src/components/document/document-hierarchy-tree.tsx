@@ -15,7 +15,9 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useDocumentFullLineage } from '@/hooks/use-lineage';
+import { useQueryHandoff } from '@/hooks/use-query-handoff';
 import { buildDocumentPageUrl, formatChunkPageBadge } from '@/lib/utils/document-url';
 import { cn } from '@/lib/utils';
 import type { EntityLineage } from '@/types/lineage';
@@ -26,10 +28,12 @@ import {
   FileText,
   Layers,
   Loader2,
+  MessageSquareText,
   Tag,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Chunk shape from the /documents/:id/lineage endpoint.
@@ -202,6 +206,7 @@ export function DocumentHierarchyTree({
             chunks={chunks}
             entitiesByChunk={entitiesByChunk}
             documentId={documentId}
+            documentTitle={documentName ?? docName ?? documentId.slice(0, 8)}
             selectedChunkId={selectedChunkId}
             onChunkSelect={onChunkSelect}
           />
@@ -246,6 +251,7 @@ interface ChunkListProps {
   chunks: FullLineageChunk[];
   entitiesByChunk: Map<string, EntityLineage[]>;
   documentId: string;
+  documentTitle: string;
   selectedChunkId?: string;
   onChunkSelect?: (chunkId: string, startLine?: number, endLine?: number, page?: number) => void;
 }
@@ -254,6 +260,7 @@ function ChunkList({
   chunks,
   entitiesByChunk,
   documentId,
+  documentTitle,
   selectedChunkId,
   onChunkSelect,
 }: ChunkListProps) {
@@ -273,6 +280,7 @@ function ChunkList({
                 chunk={chunk}
                 entities={entitiesByChunk.get(chunk.chunk_id) ?? []}
                 documentId={documentId}
+                documentTitle={documentTitle}
                 depth={1}
                 isSelected={selectedChunkId === chunk.chunk_id}
                 onSelect={onChunkSelect}
@@ -285,6 +293,7 @@ function ChunkList({
               chunks={pageChunks}
               entitiesByChunk={entitiesByChunk}
               documentId={documentId}
+              documentTitle={documentTitle}
               selectedChunkId={selectedChunkId}
               onSelect={onChunkSelect}
             />
@@ -303,6 +312,7 @@ function ChunkList({
           chunk={chunk}
           entities={entitiesByChunk.get(chunk.chunk_id) ?? []}
           documentId={documentId}
+          documentTitle={documentTitle}
           depth={1}
           isSelected={selectedChunkId === chunk.chunk_id}
           onSelect={onChunkSelect}
@@ -321,6 +331,7 @@ interface PageGroupNodeProps {
   chunks: FullLineageChunk[];
   entitiesByChunk: Map<string, EntityLineage[]>;
   documentId: string;
+  documentTitle: string;
   selectedChunkId?: string;
   onSelect?: (chunkId: string, startLine?: number, endLine?: number, page?: number) => void;
 }
@@ -336,6 +347,7 @@ function PageGroupNode({
   chunks,
   entitiesByChunk,
   documentId,
+  documentTitle,
   selectedChunkId,
   onSelect,
 }: PageGroupNodeProps) {
@@ -427,6 +439,7 @@ function PageGroupNode({
             chunk={chunk}
             entities={entitiesByChunk.get(chunk.chunk_id) ?? []}
             documentId={documentId}
+            documentTitle={documentTitle}
             depth={2}
             isSelected={selectedChunkId === chunk.chunk_id}
             onSelect={onSelect}
@@ -445,6 +458,7 @@ interface ChunkTreeNodeProps {
   entities: EntityLineage[];
   /** Document ID — needed to build deeplink URL. */
   documentId: string;
+  documentTitle: string;
   depth: number;
   /** Whether this chunk is currently selected (highlighted in content panel). */
   isSelected?: boolean;
@@ -452,7 +466,17 @@ interface ChunkTreeNodeProps {
   onSelect?: (chunkId: string, startLine?: number, endLine?: number, page?: number) => void;
 }
 
-function ChunkTreeNode({ chunk, entities, documentId, depth, isSelected, onSelect }: ChunkTreeNodeProps) {
+function ChunkTreeNode({
+  chunk,
+  entities,
+  documentId,
+  documentTitle,
+  depth,
+  isSelected,
+  onSelect,
+}: ChunkTreeNodeProps) {
+  const { t } = useTranslation();
+  const { ask } = useQueryHandoff();
   const lineInfo = chunk.start_line
     ? `L${chunk.start_line}–${chunk.end_line ?? '?'}`
     : `#${chunk.chunk_index}`;
@@ -464,6 +488,34 @@ function ChunkTreeNode({ chunk, entities, documentId, depth, isSelected, onSelec
   const handleSelect = useCallback(() => {
     onSelect?.(chunk.chunk_id, chunk.start_line, chunk.end_line, chunk.page_start);
   }, [onSelect, chunk.chunk_id, chunk.start_line, chunk.end_line, chunk.page_start]);
+
+  const handleAsk = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const page =
+        chunk.page_start !== undefined && chunk.page_start >= 1
+          ? chunk.page_start
+          : undefined;
+      ask({
+        kind: 'document',
+        documentId,
+        title: documentTitle,
+        page,
+        chunkId: chunk.chunk_id,
+        startLine: chunk.start_line,
+        endLine: chunk.end_line,
+      });
+    },
+    [
+      ask,
+      chunk.chunk_id,
+      chunk.end_line,
+      chunk.page_start,
+      chunk.start_line,
+      documentId,
+      documentTitle,
+    ],
+  );
 
   // Build the page deeplink when page_start is present (SPEC-033 FR-004 / SPEC-135).
   const pageUrl =
@@ -484,26 +536,40 @@ function ChunkTreeNode({ chunk, entities, documentId, depth, isSelected, onSelec
       label={`Chunk ${chunk.chunk_index}`}
       badge={pageUrl ? undefined : `${lineInfo} • ${entityCount} ent`}
       badgeRight={
-        pageUrl ? (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{lineInfo} · {entityCount} ent</span>
-            <Link
-              href={pageUrl}
-              className={cn(
-                'inline-flex items-center gap-0.5 text-xs font-medium',
-                'text-primary hover:underline',
-                'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50',
-                'rounded-sm px-1 py-0.5 leading-none',
-              )}
-              aria-label={pageAria}
-              title={`Open PDF at page ${chunk.page_start}`}
-              data-testid="chunk-page-badge"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {pageBadge}
-            </Link>
-          </span>
-        ) : undefined
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          {pageUrl ? (
+            <>
+              <span>{lineInfo} · {entityCount} ent</span>
+              <Link
+                href={pageUrl}
+                className={cn(
+                  'inline-flex items-center gap-0.5 text-xs font-medium',
+                  'text-primary hover:underline',
+                  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50',
+                  'rounded-sm px-1 py-0.5 leading-none',
+                )}
+                aria-label={pageAria}
+                title={`Open PDF at page ${chunk.page_start}`}
+                data-testid="chunk-page-badge"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {pageBadge}
+              </Link>
+            </>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 shrink-0 opacity-60 hover:opacity-100"
+            title={t('documents.detail.askAboutPage', 'Ask about this page')}
+            aria-label={t('documents.detail.askAboutPage', 'Ask about this page')}
+            data-testid="hierarchy-chunk-ask"
+            onClick={handleAsk}
+          >
+            <MessageSquareText className="h-3 w-3" />
+          </Button>
+        </span>
       }
       depth={depth}
       isSelected={isSelected}
@@ -598,37 +664,42 @@ function TreeNode({
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={toggle}
-        data-testid={chunkId ? 'hierarchy-chunk-row' : undefined}
-        data-chunk-id={chunkId}
-        aria-current={isSelected ? 'true' : undefined}
+      <div
         className={cn(
-          'flex items-center gap-1.5 w-full text-left py-1.5 px-2 rounded text-sm',
+          'flex items-center gap-1.5 w-full py-1.5 px-2 rounded text-sm',
           'hover:bg-muted/50 transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
-          // Yellow highlight for selected chunk — mirrors the content-area yellow mark
           isSelected && 'bg-yellow-100 dark:bg-yellow-900/30 border-l-2 border-yellow-500 dark:border-yellow-400 font-semibold text-yellow-900 dark:text-yellow-100',
         )}
         style={{ paddingLeft: `${depth * 16}px` }}
       >
-        {open ? (
-          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-        )}
-        <span className="shrink-0">{icon}</span>
-        <span className="font-medium truncate">{label}</span>
-        {/* Prefer badgeRight slot (custom React node) over plain badge string */}
+        <button
+          type="button"
+          onClick={toggle}
+          data-testid={chunkId ? 'hierarchy-chunk-row' : undefined}
+          data-chunk-id={chunkId}
+          aria-current={isSelected ? 'true' : undefined}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-1.5 text-left',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+          )}
+        >
+          {open ? (
+            <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+          )}
+          <span className="shrink-0">{icon}</span>
+          <span className="font-medium truncate">{label}</span>
+          {!badgeRight && badge ? (
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">
+              {badge}
+            </span>
+          ) : null}
+        </button>
         {badgeRight ? (
           <span className="ml-auto shrink-0">{badgeRight}</span>
-        ) : badge ? (
-          <span className="text-xs text-muted-foreground ml-auto shrink-0">
-            {badge}
-          </span>
         ) : null}
-      </button>
+      </div>
       {open && <div>{children}</div>}
     </div>
   );

@@ -18,6 +18,10 @@ import {
 } from "@/hooks/use-conversations";
 import { useFolders } from "@/hooks/use-folders";
 import { useMoveConversation, useMoveConversations } from "@/hooks/use-move-conversation";
+import {
+  beginNewQueryConversation,
+  endQueryHandoffNewConversation,
+} from "@/lib/query/query-handoff";
 import { cn } from "@/lib/utils";
 import {
   useActiveConversationId,
@@ -120,8 +124,17 @@ export function ConversationHistoryPanelV2({
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleNewConversation = useCallback(() => {
+    beginNewQueryConversation();
     setActiveConversation(null);
   }, [setActiveConversation]);
+
+  const handleSelectConversation = useCallback(
+    (id: string) => {
+      endQueryHandoffNewConversation();
+      setActiveConversation(id);
+    },
+    [setActiveConversation],
+  );
 
   const handleDeleteConfirm = useCallback(() => {
     if (selection.isSelectionMode && selection.selectedIds.size > 0) {
@@ -267,7 +280,7 @@ export function ConversationHistoryPanelV2({
             isSelectionMode={selection.isSelectionMode}
             selectedIds={selection.selectedIds}
             folders={folderList}
-            onSelect={setActiveConversation}
+            onSelect={handleSelectConversation}
             onToggleSelection={selection.toggleSelection}
             onRename={(id, title) =>
               updateConversation.mutate({ id, data: { title } })

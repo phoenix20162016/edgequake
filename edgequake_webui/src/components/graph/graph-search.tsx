@@ -16,6 +16,7 @@
  */
 'use client';
 
+import { AskAboutEntityButton } from '@/components/shared/ask-about-entity-button';
 import { Button } from '@/components/ui/button';
 import {
     Command,
@@ -512,6 +513,14 @@ export function GraphSearch({ onSelect }: GraphSearchProps) {
                         </p>
                       )}
                     </div>
+                    <AskAboutEntityButton
+                      node={{
+                        id: result.id,
+                        label: result.label,
+                        node_type: result.entityType,
+                      }}
+                      testId="graph-search-ask"
+                    />
                   </CommandItem>
                 ))}
               </CommandGroup>

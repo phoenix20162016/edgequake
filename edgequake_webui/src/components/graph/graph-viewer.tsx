@@ -42,6 +42,10 @@ import { useGraphDocumentScope } from '@/hooks/use-graph-document-scope';
 import { useGraphDocumentFilterUrl } from '@/hooks/use-graph-document-filter';
 import { useGraphKeyboardNavigation } from '@/hooks/use-graph-keyboard-navigation';
 import { useGraphStream } from '@/hooks/use-graph-stream';
+import {
+  entityHandoffFromNode,
+  useQueryHandoff,
+} from '@/hooks/use-query-handoff';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { deleteEntity, getGraph } from '@/lib/api/edgequake';
 import { focusCameraOnNode } from '@/lib/graph/camera-utils';
@@ -75,6 +79,7 @@ import { GraphLegend } from './graph-legend';
 import { GraphLoadingOverlay } from './graph-loading-overlay';
 import { GraphMinimap } from './graph-minimap';
 import { GraphRenderer } from './graph-renderer';
+import { NoMatchingNodesHint } from './no-matching-nodes-hint';
 import { GraphSearch } from './graph-search';
 import { GraphSettingsPanel } from './graph-settings-panel';
 import { KeyboardShortcutsHelp } from './keyboard-shortcuts-help';
@@ -261,8 +266,11 @@ export function GraphViewer() {
   useEffect(() => {
     if (!isAutomatedBrowser()) return;
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ x?: number; y?: number }>).detail;
-      const node = allNodes[0];
+      const detail = (event as CustomEvent<{ x?: number; y?: number; nodeId?: string }>).detail;
+      const node =
+        (detail?.nodeId
+          ? allNodes.find((n) => n.id === detail.nodeId)
+          : undefined) ?? allNodes[0];
       if (!node) return;
       openContextMenu(
         node,
@@ -682,6 +690,15 @@ export function GraphViewer() {
     toast.info(`Showing nodes related to "${label}"`, { duration: 2500 });
   }, [setSearchQuery, sigmaInstance]);
 
+  // SPEC-159: Ask about this — handoff uses the menu node (not ambient selection).
+  const { ask: askQuery } = useQueryHandoff();
+  const handleAskAboutThis = useCallback(
+    (node: GraphNode) => {
+      askQuery(entityHandoffFromNode(node));
+    },
+    [askQuery],
+  );
+
   // 5. View Documents — navigate to documents page (workspace-scoped).
   // WHY: Previously used window.location.href (full page reload, loses state).
   // Using router.push preserves the Next.js client state and is faster.
@@ -963,16 +980,10 @@ export function GraphViewer() {
                 onNodeRightClick={handleNodeRightClick}
                 contextTargetId={contextMenuNode?.id ?? null}
               />
-              {filteredNodes.length === 0 ? (
-                <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center">
-                  <div className="rounded-lg bg-background/80 px-4 py-3 text-center shadow-sm backdrop-blur-sm">
-                    <h3 className="text-sm font-medium">No matching nodes</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Adjust filters or search to reveal entities (dimmed nodes stay on the canvas).
-                    </p>
-                  </div>
-                </div>
-              ) : null}
+              <NoMatchingNodesHint
+                active={filteredNodes.length === 0}
+                selectedNodeId={selectedNodeId}
+              />
               
               {/* Truncation Banner - Shows when graph is truncated */}
               <TruncationBanner 
@@ -1015,6 +1026,7 @@ export function GraphViewer() {
             onExpandNeighborhood={handleExpandNeighborhood}
             onPruneNode={handlePruneNode}
             onFindRelated={handleFindRelated}
+            onAskAboutThis={handleAskAboutThis}
             onViewDocuments={handleViewDocuments}
             onCopyId={handleCopyId}
             onDelete={handleDeleteNode}

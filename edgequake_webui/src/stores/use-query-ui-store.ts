@@ -23,6 +23,10 @@ import type { ConversationMode } from "@/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
+import {
+  isQueryHandoffNewConversation,
+  QUERY_UI_PERSIST_KEY,
+} from "@/lib/query/query-handoff";
 
 // ============================================================================
 // Types
@@ -272,7 +276,7 @@ export const useQueryUIStore = create<QueryUIStore>()(
       reset: () => set(defaultState),
     }),
     {
-      name: "edgequake-query-ui",
+      name: QUERY_UI_PERSIST_KEY,
       partialize: (state) => ({
         // Only persist these fields
         historyPanelOpen: state.historyPanelOpen,
@@ -280,6 +284,14 @@ export const useQueryUIStore = create<QueryUIStore>()(
         filters: state.filters,
         sort: state.sort,
       }),
+      merge: (persisted, current) => {
+        const incoming = (persisted ?? {}) as Partial<QueryUIState>;
+        const merged = { ...current, ...incoming } as QueryUIStore;
+        if (isQueryHandoffNewConversation()) {
+          merged.activeConversationId = null;
+        }
+        return merged;
+      },
     },
   ),
 );

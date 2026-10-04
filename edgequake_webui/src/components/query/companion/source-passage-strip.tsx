@@ -83,7 +83,7 @@ export function SourcePassageStrip({
             data-testid="companion-quote-ask"
           >
             <Quote className="h-3 w-3" aria-hidden />
-            {t("query.companion.askAboutThis", "Ask about this")}
+            {t("query.companion.quoteIntoQuestion", "Quote into question")}
           </Button>
         ) : null}
         <Button

@@ -54,6 +54,41 @@ export function hasPageMarkers(markdown: string | null | undefined): boolean {
 }
 
 /**
+ * Slice converted markdown for PDF page N (between this marker and the next
+ * different page). Empty when the page is not marked. Used as Ask seed evidence
+ * because chat retrieval is not page-filtered (LAW-159-6).
+ */
+export function extractPageMarkdown(
+  markdown: string | null | undefined,
+  page: number,
+  maxChars = 600,
+): string {
+  if (!markdown || !Number.isInteger(page) || page < 1) return "";
+  const re = /<!--\s*edgequake-page:(\d+)\s*-->/g;
+  let start = -1;
+  let end = markdown.length;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(markdown)) !== null) {
+    const n = parseInt(m[1], 10);
+    if (!Number.isFinite(n) || n < 1) continue;
+    if (start < 0) {
+      if (n === page) start = m.index + m[0].length;
+      continue;
+    }
+    if (n !== page) {
+      end = m.index;
+      break;
+    }
+  }
+  if (start < 0) return "";
+  let body = markdown.slice(start, end).trim();
+  body = body.replace(/!\[[^\]]*\]\([^)]*\)/g, "").trim();
+  if (!body) return "";
+  if (body.length > maxChars) return `${body.slice(0, maxChars)}…`;
+  return body;
+}
+
+/**
  * Replace each `<!-- edgequake-page:N -->` with a DOM anchor.
  * Duplicate page numbers keep a single `id` (first wins); later duplicates
  * get `data-eq-page` without id to avoid invalid HTML.

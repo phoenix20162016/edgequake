@@ -17,6 +17,7 @@
  */
 "use client";
 
+import { AskAboutEntityButton } from "@/components/shared/ask-about-entity-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,7 +75,7 @@ const EntityItem = memo(function EntityItem({
   onClick,
   onKeyDown,
 }: EntityItemProps) {
-  const itemRef = useRef<HTMLButtonElement>(null);
+  const itemRef = useRef<HTMLDivElement>(null);
   const { colorFor } = useEntityTypeColors();
   const connectionStrength = Math.min(degreeTotal(node.degree) / 10, 1); // Normalize to 0-1
   
@@ -87,9 +88,9 @@ const EntityItem = memo(function EntityItem({
   }, [isFocused]);
   
   return (
-    <button
+    <div
       ref={itemRef}
-      type="button"
+      role="button"
       onClick={onClick}
       onKeyDown={onKeyDown}
       aria-pressed={isSelected}
@@ -97,7 +98,7 @@ const EntityItem = memo(function EntityItem({
       tabIndex={isFocused ? 0 : -1}
       className={cn(
         "w-full text-left px-2.5 py-1.5 rounded-md transition-all duration-150",
-        "flex items-center gap-2 group outline-none",
+        "flex items-center gap-2 group outline-none cursor-pointer",
         "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
         isSelected
           ? "bg-primary text-primary-foreground shadow-sm border-l-3 border-primary"
@@ -159,7 +160,17 @@ const EntityItem = memo(function EntityItem({
           )}
         </div>
       </div>
-    </button>
+      <AskAboutEntityButton
+        node={node}
+        className={cn(
+          // Keep a faint control so Ask stays discoverable + e2e-visible;
+          // full opacity on hover/focus/selection.
+          "opacity-40 group-hover:opacity-100 focus-visible:opacity-100",
+          isSelected && "text-primary-foreground opacity-80 hover:opacity-100",
+        )}
+        testId="entity-browser-ask"
+      />
+    </div>
   );
 });
 

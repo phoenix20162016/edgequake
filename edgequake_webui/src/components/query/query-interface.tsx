@@ -13,7 +13,15 @@ import { useQueryInterface } from "@/hooks/use-query-interface";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useQueryScope } from "@/hooks/use-query-scope";
 import { useCompanionLayout } from "@/hooks/use-companion-layout";
-import { ArrowDown, PanelRight, Plus } from "lucide-react";
+import {
+  entityHandoffFromNode,
+  useQueryHandoff,
+} from "@/hooks/use-query-handoff";
+import type { GraphNode } from "@/types/graph";
+import { isCompanionEnabled } from "@/lib/query/companion-flag";
+import { useCompanionPaneStore } from "@/stores/use-companion-pane-store";
+import { useQueryUIStore } from "@/stores/use-query-ui-store";
+import { ArrowDown, Columns2, PanelRight, Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChatMessage } from "./message";
@@ -26,7 +34,6 @@ import { MobileHistoryPanel } from "./mobile-history-panel";
 import { QueryEmptyState } from "./query-empty-state";
 import { CompanionShell } from "./companion/companion-shell";
 import { QuerySettingsSheet } from "./query-settings-sheet";
-import { useQueryUIStore } from "@/stores/use-query-ui-store";
 
 export function QueryInterface() {
   const { t } = useTranslation();
@@ -76,6 +83,34 @@ export function QueryInterface() {
   const scope = useQueryScope();
   const { rootRef, layout, history, companionOpen } = useCompanionLayout(isXl);
   const historyDock = history !== "overlay";
+  const companionEnabled = isCompanionEnabled();
+  const closeCompanion = useCompanionPaneStore((s) => s.close);
+  const openSource = useCompanionPaneStore((s) => s.openSource);
+  const openWorkspaceGraph = useCompanionPaneStore((s) => s.openWorkspaceGraph);
+
+  const toggleSplit = useCallback(() => {
+    if (companionOpen) {
+      closeCompanion();
+      return;
+    }
+    const docId = scope.ids[0];
+    if (docId) {
+      openSource({
+        documentId: docId,
+        page: 1,
+        title: scope.titles[docId],
+      });
+      return;
+    }
+    openWorkspaceGraph();
+  }, [
+    companionOpen,
+    closeCompanion,
+    openSource,
+    openWorkspaceGraph,
+    scope.ids,
+    scope.titles,
+  ]);
 
   const focusComposer = useCallback(() => {
     inputRef.current?.focus();
@@ -100,6 +135,15 @@ export function QueryInterface() {
       });
     },
     [handleInputChange, input, inputRef],
+  );
+
+  // SPEC-159: Ask always starts a new conversation (same handoff as graph/doc).
+  const { ask } = useQueryHandoff();
+  const askEntity = useCallback(
+    (node: GraphNode) => {
+      ask(entityHandoffFromNode(node));
+    },
+    [ask],
   );
 
   // Global `@`: focus the composer and seed a mention token (menu opens from the text).
@@ -189,6 +233,27 @@ export function QueryInterface() {
                   {t("query.newConversation", "New")}
                 </span>
               </Button>
+
+              {companionEnabled ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSplit}
+                  aria-label={
+                    companionOpen
+                      ? t("query.companion.close", "Close pane")
+                      : t(
+                          "query.companion.splitGraph",
+                          "Show graph beside chat",
+                        )
+                  }
+                  aria-pressed={companionOpen}
+                  title={t("query.companion.split", "Split")}
+                  data-testid="query-split-toggle"
+                >
+                  <Columns2 className="h-4 w-4" />
+                </Button>
+              ) : null}
 
               {historyDock ? (
                 <Button
@@ -371,6 +436,7 @@ export function QueryInterface() {
           messages={messages}
           isMessagesLoading={isLoading}
           onQuote={quotePassage}
+          onAskEntity={askEntity}
           onRestoreFocus={focusComposer}
         />
 

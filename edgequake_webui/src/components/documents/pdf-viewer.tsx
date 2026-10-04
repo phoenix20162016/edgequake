@@ -57,6 +57,7 @@ import {
   ChevronRight,
   Loader2,
   Maximize2,
+  MessageSquareText,
   Minimize2,
   XCircle,
   ZoomIn,
@@ -117,6 +118,8 @@ interface PDFViewerProps {
   onLoadError?: (error: Error) => void;
   /** Document id for SPEC-128 layout overlay. */
   documentId?: string;
+  /** SPEC-159: Ask about the current page (toolbar). */
+  onAskAboutPage?: (page: number) => void;
 }
 
 function PDFLoadingSkeleton() {
@@ -214,6 +217,7 @@ export function PDFViewer({
   onLoadSuccess,
   onLoadError,
   documentId,
+  onAskAboutPage,
 }: PDFViewerProps) {
   const { t } = useTranslation();
   const [numPages, setNumPages] = useState(0);
@@ -767,6 +771,20 @@ export function PDFViewer({
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
+            {onAskAboutPage ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onAskAboutPage(displayPage)}
+                disabled={isLoading || displayPage < 1}
+                title={t('documents.detail.askAboutPage', 'Ask about this page')}
+                aria-label={t('documents.detail.askAboutPage', 'Ask about this page')}
+                data-testid="pdf-ask-about-page"
+              >
+                <MessageSquareText className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-1">

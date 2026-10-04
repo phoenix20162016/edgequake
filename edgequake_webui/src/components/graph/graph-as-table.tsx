@@ -3,6 +3,7 @@
  */
 "use client";
 
+import { AskAboutEntityButton } from "@/components/shared/ask-about-entity-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageShell } from "@/components/shared/page-shell";
 import { useGraphStore } from "@/stores/use-graph-store";
@@ -37,6 +38,9 @@ export function GraphAsTable() {
                   <th className="px-3 py-2 text-start font-medium">Label</th>
                   <th className="px-3 py-2 text-start font-medium">Type</th>
                   <th className="px-3 py-2 text-end font-medium">Degree</th>
+                  <th className="px-3 py-2 text-end font-medium w-10">
+                    <span className="sr-only">Ask</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -65,6 +69,12 @@ export function GraphAsTable() {
                     </td>
                     <td className="px-3 py-1.5 text-end tabular-nums">
                       {degreeTotal(n.degree) || "—"}
+                    </td>
+                    <td className="px-1 py-1.5 text-end">
+                      <AskAboutEntityButton
+                        node={n}
+                        testId="graph-table-ask"
+                      />
                     </td>
                   </tr>
                 ))}

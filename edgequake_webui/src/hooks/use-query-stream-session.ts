@@ -76,6 +76,15 @@ export function useQueryStreamSession({
   const [session, setSession] = useState<StreamSessionState>(() =>
     createStreamSession(activeConversationId),
   );
+  /** Bumped on abort/Ask so a late SSE `conversation` cannot re-attach (EC-159-06). */
+  const requestGenRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      requestGenRef.current += 1;
+    };
+  }, []);
 
   // Stream when the user wants it and the selected (or default) model supports it.
   const { data: llmCatalog } = useLlmModels();
@@ -135,7 +144,21 @@ export function useQueryStreamSession({
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
+    requestGenRef.current += 1;
     setSession((s) => reduceStreamSession(s, { type: "abort" }));
+  }, []);
+
+  /** SPEC-159: drop in-flight answer chrome when Ask starts a new conversation. */
+  const abandonInFlight = useCallback(() => {
+    abortRef.current?.abort();
+    requestGenRef.current += 1;
+    editFromMessageIdRef.current = null;
+    setSession((s) => ({
+      ...reduceStreamSession(s, { type: "abort" }),
+      pendingMessage: null,
+      optimisticUserMessage: null,
+      queuedMessage: null,
+    }));
   }, []);
 
   const handleStreamQuery = useCallback(
@@ -145,6 +168,7 @@ export function useQueryStreamSession({
       payloadImages?: Array<{ data: string; mime_type: string }>,
     ) => {
       const messageId = generateUUID();
+      const gen = requestGenRef.current;
       abortRef.current = new AbortController();
 
       setSession((s) =>
@@ -169,7 +193,9 @@ export function useQueryStreamSession({
         });
 
         for await (const chunk of chatCompletionStream(request)) {
-          if (abortRef.current?.signal.aborted) break;
+          if (abortRef.current?.signal.aborted || gen !== requestGenRef.current) {
+            break;
+          }
 
           switch (chunk.type) {
             case "conversation":
@@ -179,7 +205,11 @@ export function useQueryStreamSession({
                   conversationId: chunk.conversation_id,
                 }),
               );
-              if (!conversationId && chunk.conversation_id) {
+              if (
+                !conversationId &&
+                chunk.conversation_id &&
+                gen === requestGenRef.current
+              ) {
                 store.setActiveConversation(chunk.conversation_id);
                 queryClient.invalidateQueries({
                   queryKey: conversationKeys.lists(),
@@ -291,8 +321,7 @@ export function useQueryStreamSession({
           }
         }
 
-        if (abortRef.current?.signal.aborted) {
-          // abort reducer already applied in handleStop
+        if (abortRef.current?.signal.aborted || gen !== requestGenRef.current) {
           return;
         }
 
@@ -402,6 +431,7 @@ export function useQueryStreamSession({
       conversationId: string | null,
       payloadImages?: Array<{ data: string; mime_type: string }>,
     ) => {
+      const gen = requestGenRef.current;
       setSession((s) =>
         reduceStreamSession(s, {
           type: "submit",
@@ -430,6 +460,10 @@ export function useQueryStreamSession({
             stream: false,
           }),
         );
+
+        if (gen !== requestGenRef.current) {
+          return;
+        }
 
         if (!conversationId && response.conversation_id) {
           store.setActiveConversation(response.conversation_id);
@@ -576,6 +610,7 @@ export function useQueryStreamSession({
     setOptimisticUserMessage: (msg: QueryMessage | null) =>
       setSession((s) => ({ ...s, optimisticUserMessage: msg })),
     handleStop,
+    abandonInFlight,
     handleRegenerate,
     handleRetry,
     beginEditFromMessage,

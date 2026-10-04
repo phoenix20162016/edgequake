@@ -6,6 +6,13 @@ import { useQueryStreamSession } from "@/hooks/use-query-stream-session";
 import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
 import { convertServerMessage } from "@/lib/query/convert-server-message";
 import { mergeQueryMessages } from "@/lib/query/merge-query-messages";
+import {
+  beginNewQueryConversation,
+  endQueryHandoffNewConversation,
+  QUERY_HANDOFF_APPLIED_EVENT,
+  QUERY_HANDOFF_DRAFT_KEY,
+  QUERY_HANDOFF_FOCUS_KEY,
+} from "@/lib/query/query-handoff";
 import type { QueryMessage } from "@/lib/query/query-interface-types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -14,6 +21,8 @@ export function useQueryInterface() {
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const draftKeyRef = useRef<string>("query-draft:new");
+  /** Skip one persist after hydrate so Strict Mode remount cannot wipe Ask seeds. */
+  const skipDraftPersistRef = useRef(false);
 
   const clearPendingState = useCallback(() => {
     // no-op placeholder — stream session owns pending
@@ -30,9 +39,10 @@ export function useQueryInterface() {
     onTenantContextChange: clearPendingState,
   });
 
-  // Per-conversation draft persistence (Q18)
+  // Per-conversation draft persistence (Q18) + SPEC-159 Ask seed consume.
   useEffect(() => {
     draftKeyRef.current = `query-draft:${activeConversationId ?? "new"}`;
+    skipDraftPersistRef.current = true;
     try {
       const saved = localStorage.getItem(draftKeyRef.current);
       if (saved != null) setInput(saved);
@@ -42,7 +52,28 @@ export function useQueryInterface() {
     }
   }, [activeConversationId]);
 
+  // SPEC-159: one-shot focus after cross-route Ask (never auto-submit).
   useEffect(() => {
+    try {
+      if (sessionStorage.getItem(QUERY_HANDOFF_FOCUS_KEY) !== "1") return;
+      sessionStorage.removeItem(QUERY_HANDOFF_FOCUS_KEY);
+    } catch {
+      return;
+    }
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      const len = el.value.length;
+      el.setSelectionRange(len, len);
+    });
+  }, [activeConversationId, input]);
+
+  useEffect(() => {
+    if (skipDraftPersistRef.current) {
+      skipDraftPersistRef.current = false;
+      return;
+    }
     try {
       if (input) localStorage.setItem(draftKeyRef.current, input);
       else localStorage.removeItem(draftKeyRef.current);
@@ -68,6 +99,42 @@ export function useQueryInterface() {
     store,
     messages: messagesForHook,
   });
+
+  // SPEC-159: Ask always starts a new conversation. When already on /query with
+  // activeConversationId === null, the draft effect does not re-run — this event
+  // reapplies seed + focus and abandons in-flight stream (EC-159-06).
+  const abandonInFlight = stream.abandonInFlight;
+  useEffect(() => {
+    const applyHandoff = () => {
+      skipDraftPersistRef.current = true;
+      store.setActiveConversation(null);
+      abandonInFlight();
+      try {
+        const saved = localStorage.getItem(QUERY_HANDOFF_DRAFT_KEY);
+        if (saved != null) setInput(saved);
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (sessionStorage.getItem(QUERY_HANDOFF_FOCUS_KEY) === "1") {
+          sessionStorage.removeItem(QUERY_HANDOFF_FOCUS_KEY);
+        }
+      } catch {
+        /* ignore */
+      }
+      requestAnimationFrame(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        el.focus();
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+      });
+    };
+    window.addEventListener(QUERY_HANDOFF_APPLIED_EVENT, applyHandoff);
+    return () => {
+      window.removeEventListener(QUERY_HANDOFF_APPLIED_EVENT, applyHandoff);
+    };
+  }, [abandonInFlight, store]);
 
   const messages = useMemo(() => {
     return mergeQueryMessages(
@@ -118,6 +185,7 @@ export function useQueryInterface() {
   const handleSubmit = async () => {
     if (!input.trim() || stream.isStreamingOrLoading) return;
 
+    endQueryHandoffNewConversation();
     const queryText = input.trim();
     const currentImages = images.getPayload();
     setInput("");
@@ -141,6 +209,7 @@ export function useQueryInterface() {
   }, []);
 
   const handleNewConversation = useCallback(() => {
+    beginNewQueryConversation();
     store.setActiveConversation(null);
     stream.setPendingMessage(null);
     stream.setOptimisticUserMessage(null);

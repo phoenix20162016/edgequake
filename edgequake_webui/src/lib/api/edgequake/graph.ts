@@ -335,9 +335,34 @@ export async function getEntityNeighborhood(
   depth?: number,
 ): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
   const query = depth ? `?depth=${depth}` : "";
-  return api.get<{ nodes: GraphNode[]; edges: GraphEdge[] }>(
+  const res = await api.get<{ nodes: GraphNode[]; edges: GraphEdge[] }>(
     `${entityPath(entityId)}/neighborhood${query}`,
   );
+  // Neighborhood DTO uses entity_type / relation_type (not GraphEdge fields).
+  return {
+    nodes: (res.nodes ?? []).map((n) => {
+      const loose = n as GraphNode & { entity_type?: string };
+      return {
+        ...n,
+        node_type: n.node_type || loose.entity_type || "CONCEPT",
+        label: n.label || n.id,
+      };
+    }),
+    edges: (res.edges ?? []).map((e) => {
+      const loose = e as GraphEdge & {
+        relation_type?: string;
+        edge_type?: string;
+      };
+      return {
+        ...e,
+        relationship_type:
+          e.relationship_type ||
+          loose.relation_type ||
+          loose.edge_type ||
+          "RELATED_TO",
+      };
+    }),
+  };
 }
 
 export async function getRelationships(

@@ -509,7 +509,10 @@
       }
     },
     "detail": {
-      "viewInGraph": "View in knowledge graph"
+      "viewInGraph": "View in knowledge graph",
+      "askAboutPage": "Ask about this page",
+      "askAboutDocument": "Ask about this document",
+      "askShort": "Ask"
     }
   },
   "graph": {
@@ -560,8 +563,12 @@
       "viewDetails": "View Details",
       "expandNeighborhood": "Expand Neighborhood",
       "findRelated": "Find Related",
+      "askAboutThis": "Ask about this",
       "viewDocuments": "View Documents",
       "copyId": "Copy ID"
+    },
+    "details": {
+      "askAboutThis": "Ask about this"
     },
     "filters": {
       "title": "Filters",
@@ -576,6 +583,9 @@
       "allHiddenHint": "All types are hidden. Show at least one category to see the graph.",
       "noTypes": "No entity types in the current graph.",
       "noMatchingTypes": "No matching types",
+      "noMatchingNodes": "No matching nodes",
+      "noMatchingNodesHint": "Adjust filters or search to reveal entities (dimmed nodes stay on the canvas).",
+      "dismissNoMatching": "Dismiss",
       "documentScoped": "Document view"
     },
     "legend": {
@@ -649,6 +659,9 @@
   "query": {
     "title": "Query",
     "subtitle": "Ask questions about your knowledge graph",
+    "handoff": {
+      "ready": "Ready to ask about {{label}}"
+    },
     "placeholder": "Ask a question...",
     "submit": "Send",
     "failed": "Query failed",
@@ -866,25 +879,41 @@
       "source": "Source",
       "graph": "Graph",
       "close": "Close pane",
+      "split": "Split",
+      "splitGraph": "Show graph beside chat",
       "openFullPage": "Open full page",
       "openStudio": "Open in Graph Studio",
       "resize": "Resize companion pane",
       "announceOpenSource": "Source opened beside the chat",
       "announceOpenGraph": "Answer graph opened beside the chat",
+      "announceOpenNeighborhood": "Entity neighbourhood opened beside the chat",
+      "announceOpenWorkspaceGraph": "Knowledge graph opened beside the chat",
       "announceClosed": "Pane closed",
+      "emptyWorkspaceGraph": "No entities in this workspace yet",
+      "emptyWorkspaceGraphHint": "Process documents to build the knowledge graph, or open Graph Studio.",
+      "workspaceGraphFailed": "Couldn't load the knowledge graph",
+      "retry": "Retry",
+      "neighborhoodSummary": "{{nodes}} entities · {{edges}} relationships · 1 hop",
+      "emptyNeighborhood": "No neighbours within 1 hop",
+      "emptyNeighborhoodHint": "This entity has no connected nodes in the knowledge graph yet.",
+      "entityNotFound": "Entity not found in this workspace",
+      "neighborhoodFailed": "Couldn't load neighbourhood",
       "entities": "Entities",
       "relationships": "Relationships",
       "context": "context",
       "collapsePassage": "Collapse passage",
       "expandPassage": "Expand passage",
       "askAboutThis": "Ask about this",
+      "quoteIntoQuestion": "Quote into question",
       "inScope": "In scope",
       "scopeToDoc": "Scope to this document",
-      "viewMode": "View",
+      "viewMode": "Display",
       "viewPage": "Page",
       "viewText": "Text",
       "viewCanvas": "Graph",
       "viewList": "List",
+      "viewQuery": "Query",
+      "askAction": "Ask",
       "sourceGone": "This document is no longer available",
       "sourceGoneHint": "It may have been deleted since this answer was written.",
       "errorSource": "Couldn't load this source",

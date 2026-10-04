@@ -9,6 +9,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
   CLOSED_TARGET,
+  WORKSPACE_GRAPH_TARGET,
   type CompanionKind,
   type CompanionTarget,
   type SourceLocation,
@@ -20,6 +21,8 @@ interface CompanionPaneState {
   /** Remembered so the tab switch can return to the other pane. */
   lastSource: SourceLocation | null;
   lastGraphMessageId: string | null;
+  /** SPEC-159: last Ask neighborhood entity (distinct from answer msg). */
+  lastGraphEntityId: string | null;
   /** Bumped on every explicit open so re-clicking a citation re-navigates. */
   seq: number;
   /** Preferred side-pane width (px); clamped by the layout resolver. */
@@ -27,6 +30,10 @@ interface CompanionPaneState {
 
   openSource: (location: SourceLocation) => void;
   openGraph: (messageId: string) => void;
+  /** SPEC-159: open entity neighborhood companion. */
+  openEntityGraph: (entityId: string) => void;
+  /** Workspace KG snapshot (no answer msg / Ask entity). */
+  openWorkspaceGraph: () => void;
   close: () => void;
   /** Switch between the two panes using what was last shown. */
   switchTo: (kind: Exclude<CompanionKind, "none">) => void;
@@ -36,13 +43,22 @@ interface CompanionPaneState {
 }
 
 function remember(
-  state: Pick<CompanionPaneState, "lastSource" | "lastGraphMessageId">,
+  state: Pick<
+    CompanionPaneState,
+    "lastSource" | "lastGraphMessageId" | "lastGraphEntityId"
+  >,
   target: CompanionTarget,
 ) {
   return {
     lastSource: target.kind === "pdf" ? target.source : state.lastSource,
     lastGraphMessageId:
-      target.kind === "graph" ? target.messageId : state.lastGraphMessageId,
+      target.kind === "graph" && target.messageId
+        ? target.messageId
+        : state.lastGraphMessageId,
+    lastGraphEntityId:
+      target.kind === "graph" && target.entityId
+        ? target.entityId
+        : state.lastGraphEntityId,
   };
 }
 
@@ -52,6 +68,7 @@ export const useCompanionPaneStore = create<CompanionPaneState>()(
       target: CLOSED_TARGET,
       lastSource: null,
       lastGraphMessageId: null,
+      lastGraphEntityId: null,
       seq: 0,
       width: COMPANION_DEFAULT_PX,
 
@@ -60,6 +77,7 @@ export const useCompanionPaneStore = create<CompanionPaneState>()(
           kind: "pdf",
           source: location,
           messageId: null,
+          entityId: null,
         };
         set((s) => ({ target, seq: s.seq + 1, ...remember(s, target) }));
       },
@@ -68,15 +86,31 @@ export const useCompanionPaneStore = create<CompanionPaneState>()(
           kind: "graph",
           source: null,
           messageId,
+          entityId: null,
         };
+        set((s) => ({ target, seq: s.seq + 1, ...remember(s, target) }));
+      },
+      openEntityGraph: (entityId) => {
+        const target: CompanionTarget = {
+          kind: "graph",
+          source: null,
+          messageId: null,
+          entityId,
+        };
+        set((s) => ({ target, seq: s.seq + 1, ...remember(s, target) }));
+      },
+      openWorkspaceGraph: () => {
+        const target: CompanionTarget = { ...WORKSPACE_GRAPH_TARGET };
         set((s) => ({ target, seq: s.seq + 1, ...remember(s, target) }));
       },
       close: () => set({ target: CLOSED_TARGET }),
       switchTo: (kind) => {
-        const { lastSource, lastGraphMessageId } = get();
+        const { lastSource, lastGraphMessageId, lastGraphEntityId } = get();
         if (kind === "pdf" && lastSource) get().openSource(lastSource);
-        if (kind === "graph" && lastGraphMessageId) {
-          get().openGraph(lastGraphMessageId);
+        if (kind === "graph") {
+          if (lastGraphMessageId) get().openGraph(lastGraphMessageId);
+          else if (lastGraphEntityId) get().openEntityGraph(lastGraphEntityId);
+          else get().openWorkspaceGraph();
         }
       },
       applyTarget: (target) => set((s) => ({ target, ...remember(s, target) })),

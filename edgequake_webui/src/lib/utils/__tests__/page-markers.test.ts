@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'bun:test';
 import { marked, type Token, type Tokens } from 'marked';
 import {
+  extractPageMarkdown,
   hasPageMarkers,
   injectPageAnchors,
   listPageMarkers,
@@ -111,5 +112,17 @@ describe('hasPageMarkers', () => {
 
   it('returns true when markers present', () => {
     expect(hasPageMarkers('<!-- edgequake-page:1 -->\nx')).toBe(true);
+  });
+});
+
+describe('extractPageMarkdown', () => {
+  it('returns the slice between this page and the next', () => {
+    const md =
+      '<!-- edgequake-page:1 -->\n# Page one\n\n<!-- edgequake-page:2 -->\n# Page two\n\n<!-- edgequake-page:3 -->\n# Page three\n';
+    expect(extractPageMarkdown(md, 2)).toBe('# Page two');
+  });
+
+  it('returns empty when the page is missing', () => {
+    expect(extractPageMarkdown('<!-- edgequake-page:1 -->\nHi', 9)).toBe('');
   });
 });

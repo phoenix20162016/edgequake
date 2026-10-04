@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePageSyncController } from '@/hooks/use-page-sync-controller';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { useQueryHandoff } from '@/hooks/use-query-handoff';
 import { shouldUsePdfReprocessPanel } from '@/hooks/use-reprocess-tracking';
 import {
     getDocument,
@@ -42,7 +43,7 @@ import {
 import { getEffectiveErrorMessage } from '@/lib/utils/document-status';
 import { parsePageParam } from '@/lib/utils/document-url';
 import { resolvePdfId, withPdfMarkdown } from '@/lib/documents/viewer-target';
-import { hasPageMarkers } from '@/lib/utils/page-markers';
+import { extractPageMarkdown, hasPageMarkers } from '@/lib/utils/page-markers';
 import { useTenantStore } from '@/stores/use-tenant-store';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -52,6 +53,7 @@ import {
     ChevronRight,
     FileText,
     Loader2,
+    MessageSquareText,
     Network,
     RefreshCw,
     RotateCcw,
@@ -407,6 +409,47 @@ export default function DocumentViewPage() {
     }
   }, [document, router]);
 
+  // SPEC-159: Ask about this page/document → Query with companion + seed.
+  const { ask: askQuery } = useQueryHandoff();
+  const handleAskAboutPage = useCallback(
+    (pageOverride?: number) => {
+      if (!document) return;
+      const fromOverride =
+        typeof pageOverride === 'number' && pageOverride >= 1
+          ? pageOverride
+          : undefined;
+      const looksPdf =
+        document.source_type === 'pdf' ||
+        document.mime_type === 'application/pdf' ||
+        /\.pdf$/i.test(document.file_name ?? document.title ?? '');
+      const syncedPage =
+        looksPdf &&
+        typeof pageSync.activePage === 'number' &&
+        pageSync.activePage >= 1
+          ? pageSync.activePage
+          : undefined;
+      const page = fromOverride ?? syncedPage;
+      const title =
+        document.title ||
+        document.file_name ||
+        `Document ${document.id.slice(0, 8)}`;
+      const markdown =
+        pdfContent?.markdown_content || document.content || '';
+      const passage =
+        page !== undefined
+          ? extractPageMarkdown(markdown, page) || undefined
+          : undefined;
+      askQuery({
+        kind: 'document',
+        documentId: document.id,
+        title,
+        page,
+        passage,
+      });
+    },
+    [askQuery, document, pageSync.activePage, pdfContent?.markdown_content],
+  );
+
   // OODA-48: Derive PDF ID for viewer - use pdf_id if available, otherwise use document.id for PDF source types
   // WHY: The pdf_id may not be set in older documents or when source_type is 'pdf' but pdf_id wasn't populated
   const pdfIdForViewer = pdfIdForContent;
@@ -568,6 +611,28 @@ export default function DocumentViewPage() {
               markdownContent={documentWithContent.content}
               variant="icon"
             />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 px-2"
+              onClick={() => handleAskAboutPage()}
+              title={
+                typeof pageSync.activePage === 'number' && pageSync.activePage >= 1
+                  ? t('documents.detail.askAboutPage', 'Ask about this page')
+                  : t('documents.detail.askAboutDocument', 'Ask about this document')
+              }
+              aria-label={
+                typeof pageSync.activePage === 'number' && pageSync.activePage >= 1
+                  ? t('documents.detail.askAboutPage', 'Ask about this page')
+                  : t('documents.detail.askAboutDocument', 'Ask about this document')
+              }
+              data-testid="detail-ask-about-page"
+            >
+              <MessageSquareText className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline text-xs">
+                {t('documents.detail.askShort', 'Ask')}
+              </span>
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -796,6 +861,7 @@ export default function DocumentViewPage() {
                       onGestureStart={() => pageSync.beginGesture('pdf')}
                       onGestureEnd={pageSync.endGesture}
                       documentId={documentId}
+                      onAskAboutPage={handleAskAboutPage}
                     />
                   }
                   rightPanel={
@@ -948,6 +1014,7 @@ export default function DocumentViewPage() {
                   onGestureStart={() => pageSync.beginGesture('pdf')}
                   onGestureEnd={pageSync.endGesture}
                   documentId={documentId}
+                  onAskAboutPage={handleAskAboutPage}
                 />
               </TabsContent>
             )}

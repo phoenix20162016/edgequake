@@ -22,6 +22,7 @@ import { MathTokenRenderer } from './MathTokenRenderer';
 import { tryHtmlCodespan } from './utils/codespan-html';
 import { sanitizeHtml } from './utils/sanitize-html';
 import { InlineCitation } from '../citations/citation-popover';
+import { CitationKgButton } from '../citations/citation-kg-button';
 import type { CitationResolver } from './citation-resolver';
 
 /**
@@ -225,31 +226,38 @@ export const MarkdownInlineTokens = memo(function MarkdownInlineTokens({
                 : pageLabel
                   ? `Open cited document, ${pageLabel}`
                   : 'Open cited document';
+              const location = locationFromDocumentHref(path);
               const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
                 if (!isPlainActivation(e)) return; // new-tab keeps native link
                 e.preventDefault();
-                const location = locationFromDocumentHref(path);
                 if (location) openSource(location);
                 else router.push(path);
               };
               return (
-                <a
+                <span
                   key={tokenId}
-                  href={path}
-                  title={docTitle ?? undefined}
-                  onClick={onClick}
-                  data-testid="verified-citation-link"
-                  aria-label={ariaLabel}
-                  className="mx-0.5 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary no-underline hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 align-baseline"
+                  className="mx-0.5 inline-flex max-w-full items-center gap-0.5 align-middle"
                 >
-                  <MarkdownInlineTokens
-                    id={tokenId}
-                    tokens={linkToken.tokens || []}
-                    done={done}
-                    onSourceClick={onSourceClick}
-                    resolveCitation={resolveCitation}
-                  />
-                </a>
+                  <a
+                    href={path}
+                    title={docTitle ?? undefined}
+                    onClick={onClick}
+                    data-testid="verified-citation-link"
+                    aria-label={ariaLabel}
+                    className="inline-flex min-w-0 items-center rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-foreground no-underline hover:bg-muted/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  >
+                    <MarkdownInlineTokens
+                      id={tokenId}
+                      tokens={linkToken.tokens || []}
+                      done={done}
+                      onSourceClick={onSourceClick}
+                      resolveCitation={resolveCitation}
+                    />
+                  </a>
+                  {location?.documentId ? (
+                    <CitationKgButton documentId={location.documentId} />
+                  ) : null}
+                </span>
               );
             }
             return (

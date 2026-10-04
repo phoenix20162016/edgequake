@@ -5,7 +5,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { formatEntityLabel } from "@/lib/graph/label-utils";
+import { formatEntityLabel, formatEntityType } from "@/lib/graph/label-utils";
 import { cn } from "@/lib/utils";
 import type { AnswerGraphModel } from "@/lib/query/answer-graph";
 import { degreeTotal } from "@/types/graph";
@@ -94,7 +94,7 @@ export function AnswerGraphList({
                   {labelOf(e.source)}
                 </span>{" "}
                 <span className="uppercase tracking-wide">
-                  {e.relationship_type.replace(/_/g, " ")}
+                  {formatEntityType(e.relationship_type ?? "") || "Related To"}
                 </span>{" "}
                 <span className="font-medium text-foreground">
                   {labelOf(e.target)}

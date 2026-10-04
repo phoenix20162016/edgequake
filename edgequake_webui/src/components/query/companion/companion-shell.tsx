@@ -16,9 +16,11 @@ import { studioAnswerHref } from "@/hooks/use-open-answer-graph";
 import { useReturnFocus } from "@/hooks/use-return-focus";
 import type { CompanionLayout } from "@/lib/query/companion-layout";
 import { locationToDocumentHref } from "@/lib/query/companion-pane";
+import { studioEntityHref } from "@/lib/query/neighborhood-graph";
 import type { QueryMessage } from "@/lib/query/query-interface-types";
 import { cn } from "@/lib/utils";
 import { useCompanionPaneStore } from "@/stores/use-companion-pane-store";
+import type { GraphNode } from "@/types/graph";
 import { ExternalLink, X } from "lucide-react";
 import Link from "next/link";
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
@@ -28,14 +30,18 @@ import {
   companionPanelId,
   companionTabId,
 } from "./companion-tabs";
+import { EntityNeighborhoodPane } from "./entity-neighborhood-pane";
 import { GraphPane } from "./graph-pane";
 import { SourcePane } from "./source-pane";
+import { WorkspaceGraphPane } from "./workspace-graph-pane";
 
 interface CompanionShellProps {
   layout: CompanionLayout;
   messages: QueryMessage[];
   isMessagesLoading: boolean;
   onQuote: (text: string) => void;
+  /** SPEC-159: Ask handoff — always starts a new conversation. */
+  onAskEntity?: (node: GraphNode) => void;
   /** Where focus lands when the opener no longer exists. */
   onRestoreFocus: () => void;
 }
@@ -53,13 +59,13 @@ export function CompanionShell({
   messages,
   isMessagesLoading,
   onQuote,
+  onAskEntity,
   onRestoreFocus,
 }: CompanionShellProps) {
   const { t } = useTranslation();
   const idPrefix = useId();
   const target = useCompanionPaneStore((s) => s.target);
   const lastSource = useCompanionPaneStore((s) => s.lastSource);
-  const lastGraph = useCompanionPaneStore((s) => s.lastGraphMessageId);
   const close = useCompanionPaneStore((s) => s.close);
   const switchTo = useCompanionPaneStore((s) => s.switchTo);
   const setWidth = useCompanionPaneStore((s) => s.setWidth);
@@ -78,7 +84,20 @@ export function CompanionShell({
   const announcement = open
     ? target.kind === "pdf"
       ? t("query.companion.announceOpenSource", "Source opened beside the chat")
-      : t("query.companion.announceOpenGraph", "Answer graph opened beside the chat")
+      : target.entityId
+        ? t(
+            "query.companion.announceOpenNeighborhood",
+            "Entity neighbourhood opened beside the chat",
+          )
+        : target.messageId
+          ? t(
+              "query.companion.announceOpenGraph",
+              "Answer graph opened beside the chat",
+            )
+          : t(
+              "query.companion.announceOpenWorkspaceGraph",
+              "Knowledge graph opened beside the chat",
+            )
     : justClosed
       ? t("query.companion.announceClosed", "Pane closed")
       : "";
@@ -95,19 +114,29 @@ export function CompanionShell({
   const fullPageHref =
     target.kind === "pdf" && target.source
       ? locationToDocumentHref(target.source)
-      : target.messageId
-        ? studioAnswerHref(target.messageId)
-        : null;
+      : target.entityId
+        ? studioEntityHref(target.entityId)
+        : target.messageId
+          ? studioAnswerHref(target.messageId)
+          : "/graph";
 
   const body: ReactNode =
     target.kind === "pdf" && target.source ? (
       <SourcePane location={target.source} onQuote={onQuote} />
+    ) : target.kind === "graph" && target.entityId ? (
+      <EntityNeighborhoodPane
+        entityId={target.entityId}
+        onAskEntity={onAskEntity}
+      />
     ) : target.kind === "graph" && target.messageId ? (
       <GraphPane
         messageId={target.messageId}
         messages={messages}
         isLoading={isMessagesLoading}
+        onAskEntity={onAskEntity}
       />
+    ) : target.kind === "graph" ? (
+      <WorkspaceGraphPane onAskEntity={onAskEntity} />
     ) : null;
 
   const frame = (
@@ -128,7 +157,7 @@ export function CompanionShell({
         <CompanionTabs
           idPrefix={idPrefix}
           active={target.kind}
-          available={{ pdf: Boolean(lastSource), graph: Boolean(lastGraph) }}
+          available={{ pdf: Boolean(lastSource), graph: true }}
           onSelect={switchTo}
         />
         <div className="flex-1" />

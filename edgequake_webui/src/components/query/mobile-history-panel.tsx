@@ -12,6 +12,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConversations } from "@/hooks/use-conversations";
 import { formatConversationDate } from "@/lib/query/format-conversation-date";
+import {
+  beginNewQueryConversation,
+  endQueryHandoffNewConversation,
+} from "@/lib/query/query-handoff";
 import { cn } from "@/lib/utils";
 import {
   useActiveConversationId,
@@ -180,6 +184,7 @@ export function MobileHistoryPanel({ className }: MobileHistoryPanelProps) {
 
   const handleSelectConversation = useCallback(
     (conversationId: string) => {
+      endQueryHandoffNewConversation();
       setActiveConversation(conversationId);
       setOpen(false);
     },
@@ -187,6 +192,7 @@ export function MobileHistoryPanel({ className }: MobileHistoryPanelProps) {
   );
 
   const handleNewConversation = useCallback(() => {
+    beginNewQueryConversation();
     setActiveConversation(null);
     setOpen(false);
   }, [setActiveConversation]);

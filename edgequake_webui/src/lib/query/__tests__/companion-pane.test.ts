@@ -18,6 +18,7 @@ describe("companion-pane URL codec (SPEC-157 LAW-157-3)", () => {
     const target: CompanionTarget = {
       kind: "pdf",
       messageId: null,
+      entityId: null,
       source: {
         documentId: "doc-1",
         page: 3,
@@ -30,7 +31,7 @@ describe("companion-pane URL codec (SPEC-157 LAW-157-3)", () => {
     expect(search).toBe("pane=pdf&doc=doc-1&page=3&chunk=c_9&lines=12-30");
     expect(decodeCompanionSearch(q(search))).toEqual({
       ...target,
-      source: { ...target.source, },
+      source: { ...target.source },
     });
   });
 
@@ -39,28 +40,63 @@ describe("companion-pane URL codec (SPEC-157 LAW-157-3)", () => {
       kind: "graph",
       source: null,
       messageId: "msg-7",
+      entityId: null,
     };
     const search = encodeCompanionSearch(target);
     expect(search.toString()).toBe("pane=graph&msg=msg-7");
     expect(decodeCompanionSearch(search)).toEqual(target);
   });
 
+  it("round-trips a workspace graph target (pane=graph, no seed)", () => {
+    const target: CompanionTarget = {
+      kind: "graph",
+      source: null,
+      messageId: null,
+      entityId: null,
+    };
+    const search = encodeCompanionSearch(target);
+    expect(search.toString()).toBe("pane=graph");
+    expect(decodeCompanionSearch(search)).toEqual(target);
+    expect(decodeCompanionSearch(q("pane=graph"))).toEqual(target);
+    expect(decodeCompanionSearch(q("pane=graph&entity="))).toEqual(target);
+  });
+
+  it("round-trips an entity graph target (SPEC-159)", () => {
+    const target: CompanionTarget = {
+      kind: "graph",
+      source: null,
+      messageId: null,
+      entityId: "ws::GPTSWARM",
+    };
+    const search = encodeCompanionSearch(target);
+    expect(search.get("pane")).toBe("graph");
+    expect(search.get("entity")).toBe("ws::GPTSWARM");
+    expect(search.get("msg")).toBeNull();
+    expect(decodeCompanionSearch(search)).toEqual(target);
+  });
+
   it("preserves unrelated params and replaces stale companion ones", () => {
-    const base = q("foo=bar&pane=graph&msg=x&page=9");
+    const base = q("foo=bar&pane=graph&msg=x&entity=e&page=9");
     const next = encodeCompanionSearch(
-      { kind: "pdf", messageId: null, source: { documentId: "d" } },
+      {
+        kind: "pdf",
+        messageId: null,
+        entityId: null,
+        source: { documentId: "d" },
+      },
       base,
     );
     expect(next.get("foo")).toBe("bar");
     expect(next.get("pane")).toBe("pdf");
     expect(next.get("msg")).toBeNull();
+    expect(next.get("entity")).toBeNull();
     expect(next.get("page")).toBeNull();
   });
 
   it("closing strips every companion param", () => {
     const next = encodeCompanionSearch(
       CLOSED_TARGET,
-      q("foo=1&pane=pdf&doc=d&page=2&chunk=c&lines=1-2&msg=m"),
+      q("foo=1&pane=pdf&doc=d&page=2&chunk=c&lines=1-2&msg=m&entity=e"),
     );
     expect(next.toString()).toBe("foo=1");
   });
@@ -70,7 +106,6 @@ describe("companion-pane URL codec (SPEC-157 LAW-157-3)", () => {
     ["pane=pdf&doc=", "empty doc"],
     ["pane=pdf&doc=../../etc/passwd", "path traversal"],
     ["pane=pdf&doc=<script>", "markup"],
-    ["pane=graph", "missing msg"],
     ["pane=weird&doc=d", "unknown pane"],
     ["doc=d&page=2", "no pane"],
   ])("sanitises %s (%s) to closed", (search) => {
@@ -102,11 +137,13 @@ describe("companion-pane URL codec (SPEC-157 LAW-157-3)", () => {
     const a: CompanionTarget = {
       kind: "pdf",
       messageId: null,
+      entityId: null,
       source: { documentId: "d", page: 2, title: "A", passage: "x" },
     };
     const b: CompanionTarget = {
       kind: "pdf",
       messageId: null,
+      entityId: null,
       source: { documentId: "d", page: 2, title: "B" },
     };
     expect(targetKey(a)).toBe(targetKey(b));
