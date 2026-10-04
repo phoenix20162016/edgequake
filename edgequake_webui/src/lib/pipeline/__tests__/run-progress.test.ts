@@ -30,9 +30,69 @@ describe("phaseFill01", () => {
   it("does not collapse Prepare when figures start after pages", () => {
     const ledger = pagesThenFigures();
     const fill = phaseFill01(findPhase(ledger, "prepare"));
-    // pages 1.0 + figures ~0.083 → ~0.54
-    expect(fill).toBeGreaterThan(0.4);
+    // pages 1.0 × 0.80 + figures ~0.083 × 0.20 ≈ 0.817
+    expect(fill).toBeGreaterThan(0.8);
     expect(fill).toBeLessThan(0.99);
+  });
+
+  it("keeps Prepare at 80% when pages are done and figures are 0/N", () => {
+    const ledger: RunProgress = {
+      seq: 2,
+      phases: [
+        {
+          id: "prepare",
+          state: "active",
+          tasks: [
+            { id: "pages", unit: "pages", done: 27, total: 27 },
+            { id: "figures", unit: "figures", done: 0, total: 8 },
+          ],
+        },
+        { id: "extract", state: "pending", tasks: [] },
+        { id: "materialize", state: "pending", tasks: [] },
+      ],
+    };
+    expect(phaseFill01(findPhase(ledger, "prepare"))).toBeCloseTo(0.8);
+  });
+
+  it("uses page ratio alone when there are no figures", () => {
+    const ledger: RunProgress = {
+      seq: 1,
+      phases: [
+        {
+          id: "prepare",
+          state: "active",
+          tasks: [{ id: "pages", unit: "pages", done: 4, total: 27 }],
+        },
+        { id: "extract", state: "pending", tasks: [] },
+        { id: "materialize", state: "pending", tasks: [] },
+      ],
+    };
+    expect(phaseFill01(findPhase(ledger, "prepare"))).toBeCloseTo(4 / 27);
+  });
+
+  it("climbs through the last 20% as figures finish", () => {
+    const base: RunProgress = {
+      seq: 3,
+      phases: [
+        {
+          id: "prepare",
+          state: "active",
+          tasks: [
+            { id: "pages", unit: "pages", done: 10, total: 10 },
+            { id: "figures", unit: "figures", done: 0, total: 4 },
+          ],
+        },
+        { id: "extract", state: "pending", tasks: [] },
+        { id: "materialize", state: "pending", tasks: [] },
+      ],
+    };
+    expect(phaseFill01(findPhase(base, "prepare"))).toBeCloseTo(0.8);
+    const mid = structuredClone(base);
+    mid.phases[0]!.tasks[1]!.done = 2;
+    expect(phaseFill01(findPhase(mid, "prepare"))).toBeCloseTo(0.9);
+    const end = structuredClone(base);
+    end.phases[0]!.tasks[1]!.done = 4;
+    expect(phaseFill01(findPhase(end, "prepare"))).toBeCloseTo(0.99);
   });
 
   it("is 1.0 for a done phase", () => {
@@ -126,6 +186,21 @@ describe("synthesizeFromLegacy", () => {
     });
     expect(findPhase(synth!, "extract")!.tasks[0].done).toBe(5);
     expect(findPhase(synth!, "prepare")!.state).toBe("done");
+  });
+
+  it("keeps a page band when legacy counts are figures-only after OCR", () => {
+    const synth = synthesizeFromLegacy({
+      stage: "converting",
+      stageProgress01: 0.9,
+      counts: { unit: "figures", current: 0, total: 8 },
+    });
+    const prepare = findPhase(synth!, "prepare")!;
+    expect(prepare.tasks.find((t) => t.id === "pages")).toBeTruthy();
+    expect(prepare.tasks.find((t) => t.id === "figures")).toMatchObject({
+      done: 0,
+      total: 8,
+    });
+    expect(phaseFill01(prepare)).toBeGreaterThanOrEqual(0.8);
   });
 });
 

@@ -202,11 +202,173 @@ test.describe("SPEC-155 single progress bar @spec155", () => {
       "active",
     );
     await expect(card.getByTestId("spec048-stage-progress")).toContainText("figures");
-    // Prepare segment fill must stay well above the legacy 8%.
+    // Pages done + figures started ⇒ ≥80% (never the legacy ~8% figure ratio).
     const bar = card.getByRole("progressbar");
     await expect(bar).toBeVisible();
     const value = Number(await bar.getAttribute("aria-valuenow"));
-    expect(value).toBeGreaterThan(40);
+    expect(value).toBeGreaterThanOrEqual(80);
+    await expect(card.getByTestId("spec048-run-stage-pct")).toHaveText(
+      `${value}%`,
+    );
+    await expect(card.getByText("Converting PDF")).toHaveCount(0);
+  });
+
+  test("pages mid-convert shows one percent matching the count", async ({
+    page,
+  }) => {
+    const now = new Date().toISOString();
+    await prepareSpec155Page(page, {
+      documents: [
+        {
+          id: RUN_ID,
+          title: "2609.37725v1.pdf",
+          file_name: "2609.37725v1.pdf",
+          status: "processing",
+          current_stage: "converting",
+          stage_message: "Converting PDF to Markdown — page 4/27",
+          // OCR band (4/27 × 0.90 ≈ 13%) must not appear beside the count.
+          stage_progress: 0.13,
+          progress_counts: { unit: "pages", current: 4, total: 27 },
+          run_progress: {
+            seq: 3,
+            phases: [
+              {
+                id: "prepare",
+                state: "active",
+                tasks: [{ id: "pages", unit: "pages", done: 4, total: 27 }],
+              },
+              { id: "extract", state: "pending", tasks: [] },
+              { id: "materialize", state: "pending", tasks: [] },
+            ],
+          },
+          source_type: "pdf",
+          track_id: "track-155-pages",
+          created_at: now,
+          updated_at: now,
+        },
+      ],
+    });
+    await page.goto("/documents", { waitUntil: "domcontentloaded" });
+    await expandIntakeWorking(page);
+    const card = page.getByTestId("spec048-active-run-card");
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await expect(card.getByTestId("spec048-step-detail")).toContainText(
+      "Prepare · pages 4/27",
+    );
+    await expect(card.getByTestId("spec048-run-stage-pct")).toHaveText("15%");
+    await expect(card.getByText("13%")).toHaveCount(0);
+    await expect(card.getByText("Converting PDF")).toHaveCount(0);
+    const bar = card.getByRole("progressbar");
+    await expect(bar).toHaveAttribute("aria-valuenow", "15");
+    await card.screenshot({
+      path: "test-results/spec155-run-pages-mid.png",
+    });
+  });
+
+  test("charts at zero after full pages keep Prepare at 80%", async ({
+    page,
+  }) => {
+    const now = new Date().toISOString();
+    await prepareSpec155Page(page, {
+      documents: [
+        {
+          id: RUN_ID,
+          title: "charts.pdf",
+          file_name: "charts.pdf",
+          status: "processing",
+          current_stage: "converting",
+          stage_message: "Analyzing figures with Vision LLM — figure 0/8",
+          stage_progress: 0.98,
+          progress_counts: { unit: "figures", current: 0, total: 8 },
+          run_progress: {
+            seq: 6,
+            phases: [
+              {
+                id: "prepare",
+                state: "active",
+                tasks: [
+                  { id: "pages", unit: "pages", done: 27, total: 27 },
+                  { id: "figures", unit: "figures", done: 0, total: 8 },
+                ],
+              },
+              { id: "extract", state: "pending", tasks: [] },
+              { id: "materialize", state: "pending", tasks: [] },
+            ],
+          },
+          source_type: "pdf",
+          track_id: "track-155-charts-zero",
+          created_at: now,
+          updated_at: now,
+        },
+      ],
+    });
+    await page.goto("/documents", { waitUntil: "domcontentloaded" });
+    await expandIntakeWorking(page);
+    const card = page.getByTestId("spec048-active-run-card");
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await expect(card.getByTestId("spec048-step-detail")).toContainText(
+      "Prepare · pages 27/27 · figures 0/8",
+    );
+    await expect(card.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "80",
+    );
+    await expect(card.getByTestId("spec048-run-stage-pct")).toHaveText("80%");
+    await expect(card.getByText("Converting PDF")).toHaveCount(0);
+    await expect(card.getByTestId("spec086-run-message")).toHaveCount(0);
+  });
+
+  test("finished figure count is one line, with no second percent", async ({
+    page,
+  }) => {
+    const now = new Date().toISOString();
+    await prepareSpec155Page(page, {
+      documents: [
+        {
+          id: RUN_ID,
+          title: "0001_Note_manuscrite__2_.pdf",
+          file_name: "0001_Note_manuscrite__2_.pdf",
+          status: "processing",
+          current_stage: "converting",
+          stage_message: "Prepare · figures 4/4",
+          stage_progress: 0.91,
+          progress_counts: { unit: "figures", current: 4, total: 4 },
+          run_progress: {
+            seq: 8,
+            phases: [
+              {
+                id: "prepare",
+                state: "active",
+                tasks: [{ id: "figures", unit: "figures", done: 4, total: 4 }],
+              },
+              { id: "extract", state: "pending", tasks: [] },
+              { id: "materialize", state: "pending", tasks: [] },
+            ],
+          },
+          source_type: "pdf",
+          track_id: "track-155-figures-done",
+          created_at: now,
+          updated_at: now,
+        },
+      ],
+    });
+    await page.goto("/documents", { waitUntil: "domcontentloaded" });
+    await expandIntakeWorking(page);
+    const panel = page.getByTestId("spec048-active-runs-panel");
+    const card = page.getByTestId("spec048-active-run-card");
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await expect(panel.getByTestId("documents-intake-summary")).toHaveCount(0);
+    await expect(card.getByTestId("spec048-step-detail")).toContainText(
+      "Prepare · figures 4/4",
+    );
+    await expect(card.getByText("Converting PDF")).toHaveCount(0);
+    await expect(card.getByTestId("spec048-run-stage-pct")).toHaveClass(/sr-only/);
+    await expect(card.getByTestId("spec086-run-message")).toHaveCount(0);
+    await expect(card.getByTestId("spec099-run-expand-details")).toHaveCount(0);
+    await expect(panel.getByRole("progressbar")).toHaveCount(1);
+    await card.screenshot({
+      path: "test-results/spec155-run-figures-settled.png",
+    });
   });
 
   test("reload paints identical segment fills and caption", async ({ page }) => {

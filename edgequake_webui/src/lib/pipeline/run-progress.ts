@@ -49,17 +49,46 @@ export interface RunProgress {
 
 const PHASE_ORDER: RunPhaseId[] = ["prepare", "extract", "materialize"];
 
-/** Weighted fill 0–1 for one phase. Done ⇒ 1; pending ⇒ 0; active ⇒ task average. */
+/** Pages own 80% of Prepare; figures/charts own the last 20%. */
+const PREPARE_PAGES_WEIGHT = 0.8;
+const PREPARE_FIGURES_WEIGHT = 0.2;
+
+function taskFraction(task: RunTaskProgress): number {
+  if (task.total <= 0) return 0;
+  return Math.min(1, Math.max(0, task.done / task.total));
+}
+
+/**
+ * Prepare fill: pages only ⇒ page ratio; charts discovered ⇒ pages×80% +
+ * figures×20% so pages 27/27 + figures 0/8 stays at 80% (never ~50% or 0).
+ */
+function prepareFill01(phase: RunPhaseProgress): number {
+  const pages = (phase.tasks ?? []).find((t) => t.id === "pages" && t.total > 0);
+  const figures = (phase.tasks ?? []).find(
+    (t) => t.id === "figures" && t.total > 0,
+  );
+  let fill = 0.02;
+  if (pages && figures) {
+    fill =
+      PREPARE_PAGES_WEIGHT * taskFraction(pages) +
+      PREPARE_FIGURES_WEIGHT * taskFraction(figures);
+  } else if (pages) {
+    fill = taskFraction(pages);
+  } else if (figures) {
+    fill = taskFraction(figures);
+  }
+  return Math.min(0.99, Math.max(0, fill));
+}
+
+/** Weighted fill 0–1 for one phase. Done ⇒ 1; pending ⇒ 0. */
 export function phaseFill01(phase: RunPhaseProgress | undefined): number {
   if (!phase) return 0;
   if (phase.state === "pending") return 0;
   if (phase.state === "done") return 1;
+  if (phase.id === "prepare") return prepareFill01(phase);
   const known = (phase.tasks ?? []).filter((t) => t.total > 0);
   if (known.length === 0) return 0.02;
-  const sum = known.reduce(
-    (acc, t) => acc + Math.min(1, Math.max(0, t.done / t.total)),
-    0,
-  );
+  const sum = known.reduce((acc, t) => acc + taskFraction(t), 0);
   return Math.min(0.99, sum / known.length);
 }
 
@@ -258,6 +287,22 @@ export function synthesizeFromLegacy(input: {
           embeddings: "embeddings",
         };
         const tid = idMap[unit] ?? (active === "extract" ? "chunks" : "pages");
+        // Figures-only legacy counts after OCR: keep a synthetic pages task so
+        // Prepare fill stays on the 80% band instead of collapsing to 0/N.
+        if (
+          active === "prepare" &&
+          tid === "figures" &&
+          hasExplicitProgress &&
+          frac > 0
+        ) {
+          const pageFrac = Math.min(1, frac / 0.9);
+          tasks.push({
+            id: "pages",
+            unit: "pages",
+            done: Math.max(1, Math.round(pageFrac * 100)),
+            total: 100,
+          });
+        }
         tasks.push({
           id: tid,
           unit,

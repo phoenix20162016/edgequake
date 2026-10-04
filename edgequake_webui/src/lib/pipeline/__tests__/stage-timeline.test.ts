@@ -56,7 +56,7 @@ describe("stage-timeline", () => {
     expect(extracting?.status).toBe("active");
     expect(extracting?.detail?.current).toBe(42);
     expect(extracting?.detail?.total).toBe(351);
-    expect(formatStepDetailLine(extracting?.detail)).toContain("42/351");
+    expect(formatStepDetailLine(extracting?.detail)).toBe("42/351 chunks");
     expect(tl.admissionQueued).toBe(false);
   });
 

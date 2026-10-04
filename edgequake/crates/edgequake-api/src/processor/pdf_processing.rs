@@ -1958,6 +1958,10 @@ impl DocumentTaskProcessor {
                     } else {
                         crate::services::vision_figure_analyze_message(0, analyze_cap)
                     };
+                    // Seed the typed figures task at 0/N so Prepare fill stays
+                    // on the page band (80%) instead of a bare float / legacy
+                    // figures-only counter collapsing the bar.
+                    progress_callback.report_figure_progress(0, analyze_cap.max(1));
                     progress_callback.report_converting_status(
                         start_msg,
                         crate::services::vision_figure_analyze_progress_01(0, analyze_cap),

@@ -40,6 +40,11 @@ interface ServerStageStepperProps {
    * (segmented) instead of chips with a separate meter.
    */
   phaseProgress?: PhaseStripProgress;
+  /**
+   * Caption mode paints the status sentence itself (one line, one percent).
+   * Skip the second detail row so "3/5 pages" is not repeated under the strip.
+   */
+  hideStepDetail?: boolean;
   className?: string;
 }
 
@@ -97,6 +102,7 @@ export function ServerStageStepper({
   variant = "phases",
   headlineText,
   phaseProgress,
+  hideStepDetail = false,
   className,
 }: ServerStageStepperProps) {
   const timeline = buildStageTimeline(run);
@@ -169,21 +175,23 @@ export function ServerStageStepper({
       </div>
       )}
 
-      {active && detailLine && !isCancelTerminal ? (
+      {active && detailLine && !isCancelTerminal && !hideStepDetail ? (
         <div
           className={cn(
-            "rounded-md border px-2 py-1.5 text-xs tabular-nums",
-            detailRedundant && active.status !== "failed" && "sr-only",
+            "flex items-baseline justify-between gap-3 text-xs tabular-nums",
             active.status === "failed"
-              ? "border-rose-200 bg-rose-50/80 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"
-              : "border-sky-200/80 bg-sky-50/60 text-sky-900 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100",
+              ? "rounded-md border border-rose-200 bg-rose-50/80 px-2 py-1.5 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"
+              : "text-foreground",
           )}
           data-testid="spec048-step-detail"
           data-stage={active.id}
+          data-redundant={detailRedundant ? "true" : "false"}
         >
-          <span className="font-medium">{active.label}</span>
-          <span className="mx-1.5 text-muted-foreground">·</span>
-          <span>{detailLine}</span>
+          <p className="min-w-0 truncate">
+            <span className="font-medium">{active.label}</span>
+            <span className="mx-1.5 text-muted-foreground">·</span>
+            <span className="text-muted-foreground">{detailLine}</span>
+          </p>
         </div>
       ) : null}
     </div>

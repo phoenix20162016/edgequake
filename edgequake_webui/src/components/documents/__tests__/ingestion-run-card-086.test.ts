@@ -12,6 +12,9 @@ import {
   canDismissFailedRun,
   canDismissTerminalRun,
   shouldNestPdfPageMeter,
+  fractionCountsSettled,
+  statusLineRepeats,
+  visibleStatusLine,
 } from "@/components/documents/ingestion-run-card";
 import {
   CANCELLED_ACTIVE_RUN_TTL_MS,
@@ -266,5 +269,49 @@ describe("ActiveRunsPanel partition (dual-run UX)", () => {
       message: "Processing cancelled",
     };
     expect(workingSectionTitle([cancelled])).toBe("Cancelled");
+  });
+});
+
+describe("active run status line", () => {
+  it("keeps the ledger caption when it already has the same counts", () => {
+    expect(
+      visibleStatusLine("Prepare · pages 3/5", "Converting PDF", "3/5 pages"),
+    ).toBe("Prepare · pages 3/5");
+  });
+
+  it("keeps a richer ledger line when the step count is only one of its tasks", () => {
+    expect(
+      visibleStatusLine(
+        "Prepare · pages 92/92 · figures 1/12",
+        "Converting PDF",
+        "1/12 figures",
+      ),
+    ).toBe("Prepare · pages 92/92 · figures 1/12");
+  });
+
+  it("uses the step line when the headline has no counts", () => {
+    expect(
+      visibleStatusLine("Extracting", "Extracting", "42/351 chunks"),
+    ).toBe("Extracting · 42/351 chunks");
+  });
+
+  it("treats a finished count as settled and a partial count as open", () => {
+    expect(fractionCountsSettled("Prepare · figures 4/4")).toBe(true);
+    expect(fractionCountsSettled("Prepare · pages 10/10 · figures 4/4")).toBe(
+      true,
+    );
+    expect(fractionCountsSettled("Prepare · pages 3/5")).toBe(false);
+    expect(fractionCountsSettled("Extracting")).toBe(false);
+  });
+
+  it("treats a repeated backend message as already shown", () => {
+    expect(
+      statusLineRepeats("Prepare · pages 3/5", ["Prepare · pages 3/5"]),
+    ).toBe(true);
+    expect(
+      statusLineRepeats("Vision model rejected the page image", [
+        "Prepare · pages 3/5",
+      ]),
+    ).toBe(false);
   });
 });

@@ -181,11 +181,18 @@ impl RunPhaseProgress {
     }
 
     /// Weighted fill for this phase (0–1). Done ⇒ 1; pending ⇒ 0.
+    ///
+    /// Prepare is special: pages own 80% of the bar and figures/charts own the
+    /// last 20%. That keeps the bar at 80% when pages finish and charts start
+    /// at 0/N — never an equal average that collapses toward ~50% or 0.
     pub fn fill01(&self) -> f64 {
         match self.state {
             RunPhaseState::Pending => 0.0,
             RunPhaseState::Done => 1.0,
             RunPhaseState::Active => {
+                if self.id == RunPhaseId::Prepare {
+                    return prepare_fill01(self);
+                }
                 if self.tasks.is_empty() {
                     return 0.02;
                 }
@@ -203,6 +210,28 @@ impl RunPhaseProgress {
     pub fn task(&self, id: RunTaskId) -> Option<&RunTaskProgress> {
         self.tasks.iter().find(|t| t.id == id)
     }
+}
+
+/// Pages own 80% of Prepare; figures/charts own the last 20%.
+const PREPARE_PAGES_WEIGHT: f64 = 0.80;
+const PREPARE_FIGURES_WEIGHT: f64 = 0.20;
+
+fn prepare_fill01(phase: &RunPhaseProgress) -> f64 {
+    let pages = phase
+        .task(RunTaskId::Pages)
+        .filter(|t| t.total > 0)
+        .map(RunTaskProgress::fraction);
+    let figures = phase
+        .task(RunTaskId::Figures)
+        .filter(|t| t.total > 0)
+        .map(RunTaskProgress::fraction);
+    let fill = match (pages, figures) {
+        (Some(p), Some(f)) => PREPARE_PAGES_WEIGHT * p + PREPARE_FIGURES_WEIGHT * f,
+        (Some(p), None) => p,
+        (None, Some(f)) => f,
+        (None, None) => 0.02,
+    };
+    fill.clamp(0.0, 0.99)
 }
 
 /// Durable, monotonic progress ledger for one document run.
@@ -701,15 +730,52 @@ mod tests {
         let prepare = ledger.phase(RunPhaseId::Prepare).unwrap();
         assert_eq!(prepare.task(RunTaskId::Pages).unwrap().done, 92);
         assert_eq!(prepare.task(RunTaskId::Figures).unwrap().done, 1);
-        // Prepare fill is average of pages(1.0) and figures(~0.08) ≈ 0.54 — never 0.
+        // Pages 1.0 × 0.80 + figures ~0.083 × 0.20 ≈ 0.817 — never 0 / ~0.5.
         let fill = prepare.fill01();
         assert!(
-            fill > 0.4,
+            fill > 0.80,
             "prepare must not collapse when figures start: {fill}"
         );
-        assert!(fill < fill_after_pages || fill > 0.4);
+        assert!(fill < 0.99, "active prepare stays under 1.0: {fill}");
         // Pages counter untouched.
         assert_eq!(prepare.task(RunTaskId::Pages).unwrap().total, 92);
+    }
+
+    #[test]
+    fn pages_done_figures_at_zero_stays_at_eighty() {
+        let mut ledger = RunProgress::default();
+        apply_task(&mut ledger, RunTaskId::Pages, 27, 27, None);
+        apply_task(&mut ledger, RunTaskId::Figures, 0, 8, None);
+        let fill = ledger.phase(RunPhaseId::Prepare).unwrap().fill01();
+        assert!(
+            (fill - 0.80).abs() < 1e-9,
+            "pages complete + figures 0/N ⇒ 80%: {fill}"
+        );
+    }
+
+    #[test]
+    fn figures_only_uses_figure_ratio() {
+        let mut ledger = RunProgress::default();
+        apply_task(&mut ledger, RunTaskId::Figures, 2, 8, None);
+        let fill = ledger.phase(RunPhaseId::Prepare).unwrap().fill01();
+        assert!((fill - 0.25).abs() < 1e-9, "figures-only fill: {fill}");
+    }
+
+    #[test]
+    fn prepare_figures_climb_through_last_twenty() {
+        let mut ledger = RunProgress::default();
+        apply_task(&mut ledger, RunTaskId::Pages, 10, 10, None);
+        apply_task(&mut ledger, RunTaskId::Figures, 0, 4, None);
+        let at_zero = ledger.phase(RunPhaseId::Prepare).unwrap().fill01();
+        apply_task(&mut ledger, RunTaskId::Figures, 2, 4, None);
+        let mid = ledger.phase(RunPhaseId::Prepare).unwrap().fill01();
+        apply_task(&mut ledger, RunTaskId::Figures, 4, 4, None);
+        let done_figs = ledger.phase(RunPhaseId::Prepare).unwrap().fill01();
+        assert!((at_zero - 0.80).abs() < 1e-9);
+        assert!(mid > at_zero, "figures climb: {mid} > {at_zero}");
+        assert!((mid - 0.90).abs() < 1e-9, "half figures ⇒ 90%: {mid}");
+        assert!((done_figs - 0.99).abs() < 1e-9 || done_figs >= 0.99);
+        assert!(done_figs >= mid);
     }
 
     #[test]

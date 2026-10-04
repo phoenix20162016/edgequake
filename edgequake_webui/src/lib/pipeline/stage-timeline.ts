@@ -288,11 +288,9 @@ export function formatStepDetailLine(detail?: StageStepDetail): string | null {
     detail.total > 0
   ) {
     const unit = detail.unit ? ` ${detail.unit}` : "";
-    const pct =
-      typeof detail.progress01 === "number"
-        ? ` · ${Math.round(Math.min(1, Math.max(0, detail.progress01)) * 100)}%`
-        : "";
-    return `${detail.current}/${detail.total}${unit}${pct}`;
+    // N/M already is the stage meter. progress01 is often the overall run
+    // percent, and painting it beside "3/5 pages" reads as a second, conflicting figure.
+    return `${detail.current}/${detail.total}${unit}`;
   }
   if (typeof detail.progress01 === "number" && detail.progress01 > 0) {
     return `${Math.round(Math.min(1, Math.max(0, detail.progress01)) * 100)}%`;

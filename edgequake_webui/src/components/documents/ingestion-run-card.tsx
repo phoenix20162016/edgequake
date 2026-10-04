@@ -8,7 +8,7 @@
 "use client";
 
 import { ServerStageStepper } from "@/components/documents/server-stage-stepper";
-import { RunCaption } from "@/components/documents/run-caption";
+import { RunCaption, RunDetailsToggle } from "@/components/documents/run-caption";
 import { RunMeterRow } from "@/components/documents/run-meter-row";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,10 @@ import {
   type IngestionRunView,
 } from "@/lib/pipeline/ingestion-run-view";
 import { resolveCaptionProgress } from "@/lib/pipeline/phase-segments";
-import { buildStageTimeline } from "@/lib/pipeline/stage-timeline";
+import {
+  buildStageTimeline,
+  formatStepDetailLine,
+} from "@/lib/pipeline/stage-timeline";
 import { X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
@@ -72,6 +75,48 @@ export function canDismissCancelledRun(
     hasDismissHandler &&
     (run.stageStatus === "cancelled" || run.stage === "cancelled")
   );
+}
+
+/** True when every N/M in the sentence is finished (4/4, not 3/5). */
+export function fractionCountsSettled(text: string): boolean {
+  const pairs = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)];
+  if (pairs.length === 0) return false;
+  return pairs.every((match) => {
+    const total = Number(match[2]);
+    return total > 0 && Number(match[1]) >= total;
+  });
+}
+
+/** Prefer the ledger/stage headline when it already carries the same counts. */
+export function visibleStatusLine(
+  headline: string,
+  stepLabel: string | undefined,
+  stepDetail: string | null,
+): string {
+  if (!stepDetail) return headline;
+  const nums = stepDetail.match(/\d+/g) ?? [];
+  if (nums.length > 0 && nums.every((n) => headline.includes(n))) {
+    return headline;
+  }
+  return stepLabel ? `${stepLabel} · ${stepDetail}` : stepDetail;
+}
+
+function normalizeStatus(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+/** True when a backend message only restates a line already on the card. */
+export function statusLineRepeats(
+  message: string | null | undefined,
+  lines: Array<string | null | undefined>,
+): boolean {
+  const body = normalizeStatus(message ?? "");
+  if (body.length < 4) return false;
+  return lines.some((line) => {
+    const other = normalizeStatus(line ?? "");
+    if (other.length < 4) return false;
+    return body === other || other.includes(body) || body.includes(other);
+  });
 }
 
 function isCancelTerminal(
@@ -135,11 +180,35 @@ export function IngestionRunCard({
       : "text-xs tabular-nums text-orange-700/80 dark:text-orange-300/80"
     : "text-xs tabular-nums text-sky-700 dark:text-sky-300";
 
-  const headlineText = cancelTerminal
+  const ledgerHeadline = cancelTerminal
     ? stageDisplayName(run.stage, run.sourceType)
     : isAdmission
       ? formatQueueChrome(run) || formatRunHeadline(run)
       : formatRunHeadline(run).replace(` · ${run.filename}`, "");
+  const activeStep = timeline.steps.find(
+    (step) =>
+      step.status === "active" ||
+      step.status === "failed" ||
+      step.status === "cancelled",
+  );
+  const stepDetail = formatStepDetailLine(activeStep?.detail);
+  const stepLinePaints =
+    captionMode &&
+    Boolean(stepDetail?.includes("/")) &&
+    activeStep?.status !== "cancelled";
+  const headlineText = stepLinePaints
+    ? visibleStatusLine(ledgerHeadline, activeStep?.label, stepDetail)
+    : ledgerHeadline;
+  const extraMessage =
+    run.message &&
+    !statusLineRepeats(run.message, [
+      headlineText,
+      ledgerHeadline,
+      stepDetail,
+      activeStep ? `${activeStep.label} · ${stepDetail ?? ""}` : null,
+    ])
+      ? run.message
+      : null;
 
   return (
     <div
@@ -167,6 +236,12 @@ export function IngestionRunCard({
           {run.filename}
         </span>
         <div className="flex shrink-0 items-center gap-2">
+          {compact && extraMessage ? (
+            <RunDetailsToggle
+              open={detailsOpen}
+              onToggle={() => setDetailsOpen((open) => !open)}
+            />
+          ) : null}
           {!captionMode ? (
             <span className={headlineClass} data-testid="spec048-run-headline">
               {headlineText}
@@ -211,6 +286,7 @@ export function IngestionRunCard({
         variant="phases"
         headlineText={cancelTerminal ? undefined : headlineText}
         phaseProgress={captionMode ? { stagePct: determinateStagePct } : undefined}
+        hideStepDetail={stepLinePaints}
       />
 
       {isAdmission ? (
@@ -248,14 +324,15 @@ export function IngestionRunCard({
           srLabel={`This stage${
             timeline.stageCountsLabel ? ` · ${timeline.stageCountsLabel}` : ""
           }`}
-          details={
-            compact && run.message
+          stepDetail={
+            stepLinePaints && activeStep
               ? {
-                  open: detailsOpen,
-                  onToggle: () => setDetailsOpen((open) => !open),
+                  stage: activeStep.id,
+                  failed: activeStep.status === "failed",
                 }
               : undefined
           }
+          countComplete={fractionCountsSettled(headlineText)}
         />
       )}
 
@@ -265,12 +342,12 @@ export function IngestionRunCard({
         </div>
       ) : null}
 
-      {run.message && (!compact || detailsOpen) ? (
+      {extraMessage && (!compact || detailsOpen) ? (
         <p
           className="text-xs text-muted-foreground line-clamp-2"
           data-testid="spec086-run-message"
         >
-          {run.message}
+          {extraMessage}
         </p>
       ) : null}
 

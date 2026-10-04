@@ -341,16 +341,18 @@ export function ActiveRunsPanel({
                   <span className="shrink-0 text-xs font-medium tracking-tight">
                     {workingSectionTitleForRuns(working)}
                   </span>
-                  <span
-                    className="truncate text-xs text-muted-foreground"
-                    data-testid="documents-intake-summary"
-                  >
-                    {summary.text}
-                  </span>
+                  {workingCollapsed ? (
+                    <span
+                      className="truncate text-xs text-muted-foreground"
+                      data-testid="documents-intake-summary"
+                    >
+                      {summary.text}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </button>
-            {avgPct != null ? (
+            {workingCollapsed && avgPct != null ? (
               <div
                 className="flex w-24 shrink-0 items-center gap-1.5"
                 aria-hidden="true"

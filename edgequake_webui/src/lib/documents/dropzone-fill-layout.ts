@@ -12,6 +12,12 @@ export type DropzoneFillLayout = "row" | "stack" | "hero";
 export const DROPZONE_ROW_MAX_HEIGHT_PX = 120;
 /** Below this width (px), prefer a vertical stack. */
 export const DROPZONE_STACK_MAX_WIDTH_PX = 280;
+/**
+ * At or above this height, a non-busy fill zone centers an invitation
+ * and docks parser settings on the bottom edge. Shorter panels keep a
+ * compact prompt so the invitation cannot overflow the zone.
+ */
+export const DROPZONE_ROOMY_MIN_HEIGHT_PX = 320;
 
 export function resolveDropzoneFillLayout(
   width: number,

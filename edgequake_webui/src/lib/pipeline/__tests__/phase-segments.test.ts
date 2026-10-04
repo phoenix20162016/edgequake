@@ -74,7 +74,7 @@ describe("buildPhaseSegments", () => {
     );
     const prepare = segs.find((s) => s.phase === "prepare")!;
     expect(prepare.status).toBe("active");
-    expect(prepare.fillPct).toBeGreaterThan(40);
+    expect(prepare.fillPct).toBeGreaterThanOrEqual(80);
     expect(prepare.summary).toContain("92 pages");
     expect(prepare.summary).toContain("1 figures");
   });

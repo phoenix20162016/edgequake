@@ -1,0 +1,162 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { DEFAULT_VISION_EXTRACT_DRAFT } from "@/components/settings/vision-extract-controls";
+import i18n from "@/lib/i18n";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  DocumentDropzone,
+  type DocumentDropzoneProps,
+} from "../document-dropzone";
+
+vi.mock("@/hooks/use-providers", () => ({
+  useLlmModels: () => ({ data: undefined }),
+}));
+
+function installBox(width: number, height: number) {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    () =>
+      ({
+        width,
+        height,
+        top: 0,
+        left: 0,
+        bottom: height,
+        right: width,
+        x: 0,
+        y: 0,
+        toJSON() {},
+      }) as DOMRect,
+  );
+  class ResizeObserverStub {
+    private readonly cb: ResizeObserverCallback;
+    constructor(cb: ResizeObserverCallback) {
+      this.cb = cb;
+    }
+    observe() {
+      this.cb([], this as unknown as ResizeObserver);
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+}
+
+function renderZone(overrides: Partial<DocumentDropzoneProps> = {}) {
+  const openFileDialog = vi.fn();
+  render(
+    <DocumentDropzone
+      getRootProps={(props) => ({ ...(props ?? {}) })}
+      getInputProps={() => ({})}
+      isDragActive={false}
+      openFileDialog={openFileDialog}
+      pdfParserBackend="default"
+      onPdfParserBackendChange={() => {}}
+      workspacePdfParserBackend="vision"
+      visionExtract={DEFAULT_VISION_EXTRACT_DRAFT}
+      onVisionExtractChange={() => {}}
+      fill
+      {...overrides}
+    />,
+  );
+  return { openFileDialog };
+}
+
+describe("DocumentDropzone", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("centers an invitation and docks the PDF parser on a tall panel", () => {
+    installBox(720, 640);
+    const { openFileDialog } = renderZone();
+
+    const zone = screen.getByTestId("document-dropzone");
+    expect(zone).toHaveAttribute("data-density", "roomy");
+    expect(screen.getByTestId("document-dropzone-title")).toHaveTextContent(
+      "Add documents",
+    );
+    expect(
+      screen.getByText("Drop files here, or choose them from your computer."),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("document-dropzone-formats")).toHaveTextContent(
+      "PDF",
+    );
+    expect(screen.getByText(/Word and Excel/)).toBeInTheDocument();
+    expect(screen.getByText("PDF parser")).toBeInTheDocument();
+    expect(screen.getByTestId("vision-settings-panel-trigger")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("document-dropzone-browse"));
+    expect(openFileDialog).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText("PDF parser"));
+    expect(openFileDialog).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a compact prompt when the panel is too short to center", () => {
+    installBox(720, 200);
+    renderZone();
+
+    expect(screen.getByTestId("document-dropzone")).toHaveAttribute(
+      "data-density",
+      "compact",
+    );
+    expect(screen.getByTestId("document-dropzone-browse")).toBeInTheDocument();
+    expect(screen.queryByTestId("document-dropzone-formats")).not.toBeInTheDocument();
+    expect(screen.getByText("PDF parser")).toBeInTheDocument();
+  });
+
+  it("groups the prompt and parser in a tall narrow column", () => {
+    installBox(220, 640);
+    renderZone();
+
+    const zone = screen.getByTestId("document-dropzone");
+    expect(zone).toHaveAttribute("data-fill-layout", "stack");
+    expect(zone).toHaveAttribute("data-density", "compact");
+    expect(screen.getByTestId("document-dropzone-browse")).toBeInTheDocument();
+    expect(screen.queryByTestId("document-dropzone-formats")).not.toBeInTheDocument();
+    expect(screen.getByText("PDF parser")).toBeInTheDocument();
+  });
+
+  it("uses a single band and no browse button on a short strip", () => {
+    installBox(720, 80);
+    renderZone();
+
+    const zone = screen.getByTestId("document-dropzone");
+    expect(zone).toHaveAttribute("data-fill-layout", "row");
+    expect(zone).toHaveAttribute("data-density", "row");
+    expect(screen.getByTestId("document-dropzone-title")).toHaveTextContent(
+      "Drop files or choose them",
+    );
+    expect(screen.queryByTestId("document-dropzone-browse")).not.toBeInTheDocument();
+  });
+
+  it("replaces the invitation with a release prompt while dragging", () => {
+    installBox(720, 640);
+    renderZone({ isDragActive: true });
+
+    expect(screen.getByTestId("document-dropzone-title")).toHaveTextContent(
+      "Release to upload",
+    );
+    expect(screen.queryByTestId("document-dropzone-browse")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("document-dropzone-formats")).not.toBeInTheDocument();
+  });
+
+  it("softens the invitation while processing continues", () => {
+    installBox(720, 640);
+    renderZone({ quiet: true });
+
+    expect(screen.getByTestId("document-dropzone-title")).toHaveTextContent(
+      "Add more files",
+    );
+    expect(screen.queryByTestId("vision-settings-panel-trigger")).not.toBeInTheDocument();
+    expect(screen.getByText("PDF parser")).toBeInTheDocument();
+  });
+});

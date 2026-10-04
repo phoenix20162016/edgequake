@@ -60,6 +60,33 @@ describe("intake-strip-state", () => {
     expect(summary.workingCount).toBe(1);
   });
 
+  test("summarizeWorkingRuns: prefers ledger page fill over OCR-band progress01", () => {
+    const summary = summarizeWorkingRuns([
+      run({
+        filename: "2609.37725v1.pdf",
+        stage: "converting",
+        stageStatus: "active",
+        // OCR band: 4/27 × 0.90 ≈ 0.13 — must not win over typed pages.
+        progress01: 0.13,
+        counts: { current: 4, total: 27, unit: "pages" },
+        runProgress: {
+          seq: 2,
+          phases: [
+            {
+              id: "prepare",
+              state: "active",
+              tasks: [{ id: "pages", unit: "pages", done: 4, total: 27 }],
+            },
+            { id: "extract", state: "pending", tasks: [] },
+            { id: "materialize", state: "pending", tasks: [] },
+          ],
+        },
+      }),
+    ]);
+    expect(summary.text).toBe("2609.37725v1.pdf · Converting PDF 15%");
+    expect(summary.avgProgress01).toBeCloseTo(4 / 27);
+  });
+
   test("summarizeWorkingRuns: single run without pct", () => {
     const summary = summarizeWorkingRuns([
       run({

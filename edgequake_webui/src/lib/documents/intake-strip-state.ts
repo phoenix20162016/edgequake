@@ -6,8 +6,16 @@
  * keeps a usable floor (header + ~4 rows).
  */
 
-import { stageDisplayName } from "@/lib/pipeline/ingestion-run-view";
+import {
+  mapWireStageToPhase,
+  stageDisplayName,
+} from "@/lib/pipeline/ingestion-run-view";
 import type { IngestionRunView } from "@/lib/pipeline/ingestion-run-view";
+import {
+  findPhase,
+  phaseFill01,
+  stripPhaseToLedger,
+} from "@/lib/pipeline/run-progress";
 
 /** Shared max height for the intake strip (dropzone + feedback). */
 export const INTAKE_STRIP_MAX_DVH = 40;
@@ -98,8 +106,38 @@ export interface WorkingRunsSummary {
 
 type RunLike = Pick<
   IngestionRunView,
-  "filename" | "stage" | "stageStatus" | "progress01" | "sourceType"
+  | "filename"
+  | "stage"
+  | "stageStatus"
+  | "progress01"
+  | "sourceType"
+  | "runProgress"
+  | "counts"
 >;
+
+/**
+ * Prefer the typed phase fill over legacy stage_progress (OCR band).
+ * Pages 4/27 ⇒ 15%, never the 13% converting band.
+ */
+function runMeter01(run: RunLike): number | undefined {
+  const ledger = run.runProgress;
+  if (ledger) {
+    const phaseId = stripPhaseToLedger(mapWireStageToPhase(run.stage));
+    if (phaseId) {
+      const phase = findPhase(ledger, phaseId);
+      if (phase && (phase.tasks?.length ?? 0) > 0) {
+        return phaseFill01(phase);
+      }
+    }
+  }
+  if (run.counts && run.counts.total > 0) {
+    return Math.min(1, Math.max(0, run.counts.current / run.counts.total));
+  }
+  if (typeof run.progress01 === "number" && !Number.isNaN(run.progress01)) {
+    return run.progress01;
+  }
+  return undefined;
+}
 
 function isCancelled(run: RunLike): boolean {
   return run.stage === "cancelled" || run.stageStatus === "cancelled";
@@ -150,7 +188,7 @@ export function summarizeWorkingRuns(runs: RunLike[]): WorkingRunsSummary {
   const cancelledCount = runs.filter(isCancelled).length;
 
   const withPct = runs
-    .map((r) => r.progress01)
+    .map((r) => runMeter01(r))
     .filter((p): p is number => typeof p === "number" && !Number.isNaN(p));
   const avgProgress01 =
     withPct.length > 0
@@ -171,7 +209,7 @@ export function summarizeWorkingRuns(runs: RunLike[]): WorkingRunsSummary {
   if (runs.length === 1) {
     const run = runs[0]!;
     const stage = stageDisplayName(run.stage, run.sourceType);
-    const pct = pctLabel(run.progress01);
+    const pct = pctLabel(runMeter01(run));
     const text = pct
       ? `${run.filename} · ${stage} ${pct}`
       : `${run.filename} · ${stage}`;

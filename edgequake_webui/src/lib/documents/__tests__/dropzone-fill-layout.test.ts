@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveDropzoneFillLayout,
+  DROPZONE_ROOMY_MIN_HEIGHT_PX,
   DROPZONE_ROW_MAX_HEIGHT_PX,
   DROPZONE_STACK_MAX_WIDTH_PX,
 } from "../dropzone-fill-layout";
@@ -20,6 +21,13 @@ describe("resolveDropzoneFillLayout", () => {
 
   it("uses hero for roomy panels", () => {
     expect(resolveDropzoneFillLayout(600, 240)).toBe("hero");
+    expect(resolveDropzoneFillLayout(640, DROPZONE_ROOMY_MIN_HEIGHT_PX)).toBe(
+      "hero",
+    );
+  });
+
+  it("keeps the centered invitation taller than the single-line band", () => {
+    expect(DROPZONE_ROOMY_MIN_HEIGHT_PX).toBeGreaterThan(DROPZONE_ROW_MAX_HEIGHT_PX);
   });
 
   it("defaults to hero when size unknown", () => {
