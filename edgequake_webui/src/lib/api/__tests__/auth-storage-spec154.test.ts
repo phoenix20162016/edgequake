@@ -47,4 +47,13 @@ describe("SPEC-154 auth storage", () => {
     expect(localStorage.getItem("refreshToken")).toBeNull();
     expect(assertNoTokenLocalStorage()).toBe(true);
   });
+
+  it("setTokens clears legacy mirror cookie and never sets a JWT value", async () => {
+    const { setTokens } = await import("../client-context");
+    setTokens("mem-access", null);
+    const cookie = String(document.cookie);
+    // Stub captures the last assignment — must be a Max-Age=0 clear, not a token value.
+    expect(cookie).toContain("Max-Age=0");
+    expect(cookie).not.toContain("mem-access");
+  });
 });

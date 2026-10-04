@@ -61,25 +61,17 @@ describe("proxy-guards (SPEC-144)", () => {
     expect(applySwaggerSlashRedirect(req("/swagger-ui/"))).toBeNull();
   });
 
-  it("authGuard redirects unauthenticated protected path", () => {
-    const res = applyAuthGuard(req("/documents"), {
-      NEXT_PUBLIC_AUTH_ENABLED: "true",
-    });
-    expect(res).not.toBeNull();
-    expect(res!.status).toBe(307);
-    const loc = res!.headers.get("location")!;
-    expect(loc).toContain("/login");
-    expect(loc).toContain("redirect=%2Fdocuments");
-  });
-
-  it("authGuard allows cookie-bearing request", () => {
-    const res = applyAuthGuard(req("/documents", "tok"), {
-      NEXT_PUBLIC_AUTH_ENABLED: "true",
-    });
-    expect(res).toBeNull();
-  });
-
-  it("authGuard no-ops when auth off", () => {
+  it("authGuard is a no-op (SPEC-154: client AuthGuard + eq_refresh own HTML auth)", () => {
+    expect(
+      applyAuthGuard(req("/documents"), {
+        NEXT_PUBLIC_AUTH_ENABLED: "true",
+      }),
+    ).toBeNull();
+    expect(
+      applyAuthGuard(req("/documents", "tok"), {
+        NEXT_PUBLIC_AUTH_ENABLED: "true",
+      }),
+    ).toBeNull();
     expect(applyAuthGuard(req("/documents"), {})).toBeNull();
   });
 });

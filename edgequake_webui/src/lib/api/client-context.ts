@@ -21,31 +21,27 @@ const TRACEPARENT_STORAGE_KEY = "edgequake_traceparent";
 /** In-memory access token only (SPEC-154 — no localStorage secrets). */
 let accessToken: string | null = null;
 
-const AUTH_COOKIE = "edgequake_access_token";
+/** Legacy Next middleware mirror — cleared on logout; never written again (SPEC-154). */
+const LEGACY_AUTH_COOKIE = "edgequake_access_token";
 
-/** Mirror access token to a cookie so Next middleware (X-27) can guard routes. */
-function syncAuthCookie(access: string | null): void {
+/** Drop residual XSS-readable access JWT cookie if a prior build set it. */
+function clearLegacyAuthCookie(): void {
   if (typeof document === "undefined") return;
   const secure =
     typeof window !== "undefined" && window.location.protocol === "https:"
       ? "; Secure"
       : "";
-  if (access) {
-    // Session cookie (no Max-Age) — cleared on logout / browser close.
-    document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(access)}; Path=/; SameSite=Lax${secure}`;
-  } else {
-    document.cookie = `${AUTH_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
-  }
+  document.cookie = `${LEGACY_AUTH_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
 }
 
 /** Store access token in memory. Refresh is HttpOnly cookie (ignore body refresh for storage). */
 export function setTokens(access: string, _refresh?: string | null): void {
   accessToken = access;
   if (typeof window !== "undefined") {
-    // Purge any pre-SPEC-154 secrets left in localStorage.
+    // Purge any pre-SPEC-154 secrets left in localStorage / legacy cookie.
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
-    syncAuthCookie(access);
+    clearLegacyAuthCookie();
   }
 }
 
@@ -62,7 +58,7 @@ export function clearTokens(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
-    syncAuthCookie(null);
+    clearLegacyAuthCookie();
   }
 }
 

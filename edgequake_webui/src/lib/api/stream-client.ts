@@ -12,7 +12,12 @@
  * @implements SPEC-149 - Auth on every stream (LAW-149-10)
  */
 import { getRuntimeApiBaseUrl } from "@/lib/runtime-config";
-import { buildHeaders, handleErrorResponse } from "./client";
+import {
+  AuthError,
+  buildHeaders,
+  handleErrorResponse,
+  refreshAccessToken,
+} from "./client";
 
 /** One SSE frame with optional event name (default `"message"`). */
 export interface SSEFrame<T = unknown> {
@@ -35,8 +40,34 @@ export async function* streamClient<T>(
   }
 }
 
+/** True when an SSE frame signals connect/auth loss (retry once after refresh). */
+export function isAuthFailureFrame(frame: SSEFrame<unknown>): boolean {
+  const event = frame.event.toLowerCase();
+  if (event === "unauthorized" || event === "auth_error") return true;
+  // Only sniff payloads on explicit error events (avoid token/progress false positives).
+  if (event !== "error") return false;
+  const data = frame.data;
+  if (data == null) return false;
+  if (typeof data === "string") {
+    const lower = data.toLowerCase();
+    return lower.includes("unauthorized") || lower.includes("authentication");
+  }
+  if (typeof data !== "object") return false;
+  const record = data as Record<string, unknown>;
+  const status = record.status ?? record.code ?? record.status_code;
+  if (status === 401 || status === "401" || status === "unauthorized") {
+    return true;
+  }
+  const msg = String(record.message ?? record.error ?? record.detail ?? "").toLowerCase();
+  return msg.includes("unauthorized") || msg.includes("authentication required");
+}
+
 /**
  * Streaming API client that preserves SSE event names.
+ *
+ * Connect-time HTTP 401: refresh + one retry (same as apiClient).
+ * Mid-stream auth failure frame: refresh + one full reconnect (does not re-yield
+ * the auth error frame). Silent TCP close without an auth frame is unchanged.
  */
 export async function* streamClientFrames<T>(
   endpoint: string,
@@ -46,61 +77,92 @@ export async function* streamClientFrames<T>(
     ? endpoint
     : `${getRuntimeApiBaseUrl()}${endpoint}`;
 
-  const config: RequestInit = {
-    ...options,
-    headers: buildHeaders(options.headers),
-  };
+  let allowMidStreamReconnect = true;
 
-  const response = await fetch(url, config);
+  while (true) {
+    const config: RequestInit = {
+      ...options,
+      credentials: options.credentials ?? "include",
+      headers: buildHeaders(options.headers, options.body),
+    };
 
-  if (!response.ok) {
-    throw await handleErrorResponse(response);
-  }
+    let response = await fetch(url, config);
 
-  if (!response.body) {
-    throw new Error("Response body is null");
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  try {
-    while (true) {
-      if (options.signal?.aborted) {
-        break;
+    if (response.status === 401) {
+      const refreshed = await refreshAccessToken();
+      if (!refreshed) {
+        throw new AuthError();
       }
+      config.headers = buildHeaders(options.headers, options.body);
+      response = await fetch(url, config);
+    }
 
-      const { done, value } = await reader.read();
+    if (!response.ok) {
+      throw await handleErrorResponse(response);
+    }
 
-      if (done) {
-        if (buffer.trim()) {
-          const frame = parseSSEFrame(buffer);
-          if (frame !== null) {
-            yield frame as SSEFrame<T>;
-          }
+    if (!response.body) {
+      throw new Error("Response body is null");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let reconnect = false;
+
+    try {
+      while (true) {
+        if (options.signal?.aborted) {
+          break;
         }
-        break;
-      }
 
-      buffer += decoder.decode(value, { stream: true });
+        const { done, value } = await reader.read();
 
-      const events = buffer.split("\n\n");
-      buffer = events.pop() || "";
+        if (done) {
+          if (buffer.trim()) {
+            const frame = parseSSEFrame(buffer);
+            if (frame !== null) {
+              if (isAuthFailureFrame(frame) && allowMidStreamReconnect) {
+                allowMidStreamReconnect = false;
+                const refreshed = await refreshAccessToken();
+                if (!refreshed) throw new AuthError();
+                reconnect = true;
+                break;
+              }
+              yield frame as SSEFrame<T>;
+            }
+          }
+          break;
+        }
 
-      for (const event of events) {
-        const frame = parseSSEFrame(event);
-        if (frame !== null) {
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || "";
+
+        for (const event of events) {
+          const frame = parseSSEFrame(event);
+          if (frame === null) continue;
+          if (isAuthFailureFrame(frame) && allowMidStreamReconnect) {
+            allowMidStreamReconnect = false;
+            const refreshed = await refreshAccessToken();
+            if (!refreshed) throw new AuthError();
+            reconnect = true;
+            break;
+          }
           yield frame as SSEFrame<T>;
         }
+        if (reconnect) break;
+      }
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {
+        /* already released */
       }
     }
-  } finally {
-    try {
-      reader.releaseLock();
-    } catch {
-      /* already released */
-    }
+
+    if (!reconnect) return;
   }
 }
 

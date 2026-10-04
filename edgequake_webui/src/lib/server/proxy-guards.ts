@@ -68,32 +68,17 @@ export function applySwaggerSlashRedirect(
 }
 
 /**
- * Coarse HTML navigation guard. Not a cryptographic authorization boundary —
- * API handlers still enforce JWT/API-key auth.
+ * Formerly redirected unauthenticated HTML navigations using a non-HttpOnly
+ * `edgequake_access_token` mirror. That forced an XSS-readable JWT residual
+ * (SPEC-154 LAW-154-9 caveat).
  *
- * Returns a redirect Response, or null to continue.
+ * Auth is owned by client AuthGuard + HttpOnly `eq_refresh` redeem. API
+ * handlers remain the cryptographic boundary. This helper is a no-op kept for
+ * proxy call-site stability.
  */
 export function applyAuthGuard(
-  request: NextRequest,
-  env: EnvLike = process.env,
+  _request: NextRequest,
+  _env: EnvLike = process.env,
 ): NextResponse | null {
-  if (!authRequired(env)) {
-    return null;
-  }
-
-  const { pathname } = request.nextUrl;
-  if (isPublicPath(pathname)) {
-    return null;
-  }
-
-  const token = request.cookies.get(AUTH_COOKIE)?.value;
-  if (!token) {
-    const login = new URL("/login", request.url);
-    // Preserve query for OAuth authorize return (`/oauth/authorize?...`).
-    const redirectTarget = `${pathname}${request.nextUrl.search}`;
-    login.searchParams.set("redirect", redirectTarget);
-    return NextResponse.redirect(login);
-  }
-
   return null;
 }

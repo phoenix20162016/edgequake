@@ -63,6 +63,11 @@ const nextConfig: NextConfig = {
   // Keep repo docs intentional — disable auto-generation.
   agentRules: false,
 
+  // Next 16 blocks cross-origin loads of /_next/* in dev. Playwright often uses
+  // http://127.0.0.1:<port> while `next dev` binds as localhost — without this,
+  // script chunks return 403 and the app never hydrates (blank /login).
+  allowedDevOrigins: ["127.0.0.1"],
+
   // Dev proxy: utoipa serves /swagger-ui/ (with slash); Next default strips trailing
   // slashes (308) → infinite redirect loop with backend (303). Disable for proxied paths.
   skipTrailingSlashRedirect: true,

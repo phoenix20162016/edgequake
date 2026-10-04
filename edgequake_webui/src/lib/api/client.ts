@@ -17,6 +17,10 @@
  */
 
 import { getRuntimeApiBaseUrl, getRuntimeServerBaseUrl } from "@/lib/runtime-config";
+import {
+  applyRestoredAccessSession,
+  type RestoredAccessSession,
+} from "@/stores/use-auth-store";
 import type { ApiError } from "@/types";
 import {
   adoptTraceparentFromResponse,
@@ -27,9 +31,10 @@ import {
   getOrCreateUserId,
   getTenantContext,
   getTokens,
-  setTokens,
 } from "./client-context";
 import { streamClient } from "./stream-client";
+
+export type { RestoredAccessSession };
 
 export const SERVER_BASE_URL = getRuntimeServerBaseUrl();
 
@@ -435,8 +440,13 @@ export async function apiClient<T>(
   }
 }
 
-/** Token refresh — used by the main client on 401 (SPEC-154: HttpOnly cookie). */
-async function tryRefreshToken(): Promise<boolean> {
+/**
+ * Single-flight slot for refresh (rotate-on-use — concurrent POSTs cause reuse logout).
+ * Cleared in `finally` so a failure never sticks.
+ */
+let refreshInFlight: Promise<RestoredAccessSession | null> | null = null;
+
+async function redeemRefreshCookieOnce(): Promise<RestoredAccessSession | null> {
   try {
     const response = await fetch(`${getRuntimeApiBaseUrl()}/auth/refresh`, {
       method: "POST",
@@ -446,22 +456,65 @@ async function tryRefreshToken(): Promise<boolean> {
     });
 
     if (!response.ok) {
-      clearTokens();
-      dispatchAuthFailure();
-      return false;
+      return null;
     }
 
     const data = (await response.json()) as {
-      access_token: string;
+      access_token?: string;
       refresh_token?: string;
+      expires_in?: number;
     };
-    setTokens(data.access_token, data.refresh_token ?? null);
-    return true;
+    if (!data.access_token) {
+      return null;
+    }
+    const expires_in =
+      typeof data.expires_in === "number" && data.expires_in > 0
+        ? data.expires_in
+        : 900;
+    const session: RestoredAccessSession = {
+      access_token: data.access_token,
+      expires_in,
+    };
+    applyRestoredAccessSession(session);
+    return session;
   } catch {
+    return null;
+  }
+}
+
+/**
+ * Redeem `eq_refresh` (hard refresh / soft-expiry / 401 retry).
+ *
+ * Coalesces concurrent callers onto one network round-trip. Does not clear
+ * tokens or dispatch logout — callers decide. AuthGuard uses this before
+ * redirecting to `/login`; the 401 retry path clears on failure.
+ */
+export async function restoreSessionFromRefreshCookie(): Promise<RestoredAccessSession | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = redeemRefreshCookieOnce().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+/**
+ * Shared refresh for apiClient + multipart (SPEC-154).
+ * On failure: clear memory tokens and notify AuthGuard.
+ */
+export async function refreshAccessToken(): Promise<boolean> {
+  const restored = await restoreSessionFromRefreshCookie();
+  if (!restored) {
     clearTokens();
     dispatchAuthFailure();
     return false;
   }
+  return true;
+}
+
+/** Token refresh — used by the main client on 401 (SPEC-154: HttpOnly cookie). */
+async function tryRefreshToken(): Promise<boolean> {
+  return refreshAccessToken();
 }
 
 /** Dispatch a browser event so AuthGuard can react to permanent auth failures. */

@@ -16,12 +16,24 @@
  */
 "use client";
 
-import { clearTokens, getTokens, setTokens } from "@/lib/api/client";
-import { clearUserId, setUserId } from "@/lib/api/client-context";
+import {
+  clearTokens,
+  clearUserId,
+  getTokens,
+  setTokens,
+  setUserId,
+} from "@/lib/api/client-context";
+import { isAccessSoftExpired } from "@/lib/auth/session-keepalive";
 import { STORE_VERSIONS, ZUSTAND_STORAGE_KEYS } from "@/lib/storage-keys";
 import type { AuthState, LoginResponse } from "@/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
+/** Access session shape minted by POST /auth/refresh (SPEC-154). */
+export type RestoredAccessSession = {
+  access_token: string;
+  expires_in: number;
+};
 
 interface AuthStoreState extends AuthState {
   /** Tracks if store has been hydrated from localStorage */
@@ -90,9 +102,7 @@ export const useAuthStore = create<AuthStore>()(
 
       isTokenExpired: () => {
         const { expiresAt } = get();
-        if (!expiresAt) return true;
-        // Add 5 minute buffer
-        return Date.now() > expiresAt - 5 * 60 * 1000;
+        return isAccessSoftExpired(expiresAt);
       },
 
       initializeFromStorage: () => {
@@ -152,5 +162,19 @@ export const useAuthStore = create<AuthStore>()(
 export const useAuthStoreHydrated = () => {
   return useAuthStore((state) => state._hasHydrated);
 };
+
+/**
+ * Apply a freshly minted access token to memory + Zustand (SSOT).
+ * Used by silent refresh / hard-refresh restore so AuthGuard and apiClient stay aligned.
+ */
+export function applyRestoredAccessSession(session: RestoredAccessSession): void {
+  const expiresAt = Date.now() + session.expires_in * 1000;
+  setTokens(session.access_token, null);
+  useAuthStore.setState({
+    isAuthenticated: true,
+    accessToken: session.access_token,
+    expiresAt,
+  });
+}
 
 export default useAuthStore;

@@ -9,12 +9,10 @@ import {
   ApiRequestError,
   AuthError,
   buildHeaders,
-  clearTokens,
-  dispatchAuthFailure,
   handleErrorResponse,
   NetworkError,
+  refreshAccessToken,
 } from "@/lib/api/client";
-import { setTokens } from "@/lib/api/client-context";
 import { uploadTimeoutMs } from "./upload-timeout";
 
 export type MultipartUploadPhase = "transfer" | "admit";
@@ -36,33 +34,6 @@ function resolveUrl(endpoint: string): string {
   return endpoint.startsWith("http")
     ? endpoint
     : `${getRuntimeApiBaseUrl()}${endpoint}`;
-}
-
-async function tryRefreshToken(): Promise<boolean> {
-  // SPEC-154: refresh rides HttpOnly cookie — do not require JS refresh secret.
-  try {
-    const response = await fetch(`${getRuntimeApiBaseUrl()}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({}),
-    });
-    if (!response.ok) {
-      clearTokens();
-      dispatchAuthFailure();
-      return false;
-    }
-    const data = (await response.json()) as {
-      access_token: string;
-      refresh_token?: string;
-    };
-    setTokens(data.access_token, data.refresh_token ?? null);
-    return true;
-  } catch {
-    clearTokens();
-    dispatchAuthFailure();
-    return false;
-  }
 }
 
 function parseJsonResponse<T>(xhr: XMLHttpRequest): T {
@@ -108,7 +79,7 @@ function xhrPostMultipart<T>(
 
     xhr.onload = async () => {
       if (xhr.status === 401 && !isRetry) {
-        const refreshed = await tryRefreshToken();
+        const refreshed = await refreshAccessToken();
         if (refreshed) {
           try {
             const retried = await xhrPostMultipart<T>(
