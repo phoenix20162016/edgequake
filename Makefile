@@ -439,6 +439,8 @@ endif
 # extract uses the registry's lowest *enabled* effort (minimal/low).
 OLLAMA_CONTEXT_LENGTH ?= 8192
 EDGEQUAKE_PROVIDER_BUDGET ?= 1
+# SPEC-160: make dev / backend-bg force the engine on. Kill switch: 0.
+EDGEQUAKE_DECISION_ENABLED ?= 1
 
 export WORKER_THREADS MAX_TASKS_PER_TENANT \
 	EDGEQUAKE_PDF_CONCURRENCY EDGEQUAKE_PDF_VISION_JOBS \
@@ -453,6 +455,7 @@ export WORKER_THREADS MAX_TASKS_PER_TENANT \
 	EDGEQUAKE_MAX_SOURCE_IDS_PER_RELATION EDGEQUAKE_SOURCE_IDS_LIMIT_METHOD \
 	EDGEQUAKE_GRAPH_UPSERT_CHUNK EDGEQUAKE_LOCAL_MAX_INFLIGHT \
 	EDGEQUAKE_PROVIDER_BUDGET EDGEQUAKE_EXTRACT_REASONING_EFFORT \
+	EDGEQUAKE_DECISION_ENABLED \
 	OLLAMA_CONTEXT_LENGTH DATABASE_POOL_SIZE
 
 # SPEC-124: load repo `.env` into the current recipe shell, then apply Make/CLI
@@ -482,6 +485,7 @@ _eq_unquote_env() { \
 [ -n "$$LANGFUSE_HOST" ] && export LANGFUSE_HOST="$$(_eq_unquote_env "$$LANGFUSE_HOST")"; \
 [ -n "$$LANGFUSE_PROJECT_ID" ] && export LANGFUSE_PROJECT_ID="$$(_eq_unquote_env "$$LANGFUSE_PROJECT_ID")"; \
 [ -n "$$EDGEQUAKE_LANGFUSE_ENABLED" ] && export EDGEQUAKE_LANGFUSE_ENABLED="$$(_eq_unquote_env "$$EDGEQUAKE_LANGFUSE_ENABLED")"; \
+[ -z "$$EDGEQUAKE_DECISION_ENABLED" ] && export EDGEQUAKE_DECISION_ENABLED="$(EDGEQUAKE_DECISION_ENABLED)"; \
 if [ -n "$$LANGFUSE_PUBLIC_KEY" ] && [ -n "$$LANGFUSE_SECRET_KEY" ]; then \
 	echo "$(YELLOW)→ LANGFUSE_* keys detected — Langfuse OTLP export enabled (SPEC-124)$(RESET)"; \
 else \
@@ -524,7 +528,7 @@ printf '%s\n' "export EDGEQUAKE_MAX_CONCURRENT_EXTRACTIONS=\"$(EDGEQUAKE_MAX_CON
 printf '%s\n' "export EDGEQUAKE_PROVIDER_BUDGET=\"$${EDGEQUAKE_PROVIDER_BUDGET:-$(EDGEQUAKE_PROVIDER_BUDGET)}\"" >> /tmp/edgequake-start.sh; \
 printf '%s\n' "export EDGEQUAKE_EXTRACT_REASONING_EFFORT=\"$${EDGEQUAKE_EXTRACT_REASONING_EFFORT:-$(EDGEQUAKE_EXTRACT_REASONING_EFFORT)}\"" >> /tmp/edgequake-start.sh; \
 printf '%s\n' "export OLLAMA_CONTEXT_LENGTH=\"$${OLLAMA_CONTEXT_LENGTH:-$(OLLAMA_CONTEXT_LENGTH)}\"" >> /tmp/edgequake-start.sh; \
-printf '%s\n' "export EDGEQUAKE_DECISION_ENABLED=\"$${EDGEQUAKE_DECISION_ENABLED:-1}\"" >> /tmp/edgequake-start.sh; \
+printf '%s\n' "export EDGEQUAKE_DECISION_ENABLED=\"$${EDGEQUAKE_DECISION_ENABLED:-$(EDGEQUAKE_DECISION_ENABLED)}\"" >> /tmp/edgequake-start.sh; \
 printf '%s\n' "export EDGEQUAKE_DECISION_BASE_URL=\"$${EDGEQUAKE_DECISION_BASE_URL:-http://localhost:11434}\"" >> /tmp/edgequake-start.sh; \
 printf '%s\n' "export EDGEQUAKE_DECISION_MODEL=\"$${EDGEQUAKE_DECISION_MODEL:-tev1:0.8b}\"" >> /tmp/edgequake-start.sh; \
 printf '%s\n' "export EDGEQUAKE_MEM_LIMIT=\"$(EDGEQUAKE_MEM_LIMIT)\"" >> /tmp/edgequake-start.sh; \
