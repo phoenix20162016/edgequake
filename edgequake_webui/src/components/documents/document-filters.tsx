@@ -55,14 +55,13 @@ export function DocumentFilters({
   };
 
   return (
-    <div className="eq-toolbar">
-      {/* Status Filter */}
+    <div className="flex shrink-0 items-center gap-2">
       <Select
         value={status}
         onValueChange={(v) => onStatusChange(v as DocStatus)}
       >
         <SelectTrigger
-          className="h-9 w-full min-w-0 max-w-44"
+          className="h-9 w-40 shrink-0"
           aria-label={t('documents.filter.status', 'Filter by status')}
         >
           <SelectValue placeholder={t('documents.filter.status')} />
@@ -78,19 +77,17 @@ export function DocumentFilters({
         </SelectContent>
       </Select>
 
-      {/* Divider */}
-      <div className="h-6 w-px bg-border hidden sm:block" />
-
-      {/* Sort Controls — date shortcuts; full column sort lives in table headers */}
-      <div className="flex h-9 items-center gap-1 rounded-md border border-input bg-muted/30 pl-2.5 pr-0.5" role="group" aria-label={t('documents.filter.sortBy')}>
-        <span className="mr-0.5 text-sm leading-none text-muted-foreground whitespace-nowrap">
-          {t('documents.filter.sortBy')}
-        </span>
+      {/* Date shortcuts — column sort lives in table headers. */}
+      <div
+        className="flex h-9 shrink-0 items-center rounded-lg border border-input bg-background p-0.5"
+        role="group"
+        aria-label={t('documents.filter.sortBy')}
+      >
         <Button
           variant={sortField === 'created_at' ? 'secondary' : 'ghost'}
           size="sm"
           onClick={() => toggleSort('created_at')}
-          className="gap-1 h-7 px-2.5"
+          className="h-8 gap-1 px-2.5"
           data-testid="toolbar-sort-created_at"
         >
           {t('documents.filter.created')}
@@ -106,7 +103,7 @@ export function DocumentFilters({
           variant={sortField === 'updated_at' ? 'secondary' : 'ghost'}
           size="sm"
           onClick={() => toggleSort('updated_at')}
-          className="gap-1 h-7 px-2.5"
+          className="h-8 gap-1 px-2.5"
           data-testid="toolbar-sort-updated_at"
         >
           {t('documents.filter.updated')}

@@ -144,22 +144,25 @@ export function DocumentToolbarSection({
         </div>
       ) : (
         <div
-          className="flex flex-col sm:flex-row sm:items-center gap-3 pb-3 border-b"
+          className="@container min-w-0 border-b pb-2"
           data-testid="spec099-primary-toolbar"
         >
-          <DocumentSearchBar
-            value={searchQuery}
-            onChange={onSearchChange}
-          />
-          <DocumentFilters
-            status={statusFilter}
-            onStatusChange={onStatusFilterChange}
-            sortField={sortField}
-            onSortFieldChange={onSortFieldChange}
-            sortDirection={sortDirection}
-            onSortDirectionChange={onSortDirectionChange}
-            statusCounts={statusCounts}
-          />
+          <div className="flex min-w-0 flex-col gap-2 @md:flex-row @md:items-center">
+            <DocumentSearchBar
+              className="w-full @md:min-w-0 @md:flex-1"
+              value={searchQuery}
+              onChange={onSearchChange}
+            />
+            <DocumentFilters
+              status={statusFilter}
+              onStatusChange={onStatusFilterChange}
+              sortField={sortField}
+              onSortFieldChange={onSortFieldChange}
+              sortDirection={sortDirection}
+              onSortDirectionChange={onSortDirectionChange}
+              statusCounts={statusCounts}
+            />
+          </div>
         </div>
       )}
 

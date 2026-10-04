@@ -10,6 +10,7 @@
 'use client';
 
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -23,16 +24,22 @@ export interface DocumentSearchBarProps {
   onChange: (value: string) => void;
   /** Optional placeholder override */
   placeholder?: string;
+  className?: string;
 }
 
 /**
  * Search input for filtering documents.
  */
-export function DocumentSearchBar({ value, onChange, placeholder }: DocumentSearchBarProps) {
+export function DocumentSearchBar({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: DocumentSearchBarProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="relative min-w-0 flex-1 max-w-md">
+    <div className={cn('relative min-w-0 w-full', className)}>
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       <Input
         placeholder={placeholder || t('documents.search.placeholder', 'Search documents...')}
