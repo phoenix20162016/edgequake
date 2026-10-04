@@ -4,7 +4,7 @@ title: 'Security Best Practices'
 
 # Security Best Practices
 
-> **Product: v0.30.0** · See also: [Runtime auth hardening](/docs/operations/runtime-auth-hardening/)
+> **Product: v0.31.0** · See also: [Runtime auth hardening](/docs/operations/runtime-auth-hardening/)
 
 > **Securing Your EdgeQuake Deployment**
 

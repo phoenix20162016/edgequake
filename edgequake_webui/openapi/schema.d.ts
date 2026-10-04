@@ -961,6 +961,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/decision/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List models on the decision host. */
+        get: operations["get_decision_models"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/decision/status": {
         parameters: {
             query?: never;
@@ -7153,6 +7170,7 @@ export interface components {
         /**
          * @description Request fragment (SPEC-160). Every field is optional; absent leaves the key unchanged.
          * @example {
+         *       "decision_enabled": {},
          *       "decision_gate_preset": {},
          *       "decision_model": {},
          *       "decision_pack_size": {},
@@ -7160,6 +7178,8 @@ export interface components {
          *     }
          */
         ExtractionModeFieldsDto: {
+            /** @description Turn the decision engine on for this workspace. The operator can still lock it off. */
+            decision_enabled?: boolean | null;
             /** @description Decision gate preset: `strict`, `balanced`, `recall`, or `inherit`. */
             decision_gate_preset?: string | null;
             /** @description Decision model name, for example `tev1:0.8b`, or `inherit`. */
@@ -7175,6 +7195,8 @@ export interface components {
         /**
          * @description Response fragment (SPEC-160).
          * @example {
+         *       "decision_activation": {},
+         *       "decision_enabled": {},
          *       "decision_gate_preset": {},
          *       "decision_model": {},
          *       "decision_pack_size": {},
@@ -7183,6 +7205,10 @@ export interface components {
          *     }
          */
         ExtractionModeView: {
+            /** @description `locked` | `inactive` | `active` | `forced`. */
+            decision_activation?: string | null;
+            /** @description Stored workspace opt-in. */
+            decision_enabled?: boolean | null;
             decision_gate_preset?: string | null;
             decision_model?: string | null;
             /** Format: int32 */
@@ -16398,6 +16424,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceCostSummaryResponse"];
+                };
+            };
+        };
+    };
+    get_decision_models: {
+        parameters: {
+            query?: {
+                /** @description Probe this model tag instead of the server default (a workspace's own model). */
+                model?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Models on the decision host. Host only, no secrets. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

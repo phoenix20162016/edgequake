@@ -9,7 +9,7 @@
     "license": {
       "name": "Apache-2.0"
     },
-    "version": "0.30.0"
+    "version": "0.31.0"
   },
   "servers": [
     {
@@ -2527,6 +2527,53 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WorkspaceCostSummaryResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [],
+            "tenant_id": [],
+            "workspace_id": []
+          },
+          {
+            "api_key": [],
+            "tenant_id": [],
+            "workspace_id": []
+          }
+        ]
+      }
+    },
+    "/api/v1/decision/models": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "List models on the decision host.",
+        "operationId": "get_decision_models",
+        "parameters": [
+          {
+            "name": "model",
+            "in": "query",
+            "description": "Probe this model tag instead of the server default (a workspace's own model).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Models on the decision host. Host only, no secrets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }
@@ -9796,8 +9843,8 @@
             "workspace_id": []
           }
         ],
-        "x-edgequake-v2-job-type": "rebuild_embeddings",
-        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog"
+        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog",
+        "x-edgequake-v2-job-type": "rebuild_embeddings"
       }
     },
     "/api/v1/workspaces/{workspace_id}/rebuild-knowledge-graph": {
@@ -9870,8 +9917,8 @@
             "workspace_id": []
           }
         ],
-        "x-edgequake-v2-job-type": "rebuild_knowledge_graph",
-        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog"
+        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog",
+        "x-edgequake-v2-job-type": "rebuild_knowledge_graph"
       }
     },
     "/api/v1/workspaces/{workspace_id}/reprocess-documents": {
@@ -10577,8 +10624,8 @@
             "description": "Track not found for this workspace"
           }
         },
-        "x-edgequake-upgrade": "RFC6455",
-        "x-edgequake-transport": "websocket"
+        "x-edgequake-transport": "websocket",
+        "x-edgequake-upgrade": "RFC6455"
       }
     }
   },
@@ -17252,6 +17299,13 @@
         "type": "object",
         "description": "Request fragment (SPEC-160). Every field is optional; absent leaves the key unchanged.",
         "properties": {
+          "decision_enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Turn the decision engine on for this workspace. The operator can still lock it off."
+          },
           "decision_gate_preset": {
             "type": [
               "string",
@@ -17283,6 +17337,7 @@
           }
         },
         "example": {
+          "decision_enabled": {},
           "decision_gate_preset": {},
           "decision_model": {},
           "decision_pack_size": {},
@@ -17293,6 +17348,20 @@
         "type": "object",
         "description": "Response fragment (SPEC-160).",
         "properties": {
+          "decision_activation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`locked` | `inactive` | `active` | `forced`."
+          },
+          "decision_enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Stored workspace opt-in."
+          },
           "decision_gate_preset": {
             "type": [
               "string",
@@ -17333,6 +17402,8 @@
           }
         },
         "example": {
+          "decision_activation": {},
+          "decision_enabled": {},
           "decision_gate_preset": {},
           "decision_model": {},
           "decision_pack_size": {},
@@ -32192,7 +32263,7 @@
     "asyncapi": "2.6.0",
     "info": {
       "title": "EdgeQuake WebSocket Progress",
-      "version": "0.30.0",
+      "version": "0.31.0",
       "description": "Real-time pipeline and document processing progress over WebSocket (RFC 6455). SPEC-149: clients subscribe to owned track_ids on the global channel; events use a tagged {type,data} envelope."
     },
     "defaultContentType": "application/json",

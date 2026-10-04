@@ -4,6 +4,8 @@ All notable changes to the EdgeQuake Core crate are tracked here. See the root C
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-10-04
+
 ### Added
 
 - **SPEC-160** workspace metadata helpers for extraction mode, decision model, pack size, and gate preset.

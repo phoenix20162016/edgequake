@@ -4,14 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.31.0] — 2026-10-04
+
+Minor: **SPEC-160** decision extraction as a **preview**. A second knowledge-graph
+mode, `decision`, answers closed questions on a local Ollama System One model
+(default `tev1:0.8b`). Only accepted answers enter the graph. Chat-LLM extraction
+stays the default (`document > workspace > env > llm`). Schema train moves
+**165 → 166**. Upgrade:
+[`docs/operations/upgrade-to-0.31.0.md`](docs/operations/upgrade-to-0.31.0.md).
+
+**CD:** GHCR `edgequake`, `edgequake-frontend`, `edgequake-postgres`, and
+`edgequake-keycloak` on tag `v0.31.0`.
+
+**SPEC-001 Acc:** attested from existing
+[`publish/latest`](specs/001-benchmark/e2e/artifacts/publish/latest/)
+(`valid: true`, medical-mid, `2026-08-15T11:02:18Z`) — no fresh n=200 run.
+The default `llm` ingestion path is unchanged. Decision mode is unscored.
+
 ### Added
 
-- **Decision extraction (SPEC-160, preview).** A second knowledge-graph mode,
-  `decision`, where a local decision model (default `tev1:0.8b` on Ollama
-  System One) answers closed questions. Only accepted answers enter the graph.
-  Review-band facts go to `decision_review`. The chat-LLM extractor stays the
-  default (`document > workspace > env > llm`). The engine is available unless
-  `EDGEQUAKE_DECISION_ENABLED=0`. It does not follow `OLLAMA_HOST`.
+- **Decision extraction (SPEC-160, preview).** Local decision model (default
+  `tev1:0.8b` on Ollama System One). Review-band facts go to `decision_review`.
+  The engine is available unless `EDGEQUAKE_DECISION_ENABLED=0`. It does not
+  follow `OLLAMA_HOST`.
   Guide: [`docs/concepts/decision-extraction.md`](docs/concepts/decision-extraction.md).
   Pack: [`specs/160-tev1/`](specs/160-tev1/README.md).
 - Schema train **165 → 166** (migration `166_spec160_decision.sql`):
@@ -32,8 +47,8 @@ All notable changes to this project will be documented in this file.
 - No review screen. Review rows are stored and counted.
 - Gate presets are uncalibrated. A two-document English probe is in
   [`specs/160-tev1/measurements/w8-report.md`](specs/160-tev1/measurements/w8-report.md).
-  `tev1:0.8b` at `balanced` is a smoke option on that set. SPEC-001 Acc was
-  not re-run. The mode stays a preview.
+  `tev1:0.8b` at `balanced` is a smoke option on that set. The mode stays a
+  preview.
 
 ## [0.30.0] — 2026-10-03
 

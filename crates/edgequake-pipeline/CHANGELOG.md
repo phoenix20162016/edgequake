@@ -4,6 +4,8 @@ All notable changes to the EdgeQuake Pipeline crate are tracked here. See the ro
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-10-04
+
 ### Added
 
 - **SPEC-160** decision extractor: mode resolver, Ollama System One backend, gate, and per-document stats. Chat-LLM extraction stays the default.
