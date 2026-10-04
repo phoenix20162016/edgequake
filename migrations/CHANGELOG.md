@@ -6,6 +6,8 @@ All notable changes to the EdgeQuake migrations directory are tracked here. See 
 
 ### Added
 
+- **166_spec160_decision.sql** — `decision_cache` and `decision_review` for SPEC-160 decision extraction. Additive expand. Schema train **166**.
+
 - **038_add_source_ids_gin_indexes.sql** — btree index on vertex `source_id` and GIN indexes on vertex/edge `source_ids` for bounded document-scoped graph queries (SPEC-006). Auto-applied by sqlx on backend start.
 - **support/038/** ops package (not sqlx-scanned):
   - `preflight.sql` — read-only pre-apply checks (AGE, row counts, large-graph warning)

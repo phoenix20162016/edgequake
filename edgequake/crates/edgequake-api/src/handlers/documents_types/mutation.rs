@@ -190,6 +190,14 @@ pub struct FileUploadResponse {
     /// ETA basis: `measured` or `no_history` (honest uncertainty, R-15).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eta_basis: Option<String>,
+
+    /// SPEC-160: the extraction mode this document will run with (`llm` or `decision`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extraction_mode: Option<String>,
+
+    /// SPEC-160: who chose the mode (`document`, `workspace`, `env`, `default`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extraction_mode_source: Option<String>,
 }
 
 // ============================================================================

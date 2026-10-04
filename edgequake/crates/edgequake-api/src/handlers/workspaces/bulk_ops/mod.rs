@@ -104,6 +104,7 @@ pub(super) fn build_pdf_task(
         vision_reasoning_effort,
         vision_extract: Default::default(),
         page_scope: None,
+        document_extraction: None,
     }
 }
 

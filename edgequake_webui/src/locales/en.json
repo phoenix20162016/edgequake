@@ -179,6 +179,7 @@
       "pdfParserShort": "Parser",
       "pdfParserDefault": "Workspace Default",
       "pdfParserDefaultWithValue": "Workspace Default ({{value}})",
+      "pdfParserDefaultShort": "Workspace ({{value}})",
       "pdfParserVision": "Vision",
       "pdfParserEdgeParse": "EdgeParse",
       "pdfParserEdgeParseOcr": "EdgeParse + OCR",
@@ -1485,6 +1486,135 @@
         "trustEmail": "trusts email",
         "noTrustEmail": "email not trusted"
       }
+    }
+  },
+  "extractionMode": {
+    "name": {
+      "llm": "LLM",
+      "decision": "Decision"
+    },
+    "option": {
+      "llm": "LLM · reads the text",
+      "decision": "Decision · closed questions",
+      "decisionBlocked": "Decision · unavailable",
+      "decisionLocked": "Decision · locked by admin",
+      "decisionNotActivated": "Decision · not activated"
+    },
+    "source": {
+      "document": "set by this upload",
+      "workspace": "set by the workspace",
+      "env": "set by the server",
+      "default": "built-in default"
+    },
+    "upload": {
+      "label": "Extraction for this upload",
+      "short": "Extraction",
+      "workspaceDefault": "Workspace default ({{mode}})",
+      "workspaceDefaultShort": "Workspace ({{mode}})"
+    },
+    "uploadError": {
+      "backendUnavailable": "The decision backend is not reachable. The file was not uploaded.",
+      "disabled": "Decision mode is off on this server. The file was not uploaded.",
+      "invalidMode": "Unknown extraction mode. The file was not uploaded."
+    },
+    "status": {
+      "checking": "Checking the decision backend…",
+      "unknown": "Decision backend state is unknown.",
+      "ready": "Ready · {{model}} on {{host}}",
+      "readyMs": "Ready · {{model}} on {{host}} · {{ms}} ms",
+      "disabled": "Off on this server. Ask your admin to set EDGEQUAKE_DECISION_ENABLED.",
+      "locked": "Decision extraction is locked by the operator.",
+      "not_activated": "Turn on Decision extraction in workspace settings.",
+      "settings_error": "The server decision settings are invalid ({{code}}).",
+      "unreachable": "Cannot reach the decision backend at {{host}}.",
+      "model_missing": "Model {{model}} is not pulled on {{host}}.",
+      "not_decision_capable": "{{model}} cannot answer decision questions.",
+      "unsupported": "This backend does not support decision questions.",
+      "retry": "Check again",
+      "copyCommand": "Copy command",
+      "copied": "Copied",
+      "licenseNotice": "Tev1 weights license is not final. See the model card."
+    },
+    "workspace": {
+      "title": "Extraction mode",
+      "description": "How new documents are turned into entities and relations.",
+      "mode": "Default mode",
+      "serverDefault": "Server default",
+      "serverDefaultMode": "Server default ({{mode}})",
+      "preset": "Gate preset",
+      "packSize": "Questions per request",
+      "packSizeHint": "{{min}} to {{max}}. Empty uses {{fallback}}.",
+      "model": "Decision model",
+      "modelHint": "Empty uses the server default model.",
+      "futureOnly": "Applies to new documents. Reprocess a document to switch it.",
+      "blockedNote": "You can save now. Uploads in decision mode fail until the backend is ready.",
+      "save": "Save",
+      "saving": "Saving…",
+      "reset": "Reset",
+      "saved": "Extraction mode saved"
+    },
+    "engine": {
+      "title": "Decision engine",
+      "activation": "Decision extraction",
+      "activationHint": "Closed questions on local Ollama. No LLM tokens.",
+      "forcedHint": "On for every workspace · local Ollama at {{host}}.",
+      "lockedHint": "Locked by the operator on this server.",
+      "modeRequiresOn": "Default mode is Decision, so this stays on.",
+      "provider": "Provider",
+      "providerOllama": "Ollama · {{host}}",
+      "providerHint": "Local Ollama. The host is set on the server.",
+      "searchModels": "Search models…",
+      "loadingModels": "Loading models…",
+      "noModels": "No models on this host.",
+      "useTag": "Use {{tag}}",
+      "capableHeading": "Decision-capable",
+      "otherHeading": "Other models",
+      "notCapable": "not decision-capable",
+      "advanced": "Advanced",
+      "badgeActive": "Active",
+      "badgeInactive": "Not activated",
+      "badgeLocked": "Locked by admin",
+      "hostUnknown": "localhost:11434"
+    },
+    "help": {
+      "llm": "A chat model reads each chunk and lists entities and relations. It uses your LLM provider.",
+      "decision": "A small model answers closed questions on the server. It uses no tokens. It finds fewer relations than a large LLM. English only."
+    },
+    "preset": {
+      "strict": "Strict",
+      "balanced": "Balanced",
+      "recall": "Recall"
+    },
+    "presetHint": {
+      "inherit": "Balanced unless the server says otherwise.",
+      "strict": "Fewer facts, each one surer.",
+      "balanced": "The default trade-off.",
+      "recall": "More facts, more items to review."
+    },
+    "gate": {
+      "uncalibrated": "Uncalibrated"
+    },
+    "issue": {
+      "packSize": "Use a whole number from {{min}} to {{max}}.",
+      "modelSpace": "A model tag has no spaces."
+    },
+    "badge": {
+      "label": "Decision",
+      "title": "Extracted with closed decisions, not free text"
+    },
+    "section": {
+      "title": "Extraction"
+    },
+    "stats": {
+      "entities": "Entities",
+      "relations": "Relations",
+      "review": "Review",
+      "rejected": "Rejected",
+      "reviewHint": "Doubtful facts kept out of the graph.",
+      "rejectedHint": "Candidates the model answered \"no\" to.",
+      "footer": "{{calls}} model calls · {{hits}} from cache · {{chunks}} chunks",
+      "warnings": "{{count}} warnings",
+      "pending": "Counts appear when the run finishes."
     }
   }
 }

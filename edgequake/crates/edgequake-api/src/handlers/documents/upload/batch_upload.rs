@@ -5,8 +5,8 @@ use axum::{extract::State, Json};
 
 use crate::error::{ApiError, ApiResult};
 use crate::handlers::documents::upload::{
-    admit_document_for_processing, DocumentAdmissionInput, DocumentAdmissionOutcome,
-    GleaningAdmissionOptions, MultipartUploadFields,
+    admit_document_for_processing, admit_extraction, DocumentAdmissionInput,
+    DocumentAdmissionOutcome, GleaningAdmissionOptions, MultipartUploadFields,
 };
 use crate::handlers::documents_types::*;
 use crate::middleware::TenantContext;
@@ -66,7 +66,9 @@ pub async fn upload_files_batch(
             | "chunk_strategy"
             | "chunk_options"
             | "extract_max_entities"
-            | "extract_max_records" => {
+            | "extract_max_records"
+            | "extraction_mode"
+            | "decision_gate_preset" => {
                 let text = field.text().await.map_err(|e| {
                     ApiError::BadRequest(format!("Failed to read {field_name}: {e}"))
                 })?;
@@ -75,6 +77,16 @@ pub async fn upload_files_batch(
             _ => {}
         }
     }
+
+    // SPEC-160 (EC-160-13): one bad word, or a down backend, fails the whole batch
+    // before any file is stored.
+    let batch_extraction = multipart_fields.effective_extraction()?;
+    admit_extraction(
+        &state,
+        &tenant_ctx.workspace_id_or_default(),
+        &batch_extraction,
+    )
+    .await?;
 
     let (batch_chunk_strategy, batch_chunk_options, batch_metadata) =
         multipart_fields.effective_chunk_fields();

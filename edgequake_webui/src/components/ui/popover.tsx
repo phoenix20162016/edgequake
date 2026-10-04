@@ -32,7 +32,7 @@ function PopoverContent({
         sideOffset={sideOffset}
         className={cn(
           FLOATING_SURFACE,
-          "z-50 w-72 origin-(--radix-popover-content-transform-origin) p-4 outline-hidden",
+          "z-[100] w-72 origin-(--radix-popover-content-transform-origin) p-4 outline-hidden",
           className
         )}
         {...props}

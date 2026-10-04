@@ -15,3 +15,4 @@ Full reference for the EdgeQuake REST API.
 - **[Lineage Endpoints](/docs/api-reference/lineage-endpoints/)** — Provenance, mm-assets, convert vs ingest.
 - **[Parse API (SPEC-094)](/docs/api-reference/rest-api/#parse-api-spec-094)** — stateless PDF→Markdown, no document residue.
 - **[Ingestion cancel & fairness](/docs/ingestion-cancel-and-fairness.md)** — Cancel SSOT, claim/lease, tenant fairness, store contention.
+- **[Decision extraction](/docs/concepts/decision-extraction/)** — `extraction_mode`, `GET /api/v1/decision/status`, `GET /api/v1/decision/models` (SPEC-160).

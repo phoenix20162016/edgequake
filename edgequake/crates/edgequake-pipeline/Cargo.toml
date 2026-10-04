@@ -7,6 +7,10 @@ license.workspace = true
 repository.workspace = true
 description = "Document processing pipeline for EdgeQuake"
 
+[features]
+# SPEC-160: in-process decision backends for tests in other crates.
+test-support = []
+
 [dependencies]
 edgequake-storage = { path = "../edgequake-storage", features = ["observability"] }
 edgequake-storage-contracts = { workspace = true }
@@ -31,8 +35,15 @@ tiktoken-rs = { workspace = true }
 # tiktoken_rs::cl100k_base_singleton returns Arc<parking_lot::Mutex<_>>
 parking_lot = "0.12"
 sha2 = "0.10"
+# SPEC-160: closed-decision KG extraction protocol (Tev1). No `native` feature:
+# EdgeQuake owns the HTTP transport and the cache, so no rusqlite/reqwest-blocking.
+edgextract = { version = "0.1.0", default-features = false }
+web-time = "1.1"
+indexmap = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [dev-dependencies]
+axum.workspace = true
 tokio = { workspace = true, features = ["full", "macros", "rt-multi-thread"] }
 serial_test = "3"
 serde_json.workspace = true

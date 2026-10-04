@@ -11,11 +11,15 @@
 //! | `responses` | Response DTOs, list wrappers, pagination, stats   |
 //! | `rebuild`   | Rebuild-embeddings, reprocess, rebuild-KG DTOs    |
 
+mod extraction_mode;
 mod map;
 mod rebuild;
 mod requests;
 mod responses;
 
+pub use extraction_mode::{
+    EffectiveExtractionModeDto, ExtractionModeFieldsDto, ExtractionModeView,
+};
 pub use map::workspace_to_response;
 pub use rebuild::*;
 pub use requests::*;
@@ -101,6 +105,7 @@ mod tests {
             extract_budget_mode: None,
             extract_max_entities: None,
             extract_max_records: None,
+            extraction: Default::default(),
             entity_type_colors: None,
             relation_types: None,
             relation_types_strict: None,
@@ -146,6 +151,7 @@ mod tests {
             extract_budget_mode: None,
             extract_max_entities: None,
             extract_max_records: None,
+            extraction: Default::default(),
             entity_type_colors: None,
             relation_types: None,
             relation_types_strict: None,
@@ -240,6 +246,7 @@ mod tests {
             extract_budget_mode: None,
             extract_max_entities: None,
             extract_max_records: None,
+            extraction: Default::default(),
             entity_type_colors: None,
             relation_types: None,
             relation_types_strict: true,

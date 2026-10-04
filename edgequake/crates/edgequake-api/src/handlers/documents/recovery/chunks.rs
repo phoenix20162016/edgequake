@@ -199,7 +199,8 @@ pub async fn retry_failed_chunks(
         let factory = crate::workspace_pipeline_factory::WorkspacePipelineFactory::new(
             Arc::clone(&state.workspace_service),
             Arc::clone(&state.query.pipeline),
-        );
+        )
+        .with_decision(Some(state.decision.clone()));
         let retry_pipeline = factory
             .resolve(
                 &retry_workspace_id,

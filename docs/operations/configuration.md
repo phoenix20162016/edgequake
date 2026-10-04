@@ -452,6 +452,29 @@ Relational data-layer cutover (typed SSOT) and the LightRAG-parity response cach
 
 ---
 
+### SPEC-160 Decision extraction
+
+Preview local knowledge-graph mode. Unset `EDGEQUAKE_EXTRACTION_MODE` still means the chat-LLM extractor. Making the engine available does not switch that default. Operator guide: [Decision extraction](../concepts/decision-extraction.md). A bad value fails startup.
+
+| Variable | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `EDGEQUAKE_EXTRACTION_MODE` | String | unset (`llm`) | Fleet default mode word: `llm` or `decision`. Document, then workspace, then this value |
+| `EDGEQUAKE_DECISION_ENABLED` | String | unset (on) | `1` / unset forces the engine on. `0` locks it off. `workspace` lets each workspace opt in |
+| `EDGEQUAKE_DECISION_BACKEND` | String | `ollama_system_one` | Only Ollama System One ships. `openai_logprobs` is refused at boot |
+| `EDGEQUAKE_DECISION_BASE_URL` | String | `http://localhost:11434` | Decision Ollama URL. Does not follow `OLLAMA_HOST` |
+| `EDGEQUAKE_DECISION_API_KEY` | String | unset | Bearer token reserved for a future logprobs backend. Never logged |
+| `EDGEQUAKE_DECISION_MODEL` | String | `tev1:0.8b` | Default decision model tag |
+| `EDGEQUAKE_DECISION_PACK_SIZE` | Integer | `4` | Questions per request (1–16) |
+| `EDGEQUAKE_DECISION_GATE_PRESET` | String | `balanced` | `strict`, `balanced`, or `recall`. Presets are uncalibrated |
+| `EDGEQUAKE_DECISION_TIMEOUT_SECS` | Integer | `600` | Per-request timeout |
+| `EDGEQUAKE_DECISION_KEEP_ALIVE` | String | `30m` | Ollama `keep_alive` so the model stays loaded |
+| `EDGEQUAKE_DECISION_CACHE_TTL_DAYS` | Integer | `30` | Decision answer cache TTL |
+| `EDGEQUAKE_DECISION_CACHE_MAX_ROWS` | Integer | `200000` | Decision cache rows per workspace |
+
+Schema: migration **166** (`decision_cache`, `decision_review`) is additive. Run `edgequake migrate` before serving a binary that expects schema 166.
+
+---
+
 ### Security / Authentication
 
 | Variable                    | Type    | Default | Description                                                                 |

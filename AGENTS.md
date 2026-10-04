@@ -683,6 +683,18 @@ make backend-bg
 | `EDGEQUAKE_LLM_OMIT_REASONING_EFFORT` | Optional | Never send `reasoning_effort` (SPEC-131) | `true` / `1` |
 | `EDGEQUAKE_LLM_API_FORMAT` | Optional | Upstream transport: Chat Completions or Responses (SPEC-131; default chat) | `chat_completions`, `responses` |
 | `EDGEQUAKE_EXTRACTION_LANGUAGE`| Optional | Fleet default KG extraction NL language (SPEC-096); workspace metadata overrides | `English`, `Chinese`, `French`, … |
+| `EDGEQUAKE_EXTRACTION_MODE` | Optional | Fleet default KG extraction mode (SPEC-160); workspace and upload override | `llm` (default), `decision` |
+| `EDGEQUAKE_DECISION_ENABLED` | Optional | Decision extraction (SPEC-160; default **on**). `0` locks off; `workspace` lets each workspace opt in | `1` |
+| `EDGEQUAKE_DECISION_BACKEND` | Optional | Decision backend (SPEC-160; default `ollama_system_one`) | `ollama_system_one` (`openai_logprobs` deferred; refused at boot) |
+| `EDGEQUAKE_DECISION_BASE_URL` | Optional | Decision Ollama URL (SPEC-160; default **`http://localhost:11434`**. Does not follow `OLLAMA_HOST`) | `http://localhost:11434` |
+| `EDGEQUAKE_DECISION_API_KEY` | Optional | Bearer token for `openai_logprobs` (never logged) | `sk-...` |
+| `EDGEQUAKE_DECISION_MODEL` | Optional | Default decision model (SPEC-160; default **`tev1:0.8b`**) | `tev1:4b` |
+| `EDGEQUAKE_DECISION_PACK_SIZE` | Optional | Questions per request, 1–16 (SPEC-160; default **4**) | `8` |
+| `EDGEQUAKE_DECISION_GATE_PRESET` | Optional | Fleet gate preset (SPEC-160; default `balanced`) | `strict`, `recall` |
+| `EDGEQUAKE_DECISION_TIMEOUT_SECS` | Optional | Per-request timeout (SPEC-160; default **600**) | `600` |
+| `EDGEQUAKE_DECISION_KEEP_ALIVE` | Optional | Ollama `keep_alive` so the model stays loaded (SPEC-160; default `30m`) | `30m` |
+| `EDGEQUAKE_DECISION_CACHE_TTL_DAYS` | Optional | Decision answer cache TTL (SPEC-160; default **30**) | `30` |
+| `EDGEQUAKE_DECISION_CACHE_MAX_ROWS` | Optional | Decision cache rows per workspace (SPEC-160; default **200000**) | `200000` |
 | `EDGEQUAKE_MAX_EXTRACTION_ENTITIES` | Optional | Per-response entity cap (SPEC-117; default **40**) | `40` |
 | `EDGEQUAKE_MAX_EXTRACTION_RECORDS` | Optional | Per-response total rows cap (SPEC-117; default **100**) | `100` |
 | `EDGEQUAKE_EXTRACT_CAPS_SELECTION` | Optional | Hard truncate under K: product default **relation_aware**; Acc pins **`fifo`** | `fifo`, `relation_aware` |

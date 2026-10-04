@@ -19,6 +19,7 @@ export * from "./edgequake/pipeline";
 export * from "./edgequake/lineage";
 export * from "./edgequake/cost";
 export * from "./edgequake/injection";
+export * from "./edgequake/decision";
 
 export { edgequakeApi, default } from "./edgequake/default-export";
 

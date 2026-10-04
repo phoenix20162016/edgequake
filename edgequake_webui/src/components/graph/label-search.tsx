@@ -92,10 +92,10 @@ export function LabelSearch({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full max-w-[200px] justify-between h-8 text-xs"
+          className="w-full max-w-[200px] min-w-0 overflow-hidden justify-between gap-1 h-8 text-xs"
         >
           {selectedLabel ? (
-            <span className="truncate">{selectedLabel}</span>
+            <span className="min-w-0 flex-1 truncate">{selectedLabel}</span>
           ) : (
             <span className="text-muted-foreground">{placeholder}</span>
           )}

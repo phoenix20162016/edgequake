@@ -6,6 +6,7 @@ All notable changes to the EdgeQuake Storage crate are tracked here. See the roo
 
 ### Added
 
+- **SPEC-160** `DecisionStore` (memory and Postgres) for `decision_cache` and `decision_review`.
 - CHANGELOG.md for storage crate.
 
 ## [0.1.0] - 2026-02-12

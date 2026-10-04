@@ -110,6 +110,17 @@ pub struct CreateWorkspaceRequest {
     /// SPEC-117: max total entity+relationship rows per response.
     pub extract_max_records: Option<u32>,
 
+    /// SPEC-160: `llm` | `decision` | `inherit` (omit = leave unchanged).
+    pub extraction_mode: Option<String>,
+    /// SPEC-160: `strict` | `balanced` | `recall` | `inherit`.
+    pub decision_gate_preset: Option<String>,
+    /// SPEC-160: decision model name, or `inherit`.
+    pub decision_model: Option<String>,
+    /// SPEC-160: questions per request, `1`-`16` (`0` clears).
+    pub decision_pack_size: Option<i64>,
+    /// SPEC-160: workspace opt-in for the decision engine.
+    pub decision_enabled: Option<bool>,
+
     /// Custom entity-type → hex color map for graph visualization (SPEC-102).
     /// Keys normalized UPPERCASE; values `#RGB` / `#RRGGBB`. Empty map clears.
     pub entity_type_colors: Option<HashMap<String, String>>,
@@ -363,6 +374,17 @@ pub struct UpdateWorkspaceRequest {
     pub extract_max_entities: Option<u32>,
     /// SPEC-117: max total entity+relationship rows per response.
     pub extract_max_records: Option<u32>,
+
+    /// SPEC-160: `llm` | `decision` | `inherit` (omit = leave unchanged).
+    pub extraction_mode: Option<String>,
+    /// SPEC-160: `strict` | `balanced` | `recall` | `inherit`.
+    pub decision_gate_preset: Option<String>,
+    /// SPEC-160: decision model name, or `inherit`.
+    pub decision_model: Option<String>,
+    /// SPEC-160: questions per request, `1`-`16` (`0` clears).
+    pub decision_pack_size: Option<i64>,
+    /// SPEC-160: workspace opt-in for the decision engine.
+    pub decision_enabled: Option<bool>,
 
     /// Custom entity-type → hex color map (SPEC-102). Omit = leave unchanged;
     /// empty map clears metadata key.

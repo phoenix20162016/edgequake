@@ -48,13 +48,10 @@ impl Pipeline {
         let completed_chunks = Arc::new(AtomicU32::new(0));
 
         // Get model pricing for cost calculation
-        let pricing = crate::progress::default_model_pricing();
-        let model_name = extractor.model_name();
-        let model_pricing = pricing
-            .get(model_name)
-            .cloned()
-            .unwrap_or_else(|| crate::progress::ModelPricing::new("gpt-4.1-nano", 0.00015, 0.0006));
-        let model_pricing = Arc::new(model_pricing);
+        let model_pricing = Arc::new(crate::progress::pricing_for_extractor(
+            extractor.model_name(),
+            extractor.provider_name(),
+        ));
 
         // SPEC-047 P3a: own chunk clones (O(C) data), then stream futures lazily so
         // only `max_concurrent` async state machines exist at once (Send-safe).
@@ -259,13 +256,10 @@ impl Pipeline {
         let completed_chunks = Arc::new(AtomicU32::new(0));
 
         // Get model pricing for cost calculation
-        let pricing = crate::progress::default_model_pricing();
-        let model_name = extractor.model_name();
-        let model_pricing = pricing
-            .get(model_name)
-            .cloned()
-            .unwrap_or_else(|| crate::progress::ModelPricing::new("gpt-4.1-nano", 0.00015, 0.0006));
-        let model_pricing = Arc::new(model_pricing);
+        let model_pricing = Arc::new(crate::progress::pricing_for_extractor(
+            extractor.model_name(),
+            extractor.provider_name(),
+        ));
 
         // ═══════════════════════════════════════════════════════════════════════
         //                           MAP PHASE

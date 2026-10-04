@@ -119,6 +119,10 @@ pub struct DocumentDetailResponse {
     /// Per-item multimodal analyze status (E52).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multimodal_items: Option<Vec<crate::services::MultimodalItemStatusView>>,
+
+    /// SPEC-160: extraction mode, who chose it, and decision-run counts.
+    #[serde(flatten)]
+    pub extraction: super::DocumentExtractionView,
 }
 
 /// Get document by ID request.

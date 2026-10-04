@@ -281,7 +281,7 @@ test.describe("SPEC-109 reasoning effort UI", () => {
     await shot(page, "07-documents-page.png");
     const parser = page.getByTestId("spec038-upload-parser-select");
     await expect(parser).toBeVisible({ timeout: 30_000 });
-    await expect(parser).toHaveText(/Workspace Default \((Vision|EdgeParse)\)/);
+    await expect(parser).toHaveText(/Workspace \((Vision|EdgeParse)\)/);
     await parser.scrollIntoViewIfNeeded();
     await shot(page, "07-documents-upload.png");
     await parser.click();

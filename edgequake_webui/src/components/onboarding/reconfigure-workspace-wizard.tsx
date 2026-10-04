@@ -252,6 +252,11 @@ export function ReconfigureWorkspaceWizard({
         kgSchemaPreset: draft.kgSchemaPreset,
         relationEdges: draft.relationEdges,
         reasoningEffort: draft.reasoningEffort,
+        decisionEnabled: draft.decisionEnabled,
+        decisionModel: draft.decisionModel,
+        decisionPreset: draft.decisionPreset,
+        decisionPackSize: draft.decisionPackSize,
+        extractionMode: draft.extractionMode,
         changedKeys: impact.changedKeys,
       });
       const updated = await updateWorkspace(tenantId, workspace.id, payload);

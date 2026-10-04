@@ -153,6 +153,11 @@ export interface WorkspaceUpdatePayloadArgs {
   kgSchemaPreset?: string;
   relationEdges?: Array<{ source: string; relation: string; target: string }>;
   reasoningEffort?: string;
+  decisionEnabled?: boolean;
+  decisionModel?: string;
+  decisionPreset?: string;
+  decisionPackSize?: string;
+  extractionMode?: 'inherit' | 'llm' | 'decision';
   /**
    * Sparse PUT: only emit these keys. When omitted:
    * - useServerDefaults → model-clear fields only (never a schema wipe)
@@ -302,6 +307,16 @@ export function buildWorkspaceUpdatePayload(
     const effort = args.reasoningEffort?.trim() ?? '';
     payload.default_reasoning_effort = effort.length > 0 ? effort : 'none';
   }
+  if (include('decisionEngine')) {
+    payload.decision_enabled = args.decisionEnabled === true;
+    payload.decision_model = args.decisionModel?.trim() || 'inherit';
+    payload.decision_gate_preset = args.decisionPreset?.trim() || 'inherit';
+    const pack = args.decisionPackSize?.trim() ?? '';
+    payload.decision_pack_size = pack === '' ? 0 : Number(pack);
+  }
+  if (include('extractionMode')) {
+    payload.extraction_mode = args.extractionMode || 'inherit';
+  }
 
   return payload;
 }
@@ -338,6 +353,11 @@ export function buildWorkspaceIngestPayload(
     | 'kgSchemaPreset'
     | 'relationEdges'
     | 'reasoningEffort'
+    | 'decisionEnabled'
+    | 'decisionModel'
+    | 'decisionPreset'
+    | 'decisionPackSize'
+    | 'extractionMode'
   >,
   mode: WorkspaceIngestMode = 'create',
 ): UpdateWorkspaceRequest {
@@ -418,6 +438,25 @@ export function buildWorkspaceIngestPayload(
   }
   if (draft.reasoningEffort?.trim()) {
     payload.default_reasoning_effort = draft.reasoningEffort.trim();
+  }
+  if (draft.extractionMode === 'llm' || draft.extractionMode === 'decision') {
+    payload.extraction_mode = draft.extractionMode;
+  }
+  if (draft.decisionEnabled === false) {
+    payload.decision_enabled = false;
+  } else if (draft.decisionEnabled === true) {
+    payload.decision_enabled = true;
+  }
+  const decisionModel = draft.decisionModel?.trim();
+  if (decisionModel && decisionModel !== 'inherit') {
+    payload.decision_model = decisionModel;
+  }
+  if (draft.decisionPreset && draft.decisionPreset !== 'inherit') {
+    payload.decision_gate_preset = draft.decisionPreset;
+  }
+  const pack = draft.decisionPackSize?.trim() ?? '';
+  if (pack !== '') {
+    payload.decision_pack_size = Number(pack);
   }
   return payload;
 }

@@ -120,6 +120,27 @@ export function formatWorkspaceDefaultPdfParserLabel(
   );
 }
 
+/** Closed-trigger inherit text for dense bars. Menu keeps the full Default line. */
+export function formatWorkspaceDefaultPdfParserShortLabel(
+  t: (key: string, defaultValue: string, options?: { value: string }) => string,
+  workspaceBackend?: PdfParserBackend | null,
+  serverBackend?: PdfParserBackend,
+  tenantBackend?: PdfParserBackend | null,
+): string {
+  const resolved = resolvePdfParserBackend({
+    uploadChoice: "default",
+    workspaceBackend,
+    tenantBackend,
+    serverBackend,
+  });
+  const value = pdfParserBackendDisplayName(resolved.backend);
+  return t(
+    "documents.upload.pdfParserDefaultShort",
+    `Workspace (${value})`,
+    { value },
+  );
+}
+
 function finalizeChoice(
   choice: PdfParserBackend,
   source: PdfParserResolutionSource,

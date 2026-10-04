@@ -40,6 +40,7 @@ pub(crate) mod chunk_repository;
 mod config;
 mod connection;
 mod conversation;
+pub mod decision_store;
 mod diskann_runtime_policy;
 pub mod document_shell;
 mod filtered_diskann_label_policy;

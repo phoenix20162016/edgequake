@@ -381,6 +381,7 @@ pub fn build_pdf_recovery_task_data_with_mode(
         vision_reasoning_effort,
         vision_extract: Default::default(),
         page_scope: None,
+        document_extraction: None,
     }
 }
 

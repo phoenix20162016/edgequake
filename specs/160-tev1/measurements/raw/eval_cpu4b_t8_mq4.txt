@@ -1,0 +1,15 @@
+01_edgequake entities_f1=1.000 relations_f1=0.750
+02_ollama entities_f1=0.933 relations_f1=0.000
+03_python entities_f1=0.857 relations_f1=0.000
+04_none entities_f1=0.000 relations_f1=0.000
+05_negation entities_f1=1.000 relations_f1=0.000
+06_fence entities_f1=1.000 relations_f1=0.000
+07_event entities_f1=0.857 relations_f1=0.500
+08_injection entities_f1=1.000 relations_f1=0.000
+09_overlap entities_f1=1.000 relations_f1=1.000
+10_pronouns entities_f1=1.000 relations_f1=0.000
+11_selfloop entities_f1=1.000 relations_f1=0.667
+12_hedge entities_f1=1.000 relations_f1=0.667
+13_northwind entities_f1=0.727 relations_f1=0.000
+14_acquired entities_f1=0.571 relations_f1=0.000
+micro entities_f1=0.914 relations_f1=0.465 gate_fitted=false

@@ -63,6 +63,9 @@ pub(super) struct PdfReprocessIntent {
     pub restart_from_scratch: bool,
     /// Explicit reprocess mode echoed into the task payload for observability.
     pub reprocess_mode: Option<edgequake_tasks::ReprocessMode>,
+    /// SPEC-160: document-level extraction words for the follow-on Insert task.
+    /// `None` means the document inherits the workspace and server defaults.
+    pub document_extraction: Option<serde_json::Value>,
 }
 
 impl PdfReprocessIntent {
@@ -179,6 +182,7 @@ pub(super) async fn create_pdf_processing_task(
             .resolved_vision_extract(workspace)
             .unwrap_or_default(),
         page_scope: None,
+        document_extraction: intent.document_extraction.clone(),
     };
 
     let track_id = format!("pdf-{}", Uuid::new_v4());

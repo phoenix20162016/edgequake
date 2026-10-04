@@ -284,6 +284,7 @@ mod tests {
             eta_basis: None,
             query_ready: None,
             cancelled_from_stage: None,
+            extraction: Default::default(),
         }
     }
 

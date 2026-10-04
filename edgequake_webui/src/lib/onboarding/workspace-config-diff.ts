@@ -21,7 +21,9 @@ export type WorkspaceConfigChangedKey =
   | 'kgSchemaPreset'
   | 'relationEdges'
   | 'visionExtract'
-  | 'reasoningEffort';
+  | 'reasoningEffort'
+  | 'decisionEngine'
+  | 'extractionMode';
 
 export interface WorkspaceConfigSnapshot {
   useServerDefaults: boolean;
@@ -51,6 +53,11 @@ export interface WorkspaceConfigSnapshot {
   visionChartSystemPrompt?: string;
   visionFigureSystemPrompt?: string;
   reasoningEffort?: string;
+  decisionEnabled?: boolean;
+  decisionModel?: string;
+  decisionPreset?: string;
+  decisionPackSize?: string;
+  extractionMode?: 'inherit' | 'llm' | 'decision';
 }
 
 export interface WorkspaceRebuildHints {
@@ -221,6 +228,16 @@ export function diffWorkspaceConfig(
   }
   if ((baseline.reasoningEffort ?? '') !== (draft.reasoningEffort ?? '')) {
     changedKeys.push('reasoningEffort');
+  }
+  const baseDecision = `${baseline.decisionEnabled === true}|${baseline.decisionModel ?? ''}|${baseline.decisionPreset ?? 'inherit'}|${baseline.decisionPackSize ?? ''}`;
+  const draftDecision = `${draft.decisionEnabled === true}|${draft.decisionModel ?? ''}|${draft.decisionPreset ?? 'inherit'}|${draft.decisionPackSize ?? ''}`;
+  if (baseDecision !== draftDecision) {
+    changedKeys.push('decisionEngine');
+  }
+  const baseMode = baseline.extractionMode ?? 'inherit';
+  const draftMode = draft.extractionMode ?? 'inherit';
+  if (baseMode !== draftMode) {
+    changedKeys.push('extractionMode');
   }
 
   const docs = opts.documentCount ?? 0;

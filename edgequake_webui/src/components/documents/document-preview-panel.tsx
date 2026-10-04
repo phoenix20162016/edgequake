@@ -15,6 +15,7 @@
  */
 'use client';
 
+import { DecisionExtractionSection } from '@/components/documents/decision-extraction-section';
 import { StreamingMarkdownRenderer } from '@/components/query/markdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -348,6 +349,13 @@ export function DocumentPreviewPanel({
           {/* OODA-33: File Size Display — remove duplicate (already shown in Size row) */}
         </div>
       </div>
+
+      {document.extraction_mode === 'decision' && (
+        <DecisionExtractionSection
+          source={document.extraction_mode_source}
+          stats={document.decision_stats}
+        />
+      )}
 
       {/* Cost Information */}
       {(document.cost_usd !== undefined || document.total_tokens !== undefined) && (

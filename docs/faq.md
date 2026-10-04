@@ -384,6 +384,10 @@ Cancelling convert **or** an in-flight ingest cancels both linked tasks for the 
 
 ## Features
 
+### What is decision extraction?
+
+A preview knowledge-graph mode (SPEC-160). A local model answers closed questions. Accepted answers enter the same graph as LLM extraction. The chat-LLM extractor stays the default. Set the mode on the workspace or on one upload, with Ollama and a Tev1 model pulled. Guide: [Decision extraction](concepts/decision-extraction.md).
+
 ### What document formats are supported?
 
 | Format | Support | Notes |

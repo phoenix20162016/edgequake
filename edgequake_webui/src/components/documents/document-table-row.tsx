@@ -44,6 +44,7 @@ import { DocumentActionsMenu } from './document-actions-menu';
 import { DOCUMENT_TABLE_COL_HIDE } from '@/lib/documents/document-table-columns';
 import { EnhancedStatusBadge } from './enhanced-status-badge';
 import { ErrorMessagePopover } from './error-message-popover';
+import { ExtractionModeBadge } from './extraction-mode-badge';
 import { QuickActionButtons } from './quick-action-buttons';
 
 /** Stages that show live backend detail under the status badge */
@@ -259,6 +260,7 @@ export const DocumentTableRow = memo(function DocumentTableRow({
             <span className="truncate" title={displayTitle}>
               {highlightMatches(displayTitle, searchQuery)}
             </span>
+            <ExtractionModeBadge mode={doc.extraction_mode} className="ml-auto" />
           </div>
           {/* Error message for failed/cancelled documents */}
           {isTerminalFailureDocument(doc) && getEffectiveErrorMessage(doc) && (

@@ -6,6 +6,15 @@ All notable changes to the EdgeQuake specs directory are tracked here. See the r
 
 ### Added
 
+- **SPEC-160 / decision extraction (2026-10-04):** Preview KG mode `decision`.
+  Closed questions on Ollama System One (default `tev1:0.8b`). Accept rows enter
+  the graph; review rows land in `decision_review` (migration **166**). Chat-LLM
+  extraction stays the default. `llama-server` / `openai_logprobs` is deferred
+  and refused at boot. Gate presets stay uncalibrated. Operator guide:
+  [docs/concepts/decision-extraction.md](../docs/concepts/decision-extraction.md).
+  Pack: `specs/160-tev1/`. Quality probe:
+  [measurements/w8-report.md](160-tev1/measurements/w8-report.md).
+
 - **SPEC-144 / Next.js 16.3.3 Active LTS (2026-08-30):** Pin `next` +
   `eslint-config-next` to **16.3.3** (August Critical RCEs); unify auth +
   swagger into `src/proxy.ts`; Docker `next build --webpack`; Instant

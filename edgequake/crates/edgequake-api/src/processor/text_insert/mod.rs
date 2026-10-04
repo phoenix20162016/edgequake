@@ -1,6 +1,7 @@
 //! Text insert worker pipeline (SPEC-025 6.6 SRP split).
 
 mod cancel;
+mod decision_outcome;
 mod extraction;
 mod finalize;
 mod persist;

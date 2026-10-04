@@ -240,6 +240,12 @@ EdgeQuake implements the [LightRAG algorithm](https://arxiv.org/abs/2410.05779) 
 - **Custom Entity Types** — 5 domain presets (General, Manufacturing, Healthcare, Legal, Research), up to 50 types per workspace
 - **Knowledge Injection** — Domain glossaries, acronym definitions, and synonym mappings
 
+### Decision extraction (preview, SPEC-160)
+
+A second extraction mode, **decision**, answers closed questions with a local model (default `tev1:0.8b` on Ollama). Accepted answers enter the same knowledge graph. The chat-LLM extractor stays the default. Gate presets are uncalibrated, and this path has not been scored on SPEC-001 Acc.
+
+Guide: [Decision extraction](docs/concepts/decision-extraction.md).
+
 ### Query Engine — 6 Modes
 
 | Mode | Best For | Latency |

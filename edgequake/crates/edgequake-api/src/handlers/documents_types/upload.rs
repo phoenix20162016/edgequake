@@ -56,6 +56,14 @@ pub struct UploadDocumentRequest {
     /// SPEC-117: optional per-upload max total entity+relationship rows per response.
     #[serde(default)]
     pub extract_max_records: Option<u32>,
+
+    /// SPEC-160: `llm`, `decision`, or `inherit`. Absent inherits workspace, then server.
+    #[serde(default)]
+    pub extraction_mode: Option<String>,
+
+    /// SPEC-160: decision gate preset for this document (`strict`, `balanced`, `recall`).
+    #[serde(default)]
+    pub decision_gate_preset: Option<String>,
 }
 
 /// Document upload response.
@@ -106,6 +114,14 @@ pub struct UploadDocumentResponse {
     /// ETA basis: `measured` or `no_history` (honest uncertainty, R-15).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eta_basis: Option<String>,
+
+    /// SPEC-160: the extraction mode this document will run with (`llm` or `decision`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extraction_mode: Option<String>,
+
+    /// SPEC-160: who chose the mode (`document`, `workspace`, `env`, `default`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extraction_mode_source: Option<String>,
 }
 
 /// Cost information for a processed document.

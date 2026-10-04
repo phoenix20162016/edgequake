@@ -126,7 +126,7 @@ describe("DocumentDropzone", () => {
   });
 
   it("uses a single band and no browse button on a short strip", () => {
-    installBox(720, 80);
+    installBox(840, 80);
     renderZone();
 
     const zone = screen.getByTestId("document-dropzone");
@@ -136,6 +136,13 @@ describe("DocumentDropzone", () => {
       "Drop files or choose them",
     );
     expect(screen.queryByTestId("document-dropzone-browse")).not.toBeInTheDocument();
+  });
+
+  it("stacks a short strip that is too narrow to hold every control on one line", () => {
+    installBox(560, 80);
+    renderZone();
+
+    expect(screen.getByTestId("document-dropzone")).toHaveAttribute("data-fill-layout", "stack");
   });
 
   it("replaces the invitation with a release prompt while dragging", () => {

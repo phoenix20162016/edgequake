@@ -423,6 +423,7 @@ pub async fn reprocess_pages(
         vision_reasoning_effort: None,
         vision_extract: Default::default(),
         page_scope: Some(page_scope),
+        document_extraction: None,
     };
 
     let task = Task::new(

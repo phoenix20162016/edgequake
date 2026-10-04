@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   formatServerDefaultPdfParserLabel,
   formatWorkspaceDefaultPdfParserLabel,
+  formatWorkspaceDefaultPdfParserShortLabel,
   getServerDefaultPdfParserBackend,
   pdfParserBackendDisplayName,
   resolvePdfParserBackend,
@@ -123,6 +124,9 @@ describe("resolvePdfParserBackend", () => {
     );
     expect(formatWorkspaceDefaultPdfParserLabel(t, "auto")).toBe(
       "Workspace Default (Auto)",
+    );
+    expect(formatWorkspaceDefaultPdfParserShortLabel(t, "vision")).toBe(
+      "Workspace (Vision)",
     );
   });
 

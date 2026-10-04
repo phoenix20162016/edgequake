@@ -179,4 +179,42 @@ describe("performFileUpload", () => {
 
     expect(result.duplicate_of).toBe("existing-img");
   });
+
+  it("forwards the extraction mode on the three upload paths (V06)", async () => {
+    vi.mocked(uploadPdfDocument).mockResolvedValue({
+      pdf_id: "p",
+      status: "processing",
+      task_id: "t",
+      message: "ok",
+      estimated_time_seconds: 1,
+      metadata: { filename: "a.pdf", file_size_bytes: 1, sha256_checksum: "x" },
+    });
+    vi.mocked(uploadFile).mockResolvedValue({ document_id: "i", status: "processing" });
+    vi.mocked(uploadDocument).mockResolvedValue({ document_id: "d", status: "processing" });
+
+    await performFileUpload(file("a.pdf", "application/pdf"), {
+      batchTrackId: "b",
+      extractionMode: "decision",
+    });
+    await performFileUpload(file("a.png", "image/png"), {
+      batchTrackId: "b",
+      extractionMode: "decision",
+    });
+    await performFileUpload(file("a.txt", "text/plain"), {
+      batchTrackId: "b",
+      extractionMode: "decision",
+    });
+
+    expect(uploadPdfDocument).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ extraction_mode: "decision" }),
+    );
+    expect(uploadFile).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ extraction_mode: "decision" }),
+    );
+    expect(uploadDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ extraction_mode: "decision" }),
+    );
+  });
 });

@@ -32,6 +32,7 @@ use crate::chunker::TextChunk;
 use crate::error::Result;
 
 mod completion_options;
+pub mod decision;
 mod gleaning;
 mod llm;
 mod schema;

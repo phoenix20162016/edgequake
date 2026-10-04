@@ -6,6 +6,7 @@
 //!
 //! DRY: single fingerprint format shared by admission, prepare, and reanalyze.
 
+use edgequake_pipeline::ExtractionMode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -27,6 +28,12 @@ pub struct ProcessFingerprintInput {
     /// Optional content hash for extra safety.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub content_hash: String,
+    /// SPEC-160: resolved extraction mode word. Empty means `llm`.
+    ///
+    /// Only a non-default mode enters the digest, so every pre-SPEC-160
+    /// fingerprint stays valid (LAW-160-9). A mode change marks a document stale.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub extraction_mode: String,
 }
 
 impl ProcessFingerprintInput {
@@ -42,6 +49,7 @@ impl ProcessFingerprintInput {
             chunk_overlap,
             multimodal_process_options: multimodal_process_options.into(),
             content_hash: String::new(),
+            extraction_mode: String::new(),
         }
     }
 
@@ -80,7 +88,21 @@ impl ProcessFingerprintInput {
         let mm = metadata
             .get("multimodal_process_options")
             .and_then(|v| v.as_str());
-        Self::from_ingest_fields(strategy, token_size, overlap, mm)
+        let mode = metadata
+            .get(edgequake_pipeline::META_EXTRACTION_MODE)
+            .and_then(|v| v.as_str())
+            .and_then(ExtractionMode::parse)
+            .unwrap_or_default();
+        Self::from_ingest_fields(strategy, token_size, overlap, mm).with_extraction_mode(mode)
+    }
+
+    /// Record the resolved extraction mode (SPEC-160). `Llm` keeps the legacy digest.
+    pub fn with_extraction_mode(mut self, mode: ExtractionMode) -> Self {
+        self.extraction_mode = match mode {
+            ExtractionMode::Llm => String::new(),
+            other => other.as_str().to_string(),
+        };
+        self
     }
 
     pub fn with_content_hash(mut self, hash: impl Into<String>) -> Self {
@@ -90,7 +112,7 @@ impl ProcessFingerprintInput {
 
     /// Stable hex digest (SHA-256 of canonical JSON).
     pub fn digest(&self) -> String {
-        let canonical = format!(
+        let mut canonical = format!(
             "cs={}|cts={}|co={}|mm={}|ch={}",
             self.chunking_strategy.trim().to_ascii_lowercase(),
             self.chunk_token_size,
@@ -98,6 +120,11 @@ impl ProcessFingerprintInput {
             self.multimodal_process_options.trim().to_ascii_lowercase(),
             self.content_hash.trim()
         );
+        let mode = self.extraction_mode.trim().to_ascii_lowercase();
+        if !mode.is_empty() && mode != ExtractionMode::Llm.as_str() {
+            canonical.push_str("|em=");
+            canonical.push_str(&mode);
+        }
         let mut hasher = Sha256::new();
         hasher.update(canonical.as_bytes());
         format!("{:x}", hasher.finalize())
@@ -208,6 +235,64 @@ mod tests {
         assert_eq!(fp.chunk_token_size, 900);
         assert_eq!(fp.chunk_overlap, 50);
         assert_eq!(fp.multimodal_process_options, "i");
+    }
+
+    // T-160-U12 — the llm digest equals the pre-SPEC-160 digest (LAW-160-9).
+    #[test]
+    fn spec160_llm_digest_matches_legacy_format() {
+        let legacy = "577ce8421ecad7ad56ee9c5e71bdacdd4d4d14fe1469ecfaaace76a46494a6dc";
+        let llm = ProcessFingerprintInput::new("recursive", 800, 100, "ite")
+            .with_extraction_mode(ExtractionMode::Llm);
+        assert_eq!(llm.digest(), legacy);
+        assert_eq!(
+            ProcessFingerprintInput::new("recursive", 800, 100, "ite").digest(),
+            legacy
+        );
+    }
+
+    // T-160-U13 — a mode change makes the document stale (EC-160-27).
+    #[test]
+    fn spec160_decision_mode_changes_digest() {
+        let base = ProcessFingerprintInput::new("recursive", 800, 100, "ite");
+        let decision = base.clone().with_extraction_mode(ExtractionMode::Decision);
+        assert_ne!(base.digest(), decision.digest());
+        assert!(should_purge_stale_extraction(
+            Some(&base.digest()),
+            &decision
+        ));
+        assert!(should_purge_stale_extraction(
+            Some(&decision.digest()),
+            &base
+        ));
+    }
+
+    // T-160-U14 — metadata read: decision counts, unknown or inherit words mean llm.
+    #[test]
+    fn spec160_from_document_metadata_reads_mode() {
+        let decision = json!({ "extraction_mode": "decision" });
+        assert_eq!(
+            ProcessFingerprintInput::from_document_metadata(&decision).extraction_mode,
+            "decision"
+        );
+        for meta in [
+            json!({ "extraction_mode": "inherit" }),
+            json!({ "extraction_mode": "x" }),
+            json!({}),
+        ] {
+            let fp = ProcessFingerprintInput::from_document_metadata(&meta);
+            assert!(fp.extraction_mode.is_empty());
+        }
+    }
+
+    // T-160-U15 — a legacy JSON fingerprint without the field still deserializes.
+    #[test]
+    fn spec160_legacy_json_deserializes() {
+        let fp: ProcessFingerprintInput = serde_json::from_value(json!({
+            "chunking_strategy": "recursive", "chunk_token_size": 800,
+            "chunk_overlap": 100, "multimodal_process_options": "ite"
+        }))
+        .unwrap();
+        assert!(fp.extraction_mode.is_empty());
     }
 
     #[test]

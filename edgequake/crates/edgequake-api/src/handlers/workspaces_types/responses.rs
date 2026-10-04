@@ -175,6 +175,10 @@ pub struct WorkspaceResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extract_max_records: Option<u32>,
 
+    /// SPEC-160: workspace extraction mode, effective mode, and decision settings.
+    #[serde(flatten)]
+    pub extraction: super::ExtractionModeView,
+
     /// Custom entity-type → hex color map for graph visualization (SPEC-102).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entity_type_colors: Option<std::collections::HashMap<String, String>>,

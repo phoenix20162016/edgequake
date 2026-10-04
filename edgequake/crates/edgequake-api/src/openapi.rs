@@ -220,6 +220,8 @@ use crate::handlers;
         handlers::list_available_providers,
         handlers::get_langfuse_settings,
         handlers::get_llm_defaults,
+        handlers::get_decision_status,
+        handlers::get_decision_models,
         handlers::update_llm_defaults,
         handlers::get_effective_config,
         handlers::get_attribution_settings,

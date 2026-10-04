@@ -39,6 +39,7 @@ This file maintains traceability between code features, business requirements, a
 | FEAT-102   | Custom Entity Type Colors (workspace graph)        | Completed | [SPEC-102](../specs/102-custom-entity-type-colors/) / v0.23.0               |
 | FEAT-103   | LightRAG-Parity LLM Cache                          | Completed | [SPEC-103](../specs/103-llm-cache/) / v0.23.0                               |
 | FEAT-126   | Provider KV / Prompt Cache                         | Completed | [SPEC-126](../specs/126-provider-kv-cache/)                                 |
+| FEAT-160   | Decision extraction (closed questions, preview)    | Preview   | [SPEC-160](../specs/160-tev1/) / unreleased                                 |
 
 ---
 
@@ -292,6 +293,16 @@ Workspace-scoped `entity_type_colors` for knowledge-graph visualization:
 - EntityTypeSelector + graph legend color pickers; entity-type mode only
 - Hex `#RGB` / `#RRGGBB` validation; max 50 entries
 - Gates: `entity-type-colors.test.ts`, `spec102_entity_type_colors_persist`, `e2e/spec102-entity-type-colors.spec.ts`
+
+---
+
+### FEAT-160 — Decision extraction (SPEC-160)
+
+**Spec**: [specs/160-tev1](../specs/160-tev1/README.md)  
+**Guide**: [docs/concepts/decision-extraction.md](concepts/decision-extraction.md)  
+**Status**: Preview (unreleased, schema **166**)
+
+Workspace- and upload-scoped `extraction_mode` (`llm` or `decision`). Decision mode asks closed questions on Ollama System One. Accept rows enter the graph. Review rows stay in `decision_review`. The chat-LLM path stays the default. `openai_logprobs` is refused at boot. Gate presets show Uncalibrated.
 
 ---
 

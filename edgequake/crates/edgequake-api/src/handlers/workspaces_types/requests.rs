@@ -274,6 +274,10 @@ pub struct CreateWorkspaceApiRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extract_max_records: Option<u32>,
 
+    /// SPEC-160: extraction mode and decision settings (future ingestions only).
+    #[serde(flatten)]
+    pub extraction: super::ExtractionModeFieldsDto,
+
     /// Custom entity-type → hex color map for graph visualization (SPEC-102).
     /// Keys UPPERCASE; values `#RGB` / `#RRGGBB`. Empty object clears.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -406,6 +410,10 @@ pub struct UpdateWorkspaceApiRequest {
     pub extract_max_entities: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extract_max_records: Option<u32>,
+
+    /// SPEC-160: extraction mode and decision settings (future ingestions only).
+    #[serde(flatten)]
+    pub extraction: super::ExtractionModeFieldsDto,
 
     /// Custom entity-type → hex color map (SPEC-102). Omit = leave unchanged;
     /// empty object clears the workspace override.

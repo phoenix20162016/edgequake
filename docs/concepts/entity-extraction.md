@@ -190,12 +190,15 @@ Result: NEURAL_NETWORKS, AI_RESEARCH (missed in first pass)
 
 Research shows 1-2 gleaning iterations improve recall by 15-25%. Cancel mid-extract via task cancel — see [Ingestion cancel & fairness](/docs/ingestion-cancel-and-fairness.md).
 
+**Decision mode (preview):** a local model can answer closed questions instead of this chat-LLM pass. The default stays the LLM extractor. See [Decision extraction](/docs/concepts/decision-extraction/).
+
 **PDF multimodal:** After vision convert, figure/chart assets can become entity nodes linked to text extractions — see [PDF Processing](/docs/deep-dives/pdf-processing/).
 
 ---
 
 ## Learn More
 
+- **Decision extraction (preview)**: [Decision extraction](/docs/concepts/decision-extraction/)
 - **Where entities are stored**: [Knowledge Graph](/docs/concepts/knowledge-graph/)
 - **Algorithm details**: [LightRAG Algorithm](/docs/deep-dives/lightrag-algorithm/)
 - **How queries use entities**: [Hybrid Retrieval](/docs/concepts/hybrid-retrieval/)

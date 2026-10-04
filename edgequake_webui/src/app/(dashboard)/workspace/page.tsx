@@ -37,6 +37,7 @@ import { WorkspaceRelationTypesCard } from '@/components/workspace/workspace-rel
 import { WorkspaceExtractionLanguageCard } from '@/components/workspace/workspace-extraction-language-card';
 import { WorkspaceChunkingCard } from '@/components/workspace/workspace-chunking-card';
 import { WorkspaceExtractBudgetCard } from '@/components/workspace/workspace-extract-budget-card';
+import { WorkspaceExtractionModeCard } from '@/components/workspace/workspace-extraction-mode-card';
 import { WorkspacePageHeader } from '@/components/workspace/workspace-page-header';
 import { WorkspaceStatsCards } from '@/components/workspace/workspace-stats-cards';
 import { ENTITY_PRESETS } from '@/constants/entity-presets';
@@ -292,6 +293,7 @@ export default function WorkspacePage() {
 
         <WorkspaceChunkingCard isEditing={false} workspace={workspace} />
         <WorkspaceExtractBudgetCard isEditing={false} workspace={workspace} />
+        <WorkspaceExtractionModeCard workspace={workspace} />
 
         <div
           className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start"

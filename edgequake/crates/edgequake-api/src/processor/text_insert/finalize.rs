@@ -129,6 +129,10 @@ impl DocumentTaskProcessor {
             }
         }
 
+        // SPEC-160: review rows and stats first — the status write below makes the
+        // document terminal, after which metadata patches are refused.
+        self.record_decision_outcome(&persisted).await;
+
         self.update_document_status_with_stats(&document_id, &final_status, &stats_with_lineage)
             .await?;
 

@@ -707,6 +707,11 @@ impl AppState {
             workspace_service,
             conversation_service,
             operational_stores,
+            decision: edgequake_pipeline::extractor::decision::DecisionRuntime::from_env(Arc::new(
+                edgequake_storage::adapters::postgres::decision_store::PostgresDecisionStore::new(
+                    pool.clone(),
+                ),
+            )),
             config: AppConfig::default(),
             cache_manager: CacheManager::with_defaults(),
             rate_limiter: RateLimiter::new(TokenBucketConfig::default()),

@@ -122,6 +122,8 @@ impl AppState {
             workspace_service,
             conversation_service,
             operational_stores: super::OperationalStores::default(),
+            decision: edgequake_pipeline::extractor::decision::DecisionRuntime::in_memory_from_env(
+            ),
             config: AppConfig::default(),
             cache_manager: CacheManager::with_defaults(),
             rate_limiter: RateLimiter::new(TokenBucketConfig::default()),
@@ -291,6 +293,8 @@ impl AppState {
             workspace_service,
             conversation_service,
             operational_stores: super::OperationalStores::default(),
+            decision: edgequake_pipeline::extractor::decision::DecisionRuntime::in_memory_from_env(
+            ),
             config: AppConfig::default(),
             cache_manager: CacheManager::with_defaults(),
             rate_limiter: RateLimiter::new(TokenBucketConfig::default()),
@@ -468,6 +472,8 @@ impl AppState {
             workspace_service,
             conversation_service,
             operational_stores: super::OperationalStores::default(),
+            decision: edgequake_pipeline::extractor::decision::DecisionRuntime::in_memory_from_env(
+            ),
             config: AppConfig::default(),
             cache_manager: CacheManager::with_defaults(),
             rate_limiter: RateLimiter::new(TokenBucketConfig::strict(100, 60)),

@@ -161,6 +161,22 @@ export function prefillReconfigureFromWorkspace(workspace: Workspace): Reconfigu
     visionChartSystemPrompt: workspace.vision_chart_system_prompt ?? '',
     visionFigureSystemPrompt: workspace.vision_figure_system_prompt ?? '',
     reasoningEffort: workspace.default_reasoning_effort ?? undefined,
+    decisionEnabled: workspace.decision_enabled !== false,
+    decisionModel: workspace.decision_model?.trim() || 'tev1:0.8b',
+    decisionPreset:
+      workspace.decision_gate_preset === 'strict' ||
+      workspace.decision_gate_preset === 'balanced' ||
+      workspace.decision_gate_preset === 'recall'
+        ? workspace.decision_gate_preset
+        : 'inherit',
+    decisionPackSize:
+      typeof workspace.decision_pack_size === 'number' && workspace.decision_pack_size > 0
+        ? String(workspace.decision_pack_size)
+        : '',
+    extractionMode:
+      workspace.extraction_mode === 'llm' || workspace.extraction_mode === 'decision'
+        ? workspace.extraction_mode
+        : 'inherit',
     llmPick: llm
       ? { provider: llm.provider, model: llm.model, fullId: llm.fullId }
       : undefined,
@@ -227,6 +243,11 @@ export function snapshotFromWizardState(args: {
     visionChartSystemPrompt: args.draft.visionChartSystemPrompt,
     visionFigureSystemPrompt: args.draft.visionFigureSystemPrompt,
     reasoningEffort: args.draft.reasoningEffort,
+    decisionEnabled: args.draft.decisionEnabled,
+    decisionModel: args.draft.decisionModel,
+    decisionPreset: args.draft.decisionPreset,
+    decisionPackSize: args.draft.decisionPackSize,
+    extractionMode: args.draft.extractionMode,
   };
 }
 

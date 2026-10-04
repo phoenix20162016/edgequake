@@ -2071,14 +2071,18 @@ name = "edgequake-pipeline"
 version = "0.30.0"
 dependencies = [
  "async-trait",
+ "axum",
  "chrono",
  "edgequake-llm",
  "edgequake-observability",
  "edgequake-storage",
  "edgequake-storage-contracts",
+ "edgextract",
  "futures",
+ "indexmap 2.14.0",
  "parking_lot",
  "regex",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "serial_test",
@@ -2090,6 +2094,7 @@ dependencies = [
  "tracing",
  "unicode-normalization",
  "uuid",
+ "web-time",
 ]
 
 [[package]]
@@ -2197,6 +2202,24 @@ dependencies = [
  "tracing",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "edgextract"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2a629651625b547ad6194edabe1a0a40dbf4adf72ca6fb3294ad3fe0c74c333"
+dependencies = [
+ "hex",
+ "indexmap 2.14.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+ "unicode-normalization",
+ "web-time",
 ]
 
 [[package]]
@@ -3817,7 +3840,7 @@ version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51e219e79014df21a225b1860a479e2dcd7cbd9130f4defd4bd0e191ea31d67d"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "chrono",
  "getrandom 0.2.17",
  "http 1.4.2",
@@ -4167,7 +4190,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "image",
- "itertools 0.10.5",
+ "itertools 0.14.0",
  "js-sys",
  "libloading",
  "log",
@@ -4451,7 +4474,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn",
@@ -5463,6 +5486,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap 2.14.0",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
 ]
 
 [[package]]
@@ -6544,6 +6580,12 @@ name = "unicode-properties"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7df058c713841ad818f1dc5d3fd88063241cc61f49f5fbea4b951e8cf5a8d71d"
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"

@@ -1,5 +1,10 @@
 /** Document ingestion, upload, and pipeline status types. */
 
+import type {
+  DecisionStats,
+  ExtractionModeSource,
+  ExtractionModeWord,
+} from "@/constants/extraction-mode";
 import type { PdfParserBackend } from "./graph";
 
 export interface Document {
@@ -51,6 +56,11 @@ export interface Document {
   processed_at?: string;
   /** Extraction lineage information. */
   lineage?: DocumentLineage;
+  /** SPEC-160: absent for a plain LLM document. */
+  extraction_mode?: ExtractionModeWord;
+  extraction_mode_source?: ExtractionModeSource;
+  /** SPEC-160: counts of a finished decision run. */
+  decision_stats?: DecisionStats;
   /** Total processing cost in USD. */
   cost_usd?: number;
   /** Input tokens used for processing. */
@@ -350,6 +360,8 @@ export interface UploadDocumentRequest {
   async_processing?: boolean;
   /** Optional track ID for batch grouping. If not provided, one will be generated. */
   track_id?: string;
+  /** SPEC-160: per-document extraction mode. Omit to inherit the workspace default. */
+  extraction_mode?: ExtractionModeWord;
 }
 
 export interface UploadDocumentResponse {
@@ -365,6 +377,9 @@ export interface UploadDocumentResponse {
   chunk_count?: number;
   entity_count?: number;
   relationship_count?: number;
+  /** SPEC-160: mode the server admitted for this document. */
+  extraction_mode?: ExtractionModeWord;
+  extraction_mode_source?: ExtractionModeSource;
 }
 
 // PDF Upload types
@@ -408,6 +423,8 @@ export interface PdfUploadOptions {
   vision_image_system_prompt?: string;
   vision_chart_system_prompt?: string;
   vision_figure_system_prompt?: string;
+  /** SPEC-160: per-document extraction mode. Omit to inherit the workspace default. */
+  extraction_mode?: ExtractionModeWord;
 }
 
 export interface PdfMetadata {
@@ -427,6 +444,9 @@ export interface PdfUploadResponse {
   estimated_time_seconds: number;
   metadata: PdfMetadata;
   duplicate_of?: string;
+  /** SPEC-160: mode the server admitted (absent on duplicate responses). */
+  extraction_mode?: ExtractionModeWord;
+  extraction_mode_source?: ExtractionModeSource;
 }
 
 // ── SPEC-031: Lightweight document search types ───────────────────────────────

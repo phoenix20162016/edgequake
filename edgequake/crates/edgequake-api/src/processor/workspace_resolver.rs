@@ -1,7 +1,22 @@
 use super::*;
 use edgequake_observability::{stamp_ingest_langfuse, LangfuseTraceIdentity};
+use tokio_util::sync::CancellationToken;
 
 impl DocumentTaskProcessor {
+    /// One place that builds the pipeline factory (SPEC-017) with SPEC-160 wiring.
+    fn pipeline_factory(
+        &self,
+        workspace_service: &SharedWorkspaceService,
+        cancel: CancellationToken,
+    ) -> crate::workspace_pipeline_factory::WorkspacePipelineFactory {
+        crate::workspace_pipeline_factory::WorkspacePipelineFactory::new(
+            Arc::clone(workspace_service),
+            Arc::clone(&self.pipeline),
+        )
+        .with_decision(self.app_state.as_ref().map(|s| s.decision.clone()))
+        .with_cancellation(cancel)
+    }
+
     /// SPEC-124 I8: ingest session = document_id; slugs additive to GUIDs (fail-open).
     pub(super) async fn stamp_ingest_langfuse_for_document(
         &self,
@@ -79,10 +94,7 @@ impl DocumentTaskProcessor {
             return Arc::clone(&self.pipeline);
         };
 
-        let factory = crate::workspace_pipeline_factory::WorkspacePipelineFactory::new(
-            Arc::clone(workspace_service),
-            Arc::clone(&self.pipeline),
-        );
+        let factory = self.pipeline_factory(workspace_service, CancellationToken::new());
         factory
             .resolve(
                 workspace_id,
@@ -98,6 +110,7 @@ impl DocumentTaskProcessor {
         workspace_id: Option<&str>,
         options: edgequake_pipeline::IngestionPipelineOptions,
         policy: crate::workspace_pipeline_factory::PipelineFallbackPolicy,
+        cancel: CancellationToken,
     ) -> Result<Arc<Pipeline>, String> {
         let (workspace_service, _models_config): (&SharedWorkspaceService, &Arc<ModelsConfig>) =
             match (&self.workspace_service, &self.models_config) {
@@ -114,10 +127,7 @@ impl DocumentTaskProcessor {
             ));
         };
 
-        let factory = crate::workspace_pipeline_factory::WorkspacePipelineFactory::new(
-            Arc::clone(workspace_service),
-            Arc::clone(&self.pipeline),
-        );
+        let factory = self.pipeline_factory(workspace_service, cancel);
         factory
             .resolve_for_ingestion(workspace_id, policy, options)
             .await
@@ -150,10 +160,7 @@ impl DocumentTaskProcessor {
             ));
         };
 
-        let factory = crate::workspace_pipeline_factory::WorkspacePipelineFactory::new(
-            Arc::clone(workspace_service),
-            Arc::clone(&self.pipeline),
-        );
+        let factory = self.pipeline_factory(workspace_service, CancellationToken::new());
         factory
             .resolve(
                 workspace_id,

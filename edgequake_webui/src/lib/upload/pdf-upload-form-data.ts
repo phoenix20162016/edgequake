@@ -4,6 +4,8 @@
 
 import type { PdfUploadOptions } from "@/types";
 
+import { appendExtractionMode } from "./extraction-mode-field";
+
 export function buildPdfUploadFormData(
   file: File,
   options?: PdfUploadOptions,
@@ -67,6 +69,8 @@ export function buildPdfUploadFormData(
   if (options?.vision_figure_system_prompt !== undefined) {
     formData.append("vision_figure_system_prompt", options.vision_figure_system_prompt);
   }
+
+  appendExtractionMode(formData, options?.extraction_mode);
 
   return formData;
 }

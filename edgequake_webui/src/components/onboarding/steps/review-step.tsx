@@ -153,6 +153,14 @@ const CHANGE_LABEL_KEYS: Record<
     key: 'onboarding.impactReasoningEffort',
     fallback: 'Reasoning effort',
   },
+  decisionEngine: {
+    key: 'onboarding.impactDecisionEngine',
+    fallback: 'Decision engine',
+  },
+  extractionMode: {
+    key: 'onboarding.impactExtractionMode',
+    fallback: 'Extraction mode',
+  },
 };
 
 export function ReviewStep({
@@ -334,6 +342,15 @@ export function ReviewStep({
         <Row label="LLM" value={llmId} mono />
         <Row label="Embedding" value={embId} mono />
         <Row label="Vision" value={visionId} mono />
+        <Row
+          label={t('extractionMode.workspace.model', 'Decision model')}
+          value={
+            draft.decisionEnabled
+              ? draft.decisionModel || 'tev1:0.8b'
+              : t('extractionMode.engine.badgeInactive', 'Not activated')
+          }
+          mono={draft.decisionEnabled}
+        />
       </Group>
 
       {showDocumentParsing ? (
@@ -403,6 +420,16 @@ export function ReviewStep({
         editLabel={editLabel}
         testId="wizard-review-extraction"
       >
+        <Row
+          label={t('extractionMode.workspace.mode', 'Default mode')}
+          value={
+            draft.extractionMode === 'decision'
+              ? t('extractionMode.option.decision', 'Decision · closed questions')
+              : draft.extractionMode === 'llm'
+                ? t('extractionMode.option.llm', 'LLM · reads the text')
+                : t('extractionMode.workspace.serverDefault', 'Server default')
+          }
+        />
         <Row
           label={t('workspace.extractionLanguage', 'Language')}
           value={

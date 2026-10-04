@@ -7,8 +7,14 @@
 use std::sync::Arc;
 
 use edgequake_core::WorkspaceService;
-use edgequake_pipeline::{build_ingestion_pipeline, IngestionPipelineOptions, Pipeline};
+use edgequake_pipeline::extractor::decision::DecisionRuntime;
+use edgequake_pipeline::{
+    build_ingestion_pipeline, ExtractionMode, IngestionPipelineOptions, Pipeline,
+};
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
+
+use crate::workspace_pipeline_decision::{build_decision_pipeline, resolve_mode};
 
 use crate::safety_limits::{
     create_safe_embedding_provider, create_safe_extraction_llm_provider, is_slow_local_provider,
@@ -23,10 +29,25 @@ pub enum PipelineFallbackPolicy {
     Strict,
 }
 
+/// SPEC-116: workspace chunking policy before document `chunk_options` (both modes).
+fn with_workspace_chunking(
+    options: IngestionPipelineOptions,
+    ws: &edgequake_core::Workspace,
+) -> IngestionPipelineOptions {
+    match edgequake_pipeline::chunking_policy_from_metadata(&ws.metadata) {
+        Some(policy) => options.with_chunking_policy(policy),
+        None => options,
+    }
+}
+
 /// Builds workspace-scoped pipelines with explicit fallback semantics.
 pub struct WorkspacePipelineFactory {
     workspace_service: Arc<dyn WorkspaceService>,
     global_pipeline: Arc<Pipeline>,
+    /// SPEC-160: present when the caller can run decision extraction.
+    decision: Option<DecisionRuntime>,
+    /// SPEC-160: lets a cancelled task stop decision questions in flight.
+    cancel: CancellationToken,
 }
 
 impl WorkspacePipelineFactory {
@@ -37,7 +58,21 @@ impl WorkspacePipelineFactory {
         Self {
             workspace_service,
             global_pipeline,
+            decision: None,
+            cancel: CancellationToken::new(),
         }
+    }
+
+    /// Enable the decision extraction mode (SPEC-160).
+    pub fn with_decision(mut self, decision: Option<DecisionRuntime>) -> Self {
+        self.decision = decision;
+        self
+    }
+
+    /// Stop decision questions when this token is cancelled.
+    pub fn with_cancellation(mut self, cancel: CancellationToken) -> Self {
+        self.cancel = cancel;
+        self
     }
 
     /// Resolve a pipeline for the given workspace ID string.
@@ -96,6 +131,20 @@ impl WorkspacePipelineFactory {
             .await
             .ok()
             .flatten();
+
+        // SPEC-160: resolve the mode first. A mode error never falls back (LAW-160-4).
+        let resolved_mode = resolve_mode(&ws, &options)?;
+        if resolved_mode.mode == ExtractionMode::Decision {
+            let options = with_workspace_chunking(options, &ws);
+            return build_decision_pipeline(
+                self.decision.as_ref(),
+                &ws,
+                tenant.as_ref(),
+                options,
+                self.cancel.clone(),
+            )
+            .await;
+        }
 
         // SPEC-086: EXTRACT≠QUERY — env pin beats workspace llm_roles.extract.
         let extract_role = edgequake_core::resolve_extract_role_llm(&ws);
@@ -200,13 +249,7 @@ impl WorkspacePipelineFactory {
                 );
                 // SPEC-116: workspace chunking policy before document chunk_options
                 // (options may already carry doc overrides from prepare.rs).
-                let options = if let Some(policy) =
-                    edgequake_pipeline::chunking_policy_from_metadata(&ws.metadata)
-                {
-                    options.with_chunking_policy(policy)
-                } else {
-                    options
-                };
+                let options = with_workspace_chunking(options, &ws);
                 // SPEC-117: document caps (already on options) > workspace > env
                 let resolved = edgequake_pipeline::ExtractionCaps::resolve_for_ingestion(
                     &ws.metadata,

@@ -84,6 +84,8 @@ mod tests {
             chunk_options: None,
             extract_max_entities: None,
             extract_max_records: None,
+            extraction_mode: None,
+            decision_gate_preset: None,
         };
 
         assert!(!request.content.is_empty());
@@ -136,6 +138,8 @@ mod tests {
             queue_position: None,
             eta_seconds: None,
             eta_basis: None,
+            extraction_mode: None,
+            extraction_mode_source: None,
         };
 
         let json = serde_json::to_string(&response).unwrap();
@@ -198,6 +202,7 @@ mod tests {
             eta_basis: None,
             query_ready: None,
             cancelled_from_stage: None,
+            extraction: Default::default(),
         };
 
         let json = serde_json::to_string(&summary).unwrap();
@@ -243,6 +248,7 @@ mod tests {
                 eta_basis: None,
                 query_ready: None,
                 cancelled_from_stage: None,
+                extraction: Default::default(),
             }],
             total: 1,
             page: 1,
@@ -300,6 +306,7 @@ mod tests {
             pdf_id: None,
             multimodal_summary: None,
             multimodal_items: None,
+            extraction: Default::default(),
         };
 
         let json = serde_json::to_string(&response).unwrap();
@@ -378,6 +385,7 @@ mod tests {
                 eta_basis: None,
                 query_ready: None,
                 cancelled_from_stage: None,
+                extraction: Default::default(),
             }],
             total_count: 1,
             status_summary: StatusCounts {

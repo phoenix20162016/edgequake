@@ -142,6 +142,9 @@ pub struct AppState {
     /// Provider-independent operational relational ports.
     pub operational_stores: OperationalStores,
 
+    /// SPEC-160: decision extraction settings and the answer cache / review store.
+    pub decision: edgequake_pipeline::extractor::decision::DecisionRuntime,
+
     /// Configuration.
     pub config: AppConfig,
 
@@ -381,7 +384,8 @@ impl AppState {
         let factory = crate::workspace_pipeline_factory::WorkspacePipelineFactory::new(
             Arc::clone(&self.workspace_service),
             Arc::clone(&self.query.pipeline),
-        );
+        )
+        .with_decision(Some(self.decision.clone()));
         factory
             .resolve(
                 workspace_id,

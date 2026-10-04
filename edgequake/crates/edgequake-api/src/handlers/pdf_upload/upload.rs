@@ -12,6 +12,9 @@ use super::types::*;
 use edgequake_audit::{AuditEventType, AuditResult};
 
 use crate::error::{ApiError, ApiResult};
+use crate::handlers::documents::upload::{
+    admit_extraction, AdmittedExtraction, ExtractionForm, UploadExtraction,
+};
 use crate::middleware::TenantContext;
 use crate::multipart_upload::{
     ensure_batch_file_cap, stream_field_to_tempfile, StreamedUploadFile,
@@ -24,6 +27,38 @@ use edgequake_pdf::PdfParserBackend;
 use edgequake_storage::{
     calculate_pdf_checksum, validate_pdf_data, CreatePdfRequest, PdfProcessingStatus,
 };
+
+/// SPEC-160: the extraction decision for one PDF request, taken before any file is stored.
+struct AdmittedPdfExtraction {
+    /// Canonical document-level words for the follow-on Insert task (`None` = inherit).
+    document: Option<serde_json::Value>,
+    admitted: AdmittedExtraction,
+}
+
+impl AdmittedPdfExtraction {
+    /// Validate the words and prove the chosen backend can serve (422/503 otherwise).
+    async fn admit(
+        state: &AppState,
+        context: &TenantContext,
+        words: &UploadExtraction,
+    ) -> ApiResult<Self> {
+        let workspace_id = context
+            .workspace_id_uuid()
+            .ok_or_else(|| ApiError::BadRequest("Workspace ID required".to_string()))?;
+        let admitted = admit_extraction(state, &workspace_id.to_string(), words).await?;
+        Ok(Self {
+            document: words.parse()?.task_object(),
+            admitted,
+        })
+    }
+
+    fn intent(&self) -> super::helpers::PdfReprocessIntent {
+        super::helpers::PdfReprocessIntent {
+            document_extraction: self.document.clone(),
+            ..Default::default()
+        }
+    }
+}
 
 // ============================================================================
 // Handlers
@@ -95,6 +130,7 @@ pub async fn upload_pdf_document(
 
     // 1. Parse multipart fields (SPEC-083 D-51: stream file to temp, not field.bytes())
     let mut streamed_file: Option<StreamedUploadFile> = None;
+    let mut extraction_form = ExtractionForm::default();
     let mut options = PdfUploadOptions {
         enable_vision: true,
         vision_provider: None, // None = apply workspace config then server default
@@ -114,7 +150,7 @@ pub async fn upload_pdf_document(
         .await
         .map_err(|e| ApiError::BadRequest(format!("Failed to parse multipart: {}", e)))?
     {
-        match field.name() {
+        match field.name().map(str::to_string).as_deref() {
             Some("file") => {
                 // SPEC-083 S-12: never persist raw multipart path components.
                 let filename = crate::file_validation::sanitize_filename(
@@ -224,15 +260,25 @@ pub async fn upload_pdf_document(
                     options.vision_extract.figure_system_prompt = Some(text);
                 }
             }
+            Some(name) if ExtractionForm::FIELDS.contains(&name) => {
+                if let Ok(text) = field.text().await {
+                    extraction_form.ingest(name, &text);
+                }
+            }
             _ => {}
         }
     }
+    // SPEC-160: a repeated or bad extraction word is a 422 before any file is stored.
+    let extraction =
+        AdmittedPdfExtraction::admit(&state, &context, &extraction_form.finish()?).await?;
 
     let streamed = streamed_file.ok_or_else(|| {
         ApiError::BadRequest("Missing 'file' field in multipart request".to_string())
     })?;
     let (filename, file_data) = streamed.into_bytes()?;
-    let response = process_pdf_upload_parts(&state, &context, filename, file_data, options).await?;
+    let response =
+        process_pdf_upload_parts(&state, &context, filename, file_data, options, &extraction)
+            .await?;
     Ok(Json(response))
 }
 
@@ -274,13 +320,14 @@ pub async fn upload_pdf_batch_document(
     };
     // SPEC-083 D-51: stream each file to temp; cap batch count; process sequentially.
     let mut files: Vec<StreamedUploadFile> = Vec::new();
+    let mut extraction_form = ExtractionForm::default();
 
     while let Some(field) = multipart
         .next_field()
         .await
         .map_err(|e| ApiError::BadRequest(format!("Failed to parse multipart: {}", e)))?
     {
-        match field.name() {
+        match field.name().map(str::to_string).as_deref() {
             Some("file") | Some("files") => {
                 ensure_batch_file_cap(files.len())?;
                 let filename = crate::file_validation::sanitize_filename(
@@ -388,6 +435,11 @@ pub async fn upload_pdf_batch_document(
                     options.vision_extract.figure_system_prompt = Some(text);
                 }
             }
+            Some(name) if ExtractionForm::FIELDS.contains(&name) => {
+                if let Ok(text) = field.text().await {
+                    extraction_form.ingest(name, &text);
+                }
+            }
             _ => {}
         }
     }
@@ -397,6 +449,10 @@ pub async fn upload_pdf_batch_document(
             "Missing 'file' or 'files' field in multipart request".to_string(),
         ));
     }
+
+    // SPEC-160: one admission for the whole batch — a bad word fails all files up front.
+    let extraction =
+        AdmittedPdfExtraction::admit(&state, &context, &extraction_form.finish()?).await?;
 
     let mut results = Vec::new();
     let mut accepted = 0usize;
@@ -411,6 +467,7 @@ pub async fn upload_pdf_batch_document(
             filename.clone(),
             file_data,
             options.clone(),
+            &extraction,
         )
         .await;
         match result {
@@ -462,6 +519,7 @@ async fn process_pdf_upload_parts(
     filename: String,
     file_data: Vec<u8>,
     mut options: PdfUploadOptions,
+    extraction: &AdmittedPdfExtraction,
 ) -> ApiResult<PdfUploadResponse> {
     // SPEC-083 S-12: magic-byte MIME must match .pdf (rejects exe-as-pdf, etc.).
     crate::file_validation::validate_magic_matches_extension("pdf", &file_data)?;
@@ -652,6 +710,7 @@ async fn process_pdf_upload_parts(
                     existing_document_id: existing_document_id.clone(),
                     restart_from_scratch: true, // re-run PDF -> markdown conversion
                     reprocess_mode: Some(edgequake_tasks::ReprocessMode::Full),
+                    document_extraction: extraction.document.clone(),
                 },
                 existing.page_count,
                 existing.file_size_bytes.max(0) as u64,
@@ -725,6 +784,8 @@ async fn process_pdf_upload_parts(
                     .queue
                     .as_ref()
                     .map(|q| q.basis.as_str().to_string()),
+                extraction_mode: Some(extraction.admitted.mode_str().to_string()),
+                extraction_mode_source: Some(extraction.admitted.source_str().to_string()),
             });
         }
 
@@ -751,6 +812,8 @@ async fn process_pdf_upload_parts(
             queue_position: None,
             eta_seconds: None,
             eta_basis: None,
+            extraction_mode: None,
+            extraction_mode_source: None,
         });
     }
 
@@ -812,6 +875,8 @@ async fn process_pdf_upload_parts(
                         queue_position: None,
                         eta_seconds: None,
                         eta_basis: None,
+                        extraction_mode: None,
+                        extraction_mode_source: None,
                     });
                 }
             }
@@ -825,7 +890,7 @@ async fn process_pdf_upload_parts(
         pdf_id,
         &options,
         workspace.as_ref(),
-        super::helpers::PdfReprocessIntent::fresh(), // fresh upload — mint a new document id
+        extraction.intent(), // fresh upload — mint a new document id
         page_count,
         file_size_bytes,
     )
@@ -940,5 +1005,7 @@ async fn process_pdf_upload_parts(
         queue_position: enqueue.queue.as_ref().map(|q| q.position),
         eta_seconds: enqueue.queue.as_ref().map(|q| q.eta_seconds),
         eta_basis: enqueue.queue.as_ref().map(|q| q.basis.as_str().to_string()),
+        extraction_mode: Some(extraction.admitted.mode_str().to_string()),
+        extraction_mode_source: Some(extraction.admitted.source_str().to_string()),
     })
 }

@@ -44,7 +44,7 @@ function DropdownMenuContent({
         sideOffset={sideOffset}
         className={cn(
           FLOATING_SURFACE,
-          "z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto p-1.5",
+          "z-[100] max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto p-1.5",
           className
         )}
         {...props}

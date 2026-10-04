@@ -75,6 +75,13 @@ export interface WizardDraft {
   relationEdges: RelationEdge[];
   /** SPEC-109 — seed default reasoning effort. */
   reasoningEffort?: string;
+  /** SPEC-160 — workspace Decision engine (reconfigure + create). */
+  decisionEnabled: boolean;
+  decisionModel: string;
+  decisionPreset: 'inherit' | 'strict' | 'balanced' | 'recall';
+  decisionPackSize: string;
+  /** SPEC-160 — default extraction mode (`inherit` leaves the server default). */
+  extractionMode: 'inherit' | 'llm' | 'decision';
   /** Model overrides (persisted with the draft — LAW-101-9). */
   llmPick?: WizardModelPick;
   embeddingPick?: WizardModelPick;
@@ -124,6 +131,11 @@ export const EMPTY_WIZARD_DRAFT: WizardDraft = {
   kgSchemaPreset: undefined,
   relationEdges: [],
   reasoningEffort: undefined,
+  decisionEnabled: true,
+  decisionModel: 'tev1:0.8b',
+  decisionPreset: 'inherit',
+  decisionPackSize: '',
+  extractionMode: 'inherit',
   llmPick: undefined,
   embeddingPick: undefined,
   visionPick: undefined,

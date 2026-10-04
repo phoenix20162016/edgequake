@@ -169,6 +169,7 @@ async fn create_postgres_test_state(pool: &PgPool) -> AppState {
         projection_ledger: None,
         projection_worker: None,
         operational_stores: edgequake_api::state::OperationalStores::default(),
+        decision: edgequake_pipeline::extractor::decision::DecisionRuntime::in_memory_from_env(),
         start_time: std::time::Instant::now(),
         path_validation_config: edgequake_api::path_validation::PathValidationConfig {
             allow_any_path: true,

@@ -767,6 +767,9 @@ fn api_v1_routes(state: AppState) -> Router<AppState> {
             "/settings/providers",
             get(handlers::list_available_providers),
         )
+        // SPEC-160 decision backend status (always 200, host only)
+        .route("/decision/status", get(handlers::get_decision_status))
+        .route("/decision/models", get(handlers::get_decision_models))
         // SPEC-124 Langfuse observability status (env-only)
         .route("/settings/langfuse", get(handlers::get_langfuse_settings))
         // Effective configuration with full resolution chain (explainability)

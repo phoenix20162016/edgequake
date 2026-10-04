@@ -83,6 +83,10 @@ import { useStuckDetection } from '@/hooks/use-stuck-detection';
 import type { PdfParserResolutionContext } from '@/lib/pdf/large-pdf-admission';
 import type { UploadPdfParserChoice } from '@/lib/pdf/resolve-pdf-parser-backend';
 import {
+  buildExtractionModeField,
+  type UploadExtractionChoice,
+} from '@/constants/extraction-mode';
+import {
   filterLargePdfFiles,
   type LargePdfAdmissionPreview,
   type PdfParserChoice,
@@ -165,6 +169,8 @@ export function DocumentManager() {
   const [pdfParserBackend, setPdfParserBackend] = useState<
     UploadPdfParserChoice
   >('default');
+  const [extractionMode, setExtractionMode] =
+    useState<UploadExtractionChoice>('default');
   const [visionReasoningEffort, setVisionReasoningEffort] = useState<string | undefined>();
   const [visionExtract, setVisionExtract] = useState<VisionExtractDraft>(
     () => ({ ...DEFAULT_VISION_EXTRACT_DRAFT }),
@@ -180,6 +186,11 @@ export function DocumentManager() {
     }),
     [pdfParserBackend, selectedWorkspace?.pdf_parser_backend],
   );
+
+  // SPEC-160: a per-upload choice belongs to one workspace; never carry it over.
+  useEffect(() => {
+    setExtractionMode('default');
+  }, [selectedWorkspace?.id]);
 
   useEffect(() => {
     if (!selectedWorkspace) return;
@@ -234,6 +245,7 @@ export function DocumentManager() {
     pdfParserBackend:
       pdfParserBackend === 'default' ? undefined : pdfParserBackend,
     visionReasoningEffort,
+    extractionMode: buildExtractionModeField(extractionMode).extraction_mode,
     visionExtractImages: visionExtract.extractImages,
     visionExtractCharts: visionExtract.extractCharts,
     visionExtractFigures: visionExtract.extractFigures,
@@ -764,6 +776,10 @@ export function DocumentManager() {
       pdfParserBackend={pdfParserBackend}
       onPdfParserBackendChange={setPdfParserBackend}
       workspacePdfParserBackend={selectedWorkspace?.pdf_parser_backend}
+      extractionMode={extractionMode}
+      onExtractionModeChange={setExtractionMode}
+      workspaceExtractionMode={selectedWorkspace?.effective_extraction_mode?.mode}
+      workspaceDecisionModel={selectedWorkspace?.decision_model}
       visionReasoningEffort={visionReasoningEffort}
       onVisionReasoningEffortChange={setVisionReasoningEffort}
       visionExtract={visionExtract}

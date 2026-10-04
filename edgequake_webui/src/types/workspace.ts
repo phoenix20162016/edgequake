@@ -1,5 +1,6 @@
 /** Tenant and workspace multi-tenancy types. */
 
+import type { ExtractionModeWord } from "@/constants/extraction-mode";
 import type { PdfParserBackend } from "./graph";
 
 export interface Tenant {
@@ -204,6 +205,15 @@ export interface Workspace {
   extract_max_entities?: number | null;
   /** SPEC-117: max total entity+relationship rows per response. */
   extract_max_records?: number | null;
+  /** SPEC-160: workspace default extraction mode (`llm` | `decision`); null/absent inherits. */
+  extraction_mode?: string | null;
+  decision_gate_preset?: string | null;
+  decision_model?: string | null;
+  decision_pack_size?: number | null;
+  decision_enabled?: boolean | null;
+  decision_activation?: string | null;
+  /** SPEC-160: mode a new document would get, and who decided it. */
+  effective_extraction_mode?: { mode: ExtractionModeWord; source: "workspace" | "env" | "default" } | null;
   /**
    * Custom entity-type → hex color map for graph visualization.
    * @implements SPEC-102 / FEAT-102

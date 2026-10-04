@@ -179,6 +179,7 @@
       "pdfParserShort": "Analyseur",
       "pdfParserDefault": "Workspace Default",
       "pdfParserDefaultWithValue": "Workspace Default ({{value}})",
+      "pdfParserDefaultShort": "Workspace ({{value}})",
       "pdfParserVision": "Vision",
       "pdfParserEdgeParse": "EdgeParse",
       "pdfParserEdgeParseOcr": "EdgeParse + OCR",
@@ -1485,6 +1486,135 @@
         "trustEmail": "e-mail approuvé",
         "noTrustEmail": "e-mail non approuvé"
       }
+    }
+  },
+  "extractionMode": {
+    "name": {
+      "llm": "LLM",
+      "decision": "Décision"
+    },
+    "option": {
+      "llm": "LLM · lit le texte",
+      "decision": "Décision · questions fermées",
+      "decisionBlocked": "Décision · indisponible",
+      "decisionLocked": "Décision · verrouillée par l’admin",
+      "decisionNotActivated": "Décision · non activée"
+    },
+    "source": {
+      "document": "choisi par cet envoi",
+      "workspace": "choisi par l’espace",
+      "env": "choisi par le serveur",
+      "default": "valeur par défaut"
+    },
+    "upload": {
+      "label": "Extraction pour cet envoi",
+      "short": "Extraction",
+      "workspaceDefault": "Défaut de l’espace ({{mode}})",
+      "workspaceDefaultShort": "Espace ({{mode}})"
+    },
+    "uploadError": {
+      "backendUnavailable": "Le moteur de décision est injoignable. Le fichier n’a pas été envoyé.",
+      "disabled": "Le mode décision est désactivé sur ce serveur. Le fichier n’a pas été envoyé.",
+      "invalidMode": "Mode d’extraction inconnu. Le fichier n’a pas été envoyé."
+    },
+    "status": {
+      "checking": "Vérification du moteur de décision…",
+      "unknown": "L’état du moteur de décision est inconnu.",
+      "ready": "Prêt · {{model}} sur {{host}}",
+      "readyMs": "Prêt · {{model}} sur {{host}} · {{ms}} ms",
+      "disabled": "Désactivé sur ce serveur. Demandez à votre administrateur de définir EDGEQUAKE_DECISION_ENABLED.",
+      "locked": "L’extraction Décision est verrouillée par l’opérateur.",
+      "not_activated": "Activez l’extraction Décision dans les réglages de l’espace.",
+      "settings_error": "Les réglages de décision du serveur sont invalides ({{code}}).",
+      "unreachable": "Impossible de joindre le moteur de décision à {{host}}.",
+      "model_missing": "Le modèle {{model}} n’est pas téléchargé sur {{host}}.",
+      "not_decision_capable": "{{model}} ne sait pas répondre aux questions de décision.",
+      "unsupported": "Ce moteur ne prend pas en charge les questions de décision.",
+      "retry": "Vérifier à nouveau",
+      "copyCommand": "Copier la commande",
+      "copied": "Copié",
+      "licenseNotice": "La licence des poids Tev1 n’est pas définitive. Voir la fiche du modèle."
+    },
+    "workspace": {
+      "title": "Mode d’extraction",
+      "description": "Comment les nouveaux documents deviennent des entités et des relations.",
+      "mode": "Mode par défaut",
+      "serverDefault": "Défaut du serveur",
+      "serverDefaultMode": "Défaut du serveur ({{mode}})",
+      "preset": "Préréglage du filtre",
+      "packSize": "Questions par requête",
+      "packSizeHint": "De {{min}} à {{max}}. Vide : {{fallback}}.",
+      "model": "Modèle de décision",
+      "modelHint": "Vide : modèle par défaut du serveur.",
+      "futureOnly": "S’applique aux nouveaux documents. Retraitez un document pour le basculer.",
+      "blockedNote": "Vous pouvez enregistrer. Les envois en mode décision échouent tant que le moteur n’est pas prêt.",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "reset": "Réinitialiser",
+      "saved": "Mode d’extraction enregistré"
+    },
+    "engine": {
+      "title": "Moteur Décision",
+      "activation": "Extraction Décision",
+      "activationHint": "Questions fermées sur Ollama local. Aucun jeton LLM.",
+      "forcedHint": "Actif pour tous les espaces · Ollama local à {{host}}.",
+      "lockedHint": "Verrouillé par l’opérateur de ce serveur.",
+      "modeRequiresOn": "Le mode par défaut est Décision, donc cela reste activé.",
+      "provider": "Fournisseur",
+      "providerOllama": "Ollama · {{host}}",
+      "providerHint": "Ollama local. L’hôte est défini sur le serveur.",
+      "searchModels": "Rechercher des modèles…",
+      "loadingModels": "Chargement des modèles…",
+      "noModels": "Aucun modèle sur cet hôte.",
+      "useTag": "Utiliser {{tag}}",
+      "capableHeading": "Compatibles Décision",
+      "otherHeading": "Autres modèles",
+      "notCapable": "non compatible Décision",
+      "advanced": "Avancé",
+      "badgeActive": "Actif",
+      "badgeInactive": "Non activé",
+      "badgeLocked": "Verrouillé par l’admin",
+      "hostUnknown": "localhost:11434"
+    },
+    "help": {
+      "llm": "Un modèle de chat lit chaque passage et liste les entités et les relations. Il utilise votre fournisseur LLM.",
+      "decision": "Un petit modèle répond à des questions fermées sur le serveur. Il ne consomme aucun jeton. Il trouve moins de relations qu’un grand LLM. Anglais uniquement."
+    },
+    "preset": {
+      "strict": "Strict",
+      "balanced": "Équilibré",
+      "recall": "Rappel"
+    },
+    "presetHint": {
+      "inherit": "Équilibré, sauf indication contraire du serveur.",
+      "strict": "Moins de faits, chacun plus sûr.",
+      "balanced": "Le compromis par défaut.",
+      "recall": "Plus de faits, plus d’éléments à relire."
+    },
+    "gate": {
+      "uncalibrated": "Non calibré"
+    },
+    "issue": {
+      "packSize": "Saisissez un entier de {{min}} à {{max}}.",
+      "modelSpace": "Une étiquette de modèle ne contient pas d’espace."
+    },
+    "badge": {
+      "label": "Décision",
+      "title": "Extrait par décisions fermées, pas en texte libre"
+    },
+    "section": {
+      "title": "Extraction"
+    },
+    "stats": {
+      "entities": "Entités",
+      "relations": "Relations",
+      "review": "À relire",
+      "rejected": "Rejetés",
+      "reviewHint": "Faits douteux gardés hors du graphe.",
+      "rejectedHint": "Candidats auxquels le modèle a répondu « non ».",
+      "footer": "{{calls}} appels au modèle · {{hits}} depuis le cache · {{chunks}} passages",
+      "warnings": "{{count}} avertissements",
+      "pending": "Les chiffres apparaissent à la fin du traitement."
     }
   }
 }

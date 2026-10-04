@@ -455,7 +455,7 @@ export function ModelPickerPanel({
               aria-expanded={providerOpen}
               aria-labelledby={providerLabelId}
               disabled={disabled || isLoading}
-              className="w-full justify-between font-normal h-10"
+              className="w-full min-w-0 justify-between gap-2 overflow-hidden font-normal h-10"
               data-testid="model-picker-provider-trigger"
             >
               {isLoading ? (
@@ -470,7 +470,7 @@ export function ModelPickerPanel({
                     {selectedProviderEntry.displayName}
                   </span>
                   {selectedProviderEntry.subtitle ? (
-                    <span className="text-xs text-muted-foreground truncate shrink-0 hidden sm:inline">
+                    <span className="text-xs text-muted-foreground truncate min-w-0 hidden sm:inline">
                       · {selectedProviderEntry.subtitle}
                     </span>
                   ) : null}
@@ -560,7 +560,7 @@ export function ModelPickerPanel({
               aria-expanded={modelOpen}
               aria-labelledby={modelLabelId}
               disabled={modelDisabled}
-              className="w-full justify-between font-normal h-10"
+              className="w-full min-w-0 justify-between gap-2 overflow-hidden font-normal h-10"
               data-testid={`${testId}-trigger`}
             >
               {isLoading ? (

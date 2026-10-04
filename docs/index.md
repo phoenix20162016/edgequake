@@ -20,7 +20,7 @@ hero:
 ## Explore the Documentation
 
 - **[Getting Started](/docs/getting-started/)** — Install EdgeQuake, run your first pipeline, and understand the basics.
-- **[Core Concepts](/docs/concepts/)** — Knowledge graphs, entity extraction, and Graph-RAG patterns.
+- **[Core Concepts](/docs/concepts/)** — Knowledge graphs, entity extraction, decision extraction (preview), and Graph-RAG patterns.
 - **[Architecture](/docs/architecture/)** — Modular crate architecture (incl. tasks, auth) and storage backends.
 - **[Tutorials](/docs/tutorials/)** — Step-by-step guides for common EdgeQuake workflows.
 - **[API Reference](/docs/api-reference/)** — Guided REST overlays; full contract in OpenAPI.

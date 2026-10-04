@@ -3,14 +3,21 @@ import {
   resolveDropzoneFillLayout,
   DROPZONE_ROOMY_MIN_HEIGHT_PX,
   DROPZONE_ROW_MAX_HEIGHT_PX,
+  DROPZONE_ROW_MIN_WIDTH_PX,
   DROPZONE_STACK_MAX_WIDTH_PX,
 } from "../dropzone-fill-layout";
 
 describe("resolveDropzoneFillLayout", () => {
   it("uses row for short wide panels", () => {
-    expect(resolveDropzoneFillLayout(800, DROPZONE_ROW_MAX_HEIGHT_PX - 1)).toBe(
-      "row",
-    );
+    expect(
+      resolveDropzoneFillLayout(DROPZONE_ROW_MIN_WIDTH_PX, DROPZONE_ROW_MAX_HEIGHT_PX - 1),
+    ).toBe("row");
+  });
+
+  it("stacks a short band that is too narrow for one line of controls", () => {
+    expect(
+      resolveDropzoneFillLayout(DROPZONE_ROW_MIN_WIDTH_PX - 1, DROPZONE_ROW_MAX_HEIGHT_PX - 1),
+    ).toBe("stack");
   });
 
   it("uses stack for tall narrow panels", () => {

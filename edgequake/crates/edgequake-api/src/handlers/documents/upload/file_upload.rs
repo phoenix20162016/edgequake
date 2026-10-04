@@ -71,7 +71,9 @@ pub async fn upload_file(
             | "chunk_strategy"
             | "chunk_options"
             | "extract_max_entities"
-            | "extract_max_records" => {
+            | "extract_max_records"
+            | "extraction_mode"
+            | "decision_gate_preset" => {
                 let text = field.text().await.map_err(|e| {
                     ApiError::BadRequest(format!("Failed to read {field_name}: {e}"))
                 })?;
@@ -80,6 +82,9 @@ pub async fn upload_file(
             _ => {}
         }
     }
+
+    // SPEC-160: reject a repeated or bad extraction word before reading the file.
+    multipart_fields.effective_extraction()?.parse()?;
 
     let streamed = streamed.ok_or_else(|| ApiError::BadRequest("No file provided".to_string()))?;
     let (filename, content) = streamed.into_bytes()?;
@@ -144,6 +149,8 @@ pub async fn upload_file(
                 queue_position: None,
                 eta_seconds: None,
                 eta_basis: None,
+                extraction_mode: None,
+                extraction_mode_source: None,
             }),
         )),
         DocumentAdmissionOutcome::Accepted(accepted) => {
@@ -201,6 +208,8 @@ pub async fn upload_file(
                         .queue
                         .as_ref()
                         .map(|q| q.basis.as_str().to_string()),
+                    extraction_mode: Some(accepted.extraction.mode_str().to_string()),
+                    extraction_mode_source: Some(accepted.extraction.source_str().to_string()),
                 }),
             ))
         }

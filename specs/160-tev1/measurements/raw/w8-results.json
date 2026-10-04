@@ -1,0 +1,121 @@
+[
+  {
+    "config": "llm gemma4",
+    "statuses": [
+      "completed",
+      "completed"
+    ],
+    "wall_s": 18.3,
+    "entities": 13,
+    "gold_entities_hit": 11,
+    "gold_entities": 11,
+    "relations": 14,
+    "gold_relations_hit": 9,
+    "gold_relations": 10,
+    "review": 0,
+    "rejected": 0,
+    "backend_calls": 0
+  },
+  {
+    "config": "0.8b strict",
+    "statuses": [
+      "completed",
+      "partial_failure"
+    ],
+    "wall_s": 3.4,
+    "entities": 2,
+    "gold_entities_hit": 2,
+    "gold_entities": 11,
+    "relations": 0,
+    "gold_relations_hit": 0,
+    "gold_relations": 10,
+    "review": 21,
+    "rejected": 0,
+    "backend_calls": 8
+  },
+  {
+    "config": "0.8b balanced",
+    "statuses": [
+      "completed",
+      "completed"
+    ],
+    "wall_s": 6.4,
+    "entities": 5,
+    "gold_entities_hit": 5,
+    "gold_entities": 11,
+    "relations": 2,
+    "gold_relations_hit": 0,
+    "gold_relations": 10,
+    "review": 16,
+    "rejected": 0,
+    "backend_calls": 12
+  },
+  {
+    "config": "0.8b recall",
+    "statuses": [
+      "completed",
+      "completed"
+    ],
+    "wall_s": 6.4,
+    "entities": 11,
+    "gold_entities_hit": 8,
+    "gold_entities": 11,
+    "relations": 14,
+    "gold_relations_hit": 4,
+    "gold_relations": 10,
+    "review": 7,
+    "rejected": 0,
+    "backend_calls": 17
+  },
+  {
+    "config": "4b strict",
+    "statuses": [
+      "completed",
+      "completed"
+    ],
+    "wall_s": 18.6,
+    "entities": 9,
+    "gold_entities_hit": 8,
+    "gold_entities": 11,
+    "relations": 10,
+    "gold_relations_hit": 5,
+    "gold_relations": 10,
+    "review": 12,
+    "rejected": 0,
+    "backend_calls": 16
+  },
+  {
+    "config": "4b balanced",
+    "statuses": [
+      "completed",
+      "completed"
+    ],
+    "wall_s": 15.5,
+    "entities": 11,
+    "gold_entities_hit": 10,
+    "gold_entities": 11,
+    "relations": 22,
+    "gold_relations_hit": 8,
+    "gold_relations": 10,
+    "review": 8,
+    "rejected": 0,
+    "backend_calls": 19
+  },
+  {
+    "config": "4b recall",
+    "statuses": [
+      "completed",
+      "completed"
+    ],
+    "wall_s": 12.6,
+    "entities": 13,
+    "gold_entities_hit": 10,
+    "gold_entities": 11,
+    "relations": 23,
+    "gold_relations_hit": 8,
+    "gold_relations": 10,
+    "review": 5,
+    "rejected": 0,
+    "backend_calls": 19
+  }
+]

@@ -179,6 +179,7 @@ pub(crate) async fn list_documents_inner(
         pdf_id: Option<String>,
         chunk_count: Option<usize>,
         cancelled_from_stage: Option<String>,
+        extraction: crate::handlers::documents_types::DocumentExtractionView,
     }
 
     impl DocMetadata {
@@ -370,6 +371,9 @@ pub(crate) async fn list_documents_inner(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
+            meta.extraction =
+                crate::handlers::documents_types::DocumentExtractionView::from_metadata(obj);
+
             meta.chunk_count = obj
                 .get("chunk_count")
                 .and_then(|v| v.as_u64())
@@ -431,6 +435,7 @@ pub(crate) async fn list_documents_inner(
                 eta_basis: None,
                 query_ready: None,
                 cancelled_from_stage: meta.cancelled_from_stage,
+                extraction: meta.extraction,
             }
         })
         .collect();

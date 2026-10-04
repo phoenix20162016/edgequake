@@ -179,6 +179,7 @@
       "pdfParserShort": "解析器",
       "pdfParserDefault": "Workspace Default",
       "pdfParserDefaultWithValue": "Workspace Default ({{value}})",
+      "pdfParserDefaultShort": "Workspace ({{value}})",
       "pdfParserVision": "Vision",
       "pdfParserEdgeParse": "EdgeParse",
       "pdfParserEdgeParseOcr": "EdgeParse + OCR",
@@ -1485,6 +1486,135 @@
         "trustEmail": "信任邮箱",
         "noTrustEmail": "不信任邮箱"
       }
+    }
+  },
+  "extractionMode": {
+    "name": {
+      "llm": "LLM",
+      "decision": "决策"
+    },
+    "option": {
+      "llm": "LLM · 阅读文本",
+      "decision": "决策 · 封闭式问题",
+      "decisionBlocked": "决策 · 不可用",
+      "decisionLocked": "决策 · 已由管理员锁定",
+      "decisionNotActivated": "决策 · 未启用"
+    },
+    "source": {
+      "document": "由本次上传指定",
+      "workspace": "由工作区指定",
+      "env": "由服务器指定",
+      "default": "内置默认值"
+    },
+    "upload": {
+      "label": "本次上传的提取方式",
+      "short": "提取",
+      "workspaceDefault": "工作区默认（{{mode}}）",
+      "workspaceDefaultShort": "工作区（{{mode}}）"
+    },
+    "uploadError": {
+      "backendUnavailable": "无法连接决策后端。文件未上传。",
+      "disabled": "此服务器已关闭决策模式。文件未上传。",
+      "invalidMode": "未知的提取模式。文件未上传。"
+    },
+    "status": {
+      "checking": "正在检查决策后端…",
+      "unknown": "决策后端状态未知。",
+      "ready": "就绪 · {{host}} 上的 {{model}}",
+      "readyMs": "就绪 · {{host}} 上的 {{model}} · {{ms}} 毫秒",
+      "disabled": "此服务器已关闭。请管理员设置 EDGEQUAKE_DECISION_ENABLED。",
+      "locked": "决策提取已由运维锁定。",
+      "not_activated": "在工作区设置中打开决策提取。",
+      "settings_error": "服务器的决策设置无效（{{code}}）。",
+      "unreachable": "无法连接 {{host}} 上的决策后端。",
+      "model_missing": "{{host}} 上尚未拉取模型 {{model}}。",
+      "not_decision_capable": "{{model}} 无法回答决策问题。",
+      "unsupported": "此后端不支持决策问题。",
+      "retry": "重新检查",
+      "copyCommand": "复制命令",
+      "copied": "已复制",
+      "licenseNotice": "Tev1 权重的许可协议尚未最终确定，请参阅模型卡。"
+    },
+    "workspace": {
+      "title": "提取模式",
+      "description": "新文档如何转换为实体和关系。",
+      "mode": "默认模式",
+      "serverDefault": "服务器默认",
+      "serverDefaultMode": "服务器默认（{{mode}}）",
+      "preset": "过滤预设",
+      "packSize": "每次请求的问题数",
+      "packSizeHint": "{{min}} 到 {{max}}。留空则为 {{fallback}}。",
+      "model": "决策模型",
+      "modelHint": "留空则使用服务器默认模型。",
+      "futureOnly": "仅适用于新文档。重新处理文档即可切换。",
+      "blockedNote": "现在可以保存。在后端就绪之前，决策模式的上传会失败。",
+      "save": "保存",
+      "saving": "正在保存…",
+      "reset": "重置",
+      "saved": "提取模式已保存"
+    },
+    "engine": {
+      "title": "决策引擎",
+      "activation": "决策提取",
+      "activationHint": "在本地 Ollama 上回答封闭式问题。不消耗 LLM 令牌。",
+      "forcedHint": "对每个工作区开启 · 本地 Ollama：{{host}}。",
+      "lockedHint": "已由此服务器的运维锁定。",
+      "modeRequiresOn": "默认模式为决策，因此保持开启。",
+      "provider": "提供方",
+      "providerOllama": "Ollama · {{host}}",
+      "providerHint": "本地 Ollama。主机地址由服务器设置。",
+      "searchModels": "搜索模型…",
+      "loadingModels": "正在加载模型…",
+      "noModels": "此主机上没有模型。",
+      "useTag": "使用 {{tag}}",
+      "capableHeading": "支持决策",
+      "otherHeading": "其他模型",
+      "notCapable": "不支持决策",
+      "advanced": "高级",
+      "badgeActive": "已启用",
+      "badgeInactive": "未启用",
+      "badgeLocked": "已由管理员锁定",
+      "hostUnknown": "localhost:11434"
+    },
+    "help": {
+      "llm": "聊天模型阅读每个片段并列出实体和关系。使用您的 LLM 提供方。",
+      "decision": "小型模型在服务器上回答封闭式问题。不消耗 token。找到的关系比大型 LLM 少。仅支持英文。"
+    },
+    "preset": {
+      "strict": "严格",
+      "balanced": "均衡",
+      "recall": "召回"
+    },
+    "presetHint": {
+      "inherit": "除非服务器另有设置，否则为均衡。",
+      "strict": "事实更少，但每条更可靠。",
+      "balanced": "默认的折中方案。",
+      "recall": "事实更多，待复核项也更多。"
+    },
+    "gate": {
+      "uncalibrated": "未校准"
+    },
+    "issue": {
+      "packSize": "请输入 {{min}} 到 {{max}} 之间的整数。",
+      "modelSpace": "模型标签不能包含空格。"
+    },
+    "badge": {
+      "label": "决策",
+      "title": "通过封闭式决策提取，而非自由文本"
+    },
+    "section": {
+      "title": "提取"
+    },
+    "stats": {
+      "entities": "实体",
+      "relations": "关系",
+      "review": "待复核",
+      "rejected": "已拒绝",
+      "reviewHint": "存疑的事实，未写入图谱。",
+      "rejectedHint": "模型回答“否”的候选项。",
+      "footer": "{{calls}} 次模型调用 · {{hits}} 次命中缓存 · {{chunks}} 个片段",
+      "warnings": "{{count}} 条警告",
+      "pending": "处理完成后显示统计。"
     }
   }
 }

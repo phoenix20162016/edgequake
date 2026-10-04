@@ -9,6 +9,7 @@ import {
 import { RelationTypeSelector } from '@/components/shared/relation-type-selector';
 import { TypedEdgeEditor } from '@/components/shared/typed-edge-editor';
 import { CreateWorkspaceExtractionLanguageField } from '@/components/workspace/create-workspace-extraction-language-field';
+import { ExtractionModeSelect } from '@/components/shared/extraction-mode-select';
 import { detectPreset } from '@/constants/entity-presets';
 import { getPresetTypes } from '@/constants/entity-type-catalog';
 import {
@@ -115,6 +116,34 @@ export function WorkspaceExtractionStep({
 
   return (
     <div className="space-y-3" data-testid="wizard-step-extraction">
+      <div className="space-y-1.5" data-testid="wizard-extraction-mode">
+        <p className="text-xs font-medium">{t('extractionMode.workspace.mode', 'Default mode')}</p>
+        <ExtractionModeSelect
+          value={draft.extractionMode ?? 'inherit'}
+          onValueChange={(mode) =>
+            onChange({
+              extractionMode: mode as WizardDraft['extractionMode'],
+              ...(mode === 'decision' ? { decisionEnabled: true } : {}),
+            })
+          }
+          inheritValue="inherit"
+          inheritLabel={t('extractionMode.workspace.serverDefault', 'Server default')}
+          testId="wizard-extraction-mode-select"
+          ariaLabel={t('extractionMode.workspace.mode', 'Default mode')}
+          triggerClassName="h-9 w-full"
+        />
+        <p className="text-xs text-muted-foreground">
+          {draft.extractionMode === 'decision'
+            ? t(
+                'extractionMode.help.decision',
+                'A small model answers closed questions on the server. It uses no tokens. It finds fewer relations than a large LLM. English only.',
+              )
+            : t(
+                'extractionMode.help.llm',
+                'A chat model reads each chunk and lists entities and relations. It uses your LLM provider.',
+              )}
+        </p>
+      </div>
       <div className="min-w-0" data-testid="wizard-extraction-language">
         <CreateWorkspaceExtractionLanguageField
           value={draft.extractionLanguage}

@@ -20,6 +20,7 @@ pub mod content_hasher;
 pub mod context_bundle_mapper;
 pub mod converting_subprogress;
 pub mod cost_aggregation;
+pub mod decision_cleanup;
 pub mod document_assets;
 pub mod document_body_loader;
 pub mod document_delete_admit;

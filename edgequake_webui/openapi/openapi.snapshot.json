@@ -2546,6 +2546,53 @@
         ]
       }
     },
+    "/api/v1/decision/status": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Probe the decision backend.",
+        "operationId": "get_decision_status",
+        "parameters": [
+          {
+            "name": "model",
+            "in": "query",
+            "description": "Probe this model tag instead of the server default (a workspace's own model).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decision backend state. Host only, no secrets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [],
+            "tenant_id": [],
+            "workspace_id": []
+          },
+          {
+            "api_key": [],
+            "tenant_id": [],
+            "workspace_id": []
+          }
+        ]
+      }
+    },
     "/api/v1/documents": {
       "get": {
         "tags": [
@@ -3535,8 +3582,8 @@
             "workspace_id": []
           }
         ],
-        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog",
-        "x-edgequake-v2-job-type": "reprocess_failed"
+        "x-edgequake-v2-job-type": "reprocess_failed",
+        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog"
       }
     },
     "/api/v1/documents/scan": {
@@ -9749,8 +9796,8 @@
             "workspace_id": []
           }
         ],
-        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog",
-        "x-edgequake-v2-job-type": "rebuild_embeddings"
+        "x-edgequake-v2-job-type": "rebuild_embeddings",
+        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog"
       }
     },
     "/api/v1/workspaces/{workspace_id}/rebuild-knowledge-graph": {
@@ -9823,8 +9870,8 @@
             "workspace_id": []
           }
         ],
-        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog",
-        "x-edgequake-v2-job-type": "rebuild_knowledge_graph"
+        "x-edgequake-v2-job-type": "rebuild_knowledge_graph",
+        "x-edgequake-v2-catalog": "/api/v2/workspaces/{workspace_id}/jobs/catalog"
       }
     },
     "/api/v1/workspaces/{workspace_id}/reprocess-documents": {
@@ -10498,8 +10545,8 @@
             "description": "WebSocket upgrade failed"
           }
         },
-        "x-edgequake-transport": "websocket",
-        "x-edgequake-upgrade": "RFC6455"
+        "x-edgequake-upgrade": "RFC6455",
+        "x-edgequake-transport": "websocket"
       }
     },
     "/ws/progress/{track_id}": {
@@ -10530,8 +10577,8 @@
             "description": "Track not found for this workspace"
           }
         },
-        "x-edgequake-transport": "websocket",
-        "x-edgequake-upgrade": "RFC6455"
+        "x-edgequake-upgrade": "RFC6455",
+        "x-edgequake-transport": "websocket"
       }
     }
   },
@@ -14337,278 +14384,281 @@
         }
       },
       "CreateWorkspaceApiRequest": {
-        "type": "object",
-        "description": "Request to create a new workspace.\n\n## Model Configuration (SPEC-032)\n\nWhen creating a workspace, you can specify both LLM and embedding models.\nIf not provided, server defaults are used (configurable via env vars or models.toml).\n\n**LLM Examples (for knowledge graph generation, summarization):**\n- OpenAI: `\"gpt-4o-mini\"`, `\"gpt-4o\"`\n- Ollama: `\"gemma3:12b\"`, `\"llama3.2\"`\n- LM Studio: `\"gemma-3n-e4b-it-mlxmodel\"`\n\n**Embedding Examples:**\n- OpenAI: `\"text-embedding-3-small\"` (1536 dims), `\"text-embedding-3-large\"` (3072 dims)\n- Ollama: `\"embeddinggemma:latest\"` (768 dims), `\"nomic-embed-text\"` (768 dims)\n- LM Studio: `\"nomic-ai/nomic-embed-text-v1.5\"` (768 dims)\n\n**Model ID Format:**\nModels can be specified as `model_name` or `provider/model_name`:\n- `\"gemma3:12b\"` - auto-detects provider as \"ollama\"\n- `\"ollama/gemma3:12b\"` - explicit provider",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "chunk_overlap_token_size": {
-            "type": [
-              "integer",
-              "null"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExtractionModeFieldsDto",
+            "description": "SPEC-160: extraction mode and decision settings (future ingestions only)."
+          },
+          {
+            "type": "object",
+            "required": [
+              "name"
             ],
-            "format": "int32",
-            "description": "SPEC-116: fixed overlap tokens (default 100).",
-            "minimum": 0
-          },
-          "chunk_token_size": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "description": "SPEC-116: fixed chunk token size (default 1200).",
-            "minimum": 0
-          },
-          "chunking_mode": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-116: `inherit` | `adaptive` | `fixed`."
-          },
-          "default_reasoning_effort": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-109: seed workspace `default_reasoning_effort` metadata."
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Optional description."
-          },
-          "embedding_dimension": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Embedding vector dimension override.\nIf not provided, auto-detected from embedding_model.",
-            "minimum": 0
-          },
-          "embedding_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Embedding model name (e.g., \"text-embedding-3-small\", \"embeddinggemma:latest\").\nIf not provided, uses server default from EDGEQUAKE_DEFAULT_EMBEDDING_MODEL."
-          },
-          "embedding_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Embedding provider (\"openai\", \"ollama\", \"lmstudio\").\nIf not provided, auto-detected from embedding_model."
-          },
-          "entity_type_colors": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "Custom entity-type → hex color map for graph visualization (SPEC-102).\nKeys UPPERCASE; values `#RGB` / `#RRGGBB`. Empty object clears.",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
-          "entity_types": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Custom entity types to extract from documents (e.g., [\"MACHINE\", \"COMPONENT\", \"DEFECT\"]).\nNames are normalized to UPPERCASE_UNDERSCORED format.\nIf not provided, uses the workspace default (server default_entity_types).\nMaximum 20 types."
-          },
-          "entity_types_strict": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "description": "When true (default), limit extraction to listed types; unknown → OTHER."
-          },
-          "extract_budget_mode": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-117: `inherit` | `custom`."
-          },
-          "extract_max_entities": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "description": "SPEC-117: max entities per LLM extraction response.",
-            "minimum": 0
-          },
-          "extract_max_records": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "description": "SPEC-117: max total entity+relationship rows per response.",
-            "minimum": 0
-          },
-          "extraction_language": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Natural-language output language for entity/relationship values (SPEC-096).\nAllowlisted names: English, Chinese, Japanese, Korean, Spanish, French,\nGerman, Portuguese, Italian, Russian. Omit to inherit env/default."
-          },
-          "kg_schema_preset": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Domain preset id for UX honesty (SPEC-114): general…finance / custom."
-          },
-          "llm_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "LLM model for knowledge graph generation, summarization, entity extraction.\nFormat: \"model_name\" or \"provider/model_name\" (e.g., \"gemma3:12b\", \"ollama/gemma3:12b\").\nIf not provided, uses server default from models.toml or EDGEQUAKE_DEFAULT_LLM_MODEL."
-          },
-          "llm_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "LLM provider (\"openai\", \"ollama\", \"lmstudio\").\nIf not provided, auto-detected from llm_model."
-          },
-          "llm_roles": {
-            "description": "SPEC-109: initial `llm_roles` metadata."
-          },
-          "max_documents": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Maximum number of documents.",
-            "minimum": 0
-          },
-          "name": {
-            "type": "string",
-            "description": "Workspace name."
-          },
-          "pdf_parser_backend": {
-            "oneOf": [
-              {
-                "type": "null"
+            "properties": {
+              "chunk_overlap_token_size": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "description": "SPEC-116: fixed overlap tokens (default 100).",
+                "minimum": 0
               },
-              {
-                "$ref": "#/components/schemas/PdfParserBackendName",
-                "description": "Default PDF parser backend for this workspace\n(`vision` | `edgeparse` | `edgeparse-ocr` | `auto`)."
+              "chunk_token_size": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "description": "SPEC-116: fixed chunk token size (default 1200).",
+                "minimum": 0
+              },
+              "chunking_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-116: `inherit` | `adaptive` | `fixed`."
+              },
+              "default_reasoning_effort": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-109: seed workspace `default_reasoning_effort` metadata."
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Optional description."
+              },
+              "embedding_dimension": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Embedding vector dimension override.\nIf not provided, auto-detected from embedding_model.",
+                "minimum": 0
+              },
+              "embedding_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Embedding model name (e.g., \"text-embedding-3-small\", \"embeddinggemma:latest\").\nIf not provided, uses server default from EDGEQUAKE_DEFAULT_EMBEDDING_MODEL."
+              },
+              "embedding_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Embedding provider (\"openai\", \"ollama\", \"lmstudio\").\nIf not provided, auto-detected from embedding_model."
+              },
+              "entity_type_colors": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "Custom entity-type → hex color map for graph visualization (SPEC-102).\nKeys UPPERCASE; values `#RGB` / `#RRGGBB`. Empty object clears.",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              },
+              "entity_types": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Custom entity types to extract from documents (e.g., [\"MACHINE\", \"COMPONENT\", \"DEFECT\"]).\nNames are normalized to UPPERCASE_UNDERSCORED format.\nIf not provided, uses the workspace default (server default_entity_types).\nMaximum 20 types."
+              },
+              "entity_types_strict": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "When true (default), limit extraction to listed types; unknown → OTHER."
+              },
+              "extract_budget_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-117: `inherit` | `custom`."
+              },
+              "extract_max_entities": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "description": "SPEC-117: max entities per LLM extraction response.",
+                "minimum": 0
+              },
+              "extract_max_records": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "description": "SPEC-117: max total entity+relationship rows per response.",
+                "minimum": 0
+              },
+              "extraction_language": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Natural-language output language for entity/relationship values (SPEC-096).\nAllowlisted names: English, Chinese, Japanese, Korean, Spanish, French,\nGerman, Portuguese, Italian, Russian. Omit to inherit env/default."
+              },
+              "kg_schema_preset": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Domain preset id for UX honesty (SPEC-114): general…finance / custom."
+              },
+              "llm_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "LLM model for knowledge graph generation, summarization, entity extraction.\nFormat: \"model_name\" or \"provider/model_name\" (e.g., \"gemma3:12b\", \"ollama/gemma3:12b\").\nIf not provided, uses server default from models.toml or EDGEQUAKE_DEFAULT_LLM_MODEL."
+              },
+              "llm_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "LLM provider (\"openai\", \"ollama\", \"lmstudio\").\nIf not provided, auto-detected from llm_model."
+              },
+              "llm_roles": {
+                "description": "SPEC-109: initial `llm_roles` metadata."
+              },
+              "max_documents": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Maximum number of documents.",
+                "minimum": 0
+              },
+              "name": {
+                "type": "string",
+                "description": "Workspace name."
+              },
+              "pdf_parser_backend": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PdfParserBackendName",
+                    "description": "Default PDF parser backend for this workspace\n(`vision` | `edgeparse` | `edgeparse-ocr` | `auto`)."
+                  }
+                ]
+              },
+              "relation_edges": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/RelationEdgeDto"
+                },
+                "description": "Typed edge constraints (SPEC-114b). Empty/omit → unconstrained endpoints."
+              },
+              "relation_types": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Relation type allow-list for extraction (SPEC-114). Empty/omit → free-form."
+              },
+              "relation_types_strict": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Strict relation type limit (SPEC-114). Default true when list non-empty."
+              },
+              "slug": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "URL-friendly slug (auto-generated if not provided)."
+              },
+              "vision_chart_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_extract_charts": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_extract_figures": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_extract_images": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_figure_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_image_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_llm_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Vision LLM model for PDF-to-Markdown extraction (e.g., \"gpt-4o\", \"gemma3:12b\").\nIf not provided, inherits from tenant default_vision_llm_model, then server default."
+              },
+              "vision_llm_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Vision LLM provider for PDF-to-Markdown extraction (\"openai\", \"ollama\", \"lmstudio\").\nIf not provided, auto-detected from vision_llm_model or inherited from tenant."
+              },
+              "vision_page_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
-            ]
-          },
-          "relation_edges": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/RelationEdgeDto"
-            },
-            "description": "Typed edge constraints (SPEC-114b). Empty/omit → unconstrained endpoints."
-          },
-          "relation_types": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Relation type allow-list for extraction (SPEC-114). Empty/omit → free-form."
-          },
-          "relation_types_strict": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "description": "Strict relation type limit (SPEC-114). Default true when list non-empty."
-          },
-          "slug": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "URL-friendly slug (auto-generated if not provided)."
-          },
-          "vision_chart_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_extract_charts": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_extract_figures": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_extract_images": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_figure_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_image_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_llm_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Vision LLM model for PDF-to-Markdown extraction (e.g., \"gpt-4o\", \"gemma3:12b\").\nIf not provided, inherits from tenant default_vision_llm_model, then server default."
-          },
-          "vision_llm_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Vision LLM provider for PDF-to-Markdown extraction (\"openai\", \"ollama\", \"lmstudio\").\nIf not provided, auto-detected from vision_llm_model or inherited from tenant."
-          },
-          "vision_page_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
+            }
           }
-        },
-        "example": {
-          "name": "Default Workspace",
-          "slug": "default",
-          "tenant_id": "00000000-0000-0000-0000-000000000001"
-        }
+        ],
+        "description": "Request to create a new workspace.\n\n## Model Configuration (SPEC-032)\n\nWhen creating a workspace, you can specify both LLM and embedding models.\nIf not provided, server defaults are used (configurable via env vars or models.toml).\n\n**LLM Examples (for knowledge graph generation, summarization):**\n- OpenAI: `\"gpt-4o-mini\"`, `\"gpt-4o\"`\n- Ollama: `\"gemma3:12b\"`, `\"llama3.2\"`\n- LM Studio: `\"gemma-3n-e4b-it-mlxmodel\"`\n\n**Embedding Examples:**\n- OpenAI: `\"text-embedding-3-small\"` (1536 dims), `\"text-embedding-3-large\"` (3072 dims)\n- Ollama: `\"embeddinggemma:latest\"` (768 dims), `\"nomic-embed-text\"` (768 dims)\n- LM Studio: `\"nomic-ai/nomic-embed-text-v1.5\"` (768 dims)\n\n**Model ID Format:**\nModels can be specified as `model_name` or `provider/model_name`:\n- `\"gemma3:12b\"` - auto-detects provider as \"ollama\"\n- `\"ollama/gemma3:12b\"` - explicit provider"
       },
       "DefaultModels": {
         "type": "object",
@@ -15113,251 +15163,262 @@
         }
       },
       "DocumentDetailResponse": {
-        "type": "object",
-        "description": "Document details response with full content.",
-        "required": [
-          "id",
-          "chunk_count",
-          "status"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DocumentExtractionView",
+            "description": "SPEC-160: extraction mode, who chose it, and decision-run counts."
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "chunk_count",
+              "status"
+            ],
+            "properties": {
+              "chunk_count": {
+                "type": "integer",
+                "description": "Number of chunks.",
+                "minimum": 0
+              },
+              "content": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Full document content."
+              },
+              "content_hash": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Content hash (SHA-256) for deduplication."
+              },
+              "content_length": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Total content length in characters.",
+                "minimum": 0
+              },
+              "content_summary": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Content summary (first 200 chars)."
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Creation timestamp."
+              },
+              "display_status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-057 P4: badge key from IngestionStatusMapper."
+              },
+              "entity_count": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Number of entities extracted.",
+                "minimum": 0
+              },
+              "error_message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Error message if processing failed."
+              },
+              "file_name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Original file name."
+              },
+              "file_size": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "File size in bytes.",
+                "minimum": 0
+              },
+              "id": {
+                "type": "string",
+                "description": "Document ID."
+              },
+              "lineage": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DocumentLineage",
+                    "description": "Extraction lineage information."
+                  }
+                ]
+              },
+              "metadata": {
+                "description": "Additional custom metadata."
+              },
+              "mime_type": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "MIME type of the document."
+              },
+              "multimodal_items": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/MultimodalItemStatusView"
+                },
+                "description": "Per-item multimodal analyze status (E52)."
+              },
+              "multimodal_summary": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MultimodalSummary",
+                    "description": "Multimodal analyze aggregate counts (LightRAG sidecar summary)."
+                  }
+                ]
+              },
+              "pdf_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Linked PDF document ID (only set if source_type is \"pdf\").\nUsed to fetch PDF content for viewing.\n@implements SPEC-002"
+              },
+              "processed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Processing completed timestamp."
+              },
+              "relationship_count": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Number of relationships extracted.",
+                "minimum": 0
+              },
+              "source_type": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Source type (file, text, url)."
+              },
+              "status": {
+                "type": "string",
+                "description": "Document processing status."
+              },
+              "tenant_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Tenant ID for multi-tenancy."
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Document title."
+              },
+              "track_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Track ID for batch grouping."
+              },
+              "ui_phase": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-057 P4: `idle` | `running` | `stopping` | `terminal`."
+              },
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Last update timestamp."
+              },
+              "warning_message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Non-fatal processing notice (e.g. vision parser fallback)."
+              },
+              "workspace_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Workspace ID for multi-tenancy."
+              }
+            }
+          }
         ],
+        "description": "Document details response with full content."
+      },
+      "DocumentExtractionView": {
+        "type": "object",
+        "description": "Fields flattened into the document list row and the document detail.\n\nAll fields are absent for a plain LLM document, so existing clients see no change.",
         "properties": {
-          "chunk_count": {
-            "type": "integer",
-            "description": "Number of chunks.",
-            "minimum": 0
+          "decision_stats": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Per-document counts of a decision run: graph facts, review rows, model calls."
           },
-          "content": {
+          "extraction_mode": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Full document content."
+            "description": "`decision` once a decision run left stats, or the word the upload asked for.",
+            "example": "decision"
           },
-          "content_hash": {
+          "extraction_mode_source": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Content hash (SHA-256) for deduplication."
-          },
-          "content_length": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Total content length in characters.",
-            "minimum": 0
-          },
-          "content_summary": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Content summary (first 200 chars)."
-          },
-          "created_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Creation timestamp."
-          },
-          "display_status": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-057 P4: badge key from IngestionStatusMapper."
-          },
-          "entity_count": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Number of entities extracted.",
-            "minimum": 0
-          },
-          "error_message": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Error message if processing failed."
-          },
-          "file_name": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Original file name."
-          },
-          "file_size": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "File size in bytes.",
-            "minimum": 0
-          },
-          "id": {
-            "type": "string",
-            "description": "Document ID."
-          },
-          "lineage": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/DocumentLineage",
-                "description": "Extraction lineage information."
-              }
-            ]
-          },
-          "metadata": {
-            "description": "Additional custom metadata."
-          },
-          "mime_type": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "MIME type of the document."
-          },
-          "multimodal_items": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/MultimodalItemStatusView"
-            },
-            "description": "Per-item multimodal analyze status (E52)."
-          },
-          "multimodal_summary": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/MultimodalSummary",
-                "description": "Multimodal analyze aggregate counts (LightRAG sidecar summary)."
-              }
-            ]
-          },
-          "pdf_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Linked PDF document ID (only set if source_type is \"pdf\").\nUsed to fetch PDF content for viewing.\n@implements SPEC-002"
-          },
-          "processed_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Processing completed timestamp."
-          },
-          "relationship_count": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Number of relationships extracted.",
-            "minimum": 0
-          },
-          "source_type": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Source type (file, text, url)."
-          },
-          "status": {
-            "type": "string",
-            "description": "Document processing status."
-          },
-          "tenant_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Tenant ID for multi-tenancy."
-          },
-          "title": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Document title."
-          },
-          "track_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Track ID for batch grouping."
-          },
-          "ui_phase": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-057 P4: `idle` | `running` | `stopping` | `terminal`."
-          },
-          "updated_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Last update timestamp."
-          },
-          "warning_message": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Non-fatal processing notice (e.g. vision parser fallback)."
-          },
-          "workspace_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Workspace ID for multi-tenancy."
+            "description": "Who chose the mode: `document`, `workspace`, `env`, `default`.",
+            "example": "workspace"
           }
         },
         "example": {
-          "chunk_count": {},
-          "content": {},
-          "content_hash": {},
-          "content_length": {},
-          "content_summary": {},
-          "created_at": {},
-          "display_status": {},
-          "entity_count": {},
-          "error_message": {},
-          "file_name": {},
-          "file_size": {},
-          "id": {},
-          "lineage": {},
-          "metadata": {},
-          "mime_type": {},
-          "multimodal_items": [],
-          "multimodal_summary": {},
-          "pdf_id": {},
-          "processed_at": {},
-          "relationship_count": {},
-          "source_type": {},
-          "status": {},
-          "tenant_id": {},
-          "title": {},
-          "track_id": {},
-          "ui_phase": {},
-          "updated_at": {},
-          "warning_message": {},
-          "workspace_id": {}
+          "decision_stats": {},
+          "extraction_mode": {},
+          "extraction_mode_source": {}
         }
       },
       "DocumentFilter": {
@@ -15740,302 +15801,275 @@
         }
       },
       "DocumentSummary": {
-        "type": "object",
-        "description": "Document summary.\n\n@implements SPEC-002: Unified Ingestion Pipeline",
-        "required": [
-          "id",
-          "chunk_count"
-        ],
-        "properties": {
-          "cancelled_from_stage": {
-            "type": [
-              "string",
-              "null"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DocumentExtractionView",
+            "description": "SPEC-160: extraction mode, who chose it, and decision-run counts."
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "chunk_count"
             ],
-            "description": "Last non-terminal pipeline stage when cancel froze the run (INV-10).\nPresent when `status`/`current_stage` is `cancelled`.",
-            "example": "extracting"
-          },
-          "chunk_count": {
-            "type": "integer",
-            "description": "Number of chunks.",
-            "minimum": 0
-          },
-          "content_length": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Total length of document content in characters.",
-            "minimum": 0
-          },
-          "content_summary": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "First 200 characters of document content (preview)."
-          },
-          "cost_usd": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "format": "double",
-            "description": "Total cost in USD for processing this document."
-          },
-          "created_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Creation timestamp (ISO 8601 format)."
-          },
-          "current_stage": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Current ingestion stage (aligned with UnifiedStage enum).\nStages: uploading, converting, preprocessing, chunking, extracting,\ngleaning, merging, summarizing, embedding, storing, completed, failed.\n@implements SPEC-002",
-            "example": "extracting"
-          },
-          "display_status": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-057 P4: badge key from `IngestionStatusMapper` (prefer over status/stage).",
-            "example": "extracting"
-          },
-          "embedding_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Embedding model used for processing."
-          },
-          "entity_count": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Number of entities extracted.",
-            "minimum": 0
-          },
-          "error_message": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Error message if processing failed."
-          },
-          "eta_basis": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "`measured` | `no_history` — honest uncertainty for ETA chrome."
-          },
-          "eta_seconds": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "description": "Estimated seconds until claim (measured drain; clamped when unknown).",
-            "minimum": 0
-          },
-          "file_name": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Original file name (used for display if title is not set)."
-          },
-          "id": {
-            "type": "string",
-            "description": "Document ID."
-          },
-          "input_tokens": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Input tokens used for processing.",
-            "minimum": 0
-          },
-          "llm_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "LLM model used for processing."
-          },
-          "output_tokens": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Output tokens used for processing.",
-            "minimum": 0
-          },
-          "pdf_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Linked PDF document ID (only set if source_type is \"pdf\").\nUsed to fetch PDF content for viewing.\n@implements SPEC-002",
-            "example": "8866e3c3-bbd6-4384-b86f-215c9844914d"
-          },
-          "progress_counts": {
-            "oneOf": [
-              {
-                "type": "null"
+            "properties": {
+              "cancelled_from_stage": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Last non-terminal pipeline stage when cancel froze the run (INV-10).\nPresent when `status`/`current_stage` is `cancelled`.",
+                "example": "extracting"
               },
-              {
-                "$ref": "#/components/schemas/IngestionProgressCounts",
-                "description": "Structured stage counts (LAW-IS1 / SPEC-091). Prefer over parsing stage_message."
-              }
-            ]
-          },
-          "query_ready": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "description": "SPEC-091 IS3 / LD-09: when serving fence is on, whether the doc is queryable.\nAbsent when fence is off (UI hides Ready/Indexed badge)."
-          },
-          "queue_position": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "description": "SPEC-091 IS2 / LAW-IS4: 1-based FCFS queue position for pending admission.",
-            "minimum": 0
-          },
-          "run_progress": {
-            "oneOf": [
-              {
-                "type": "null"
+              "chunk_count": {
+                "type": "integer",
+                "description": "Number of chunks.",
+                "minimum": 0
               },
-              {
-                "$ref": "#/components/schemas/RunProgress",
-                "description": "SPEC-155: typed monotonic per-phase progress ledger."
+              "content_length": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Total length of document content in characters.",
+                "minimum": 0
+              },
+              "content_summary": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "First 200 characters of document content (preview)."
+              },
+              "cost_usd": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "format": "double",
+                "description": "Total cost in USD for processing this document."
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Creation timestamp (ISO 8601 format)."
+              },
+              "current_stage": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Current ingestion stage (aligned with UnifiedStage enum).\nStages: uploading, converting, preprocessing, chunking, extracting,\ngleaning, merging, summarizing, embedding, storing, completed, failed.\n@implements SPEC-002",
+                "example": "extracting"
+              },
+              "display_status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-057 P4: badge key from `IngestionStatusMapper` (prefer over status/stage).",
+                "example": "extracting"
+              },
+              "embedding_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Embedding model used for processing."
+              },
+              "entity_count": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Number of entities extracted.",
+                "minimum": 0
+              },
+              "error_message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Error message if processing failed."
+              },
+              "eta_basis": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "`measured` | `no_history` — honest uncertainty for ETA chrome."
+              },
+              "eta_seconds": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "description": "Estimated seconds until claim (measured drain; clamped when unknown).",
+                "minimum": 0
+              },
+              "file_name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Original file name (used for display if title is not set)."
+              },
+              "id": {
+                "type": "string",
+                "description": "Document ID."
+              },
+              "input_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Input tokens used for processing.",
+                "minimum": 0
+              },
+              "llm_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "LLM model used for processing."
+              },
+              "output_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Output tokens used for processing.",
+                "minimum": 0
+              },
+              "pdf_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Linked PDF document ID (only set if source_type is \"pdf\").\nUsed to fetch PDF content for viewing.\n@implements SPEC-002",
+                "example": "8866e3c3-bbd6-4384-b86f-215c9844914d"
+              },
+              "progress_counts": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IngestionProgressCounts",
+                    "description": "Structured stage counts (LAW-IS1 / SPEC-091). Prefer over parsing stage_message."
+                  }
+                ]
+              },
+              "query_ready": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "SPEC-091 IS3 / LD-09: when serving fence is on, whether the doc is queryable.\nAbsent when fence is off (UI hides Ready/Indexed badge)."
+              },
+              "queue_position": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "description": "SPEC-091 IS2 / LAW-IS4: 1-based FCFS queue position for pending admission.",
+                "minimum": 0
+              },
+              "run_progress": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RunProgress",
+                    "description": "SPEC-155: typed monotonic per-phase progress ledger."
+                  }
+                ]
+              },
+              "source_type": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Document source type (pdf, markdown, text).\n@implements SPEC-002",
+                "example": "pdf"
+              },
+              "stage_message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Human-readable message for current stage.\n@implements SPEC-002",
+                "example": "Extracting entities from chunk 5/12"
+              },
+              "stage_progress": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "format": "float",
+                "description": "Progress within current stage (0.0 to 1.0).\n@implements SPEC-002",
+                "example": 0.45
+              },
+              "status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Document processing status (legacy - use current_stage for new code)."
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Document title."
+              },
+              "total_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Total tokens (input + output).",
+                "minimum": 0
+              },
+              "track_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Track ID for batch grouping."
+              },
+              "ui_phase": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-057 P4: `idle` | `running` | `stopping` | `terminal`.",
+                "example": "running"
+              },
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Last update timestamp (ISO 8601 format)."
+              },
+              "warning_message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Non-fatal processing notice (e.g. vision parser fallback)."
               }
-            ]
-          },
-          "source_type": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Document source type (pdf, markdown, text).\n@implements SPEC-002",
-            "example": "pdf"
-          },
-          "stage_message": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Human-readable message for current stage.\n@implements SPEC-002",
-            "example": "Extracting entities from chunk 5/12"
-          },
-          "stage_progress": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "format": "float",
-            "description": "Progress within current stage (0.0 to 1.0).\n@implements SPEC-002",
-            "example": 0.45
-          },
-          "status": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Document processing status (legacy - use current_stage for new code)."
-          },
-          "title": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Document title."
-          },
-          "total_tokens": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Total tokens (input + output).",
-            "minimum": 0
-          },
-          "track_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Track ID for batch grouping."
-          },
-          "ui_phase": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-057 P4: `idle` | `running` | `stopping` | `terminal`.",
-            "example": "running"
-          },
-          "updated_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Last update timestamp (ISO 8601 format)."
-          },
-          "warning_message": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Non-fatal processing notice (e.g. vision parser fallback)."
+            }
           }
-        },
-        "example": {
-          "cancelled_from_stage": {},
-          "chunk_count": {},
-          "content_length": {},
-          "content_summary": {},
-          "cost_usd": {},
-          "created_at": {},
-          "current_stage": {},
-          "display_status": {},
-          "embedding_model": {},
-          "entity_count": {},
-          "error_message": {},
-          "eta_basis": {},
-          "eta_seconds": {},
-          "file_name": {},
-          "id": {},
-          "input_tokens": {},
-          "llm_model": {},
-          "output_tokens": {},
-          "pdf_id": {},
-          "progress_counts": {},
-          "query_ready": {},
-          "queue_position": {},
-          "run_progress": {},
-          "source_type": {},
-          "stage_message": {},
-          "stage_progress": {},
-          "status": {},
-          "title": {},
-          "total_tokens": {},
-          "track_id": {},
-          "ui_phase": {},
-          "updated_at": {},
-          "warning_message": {}
-        }
+        ],
+        "description": "Document summary.\n\n@implements SPEC-002: Unified Ingestion Pipeline"
       },
       "DroppedCounts": {
         "type": "object",
@@ -16183,6 +16217,28 @@
           "request_id": {},
           "sources": [],
           "tenant_id": {}
+        }
+      },
+      "EffectiveExtractionModeDto": {
+        "type": "object",
+        "description": "The mode a new document would get, and who decided it.",
+        "required": [
+          "mode",
+          "source"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "description": "`llm` or `decision`."
+          },
+          "source": {
+            "type": "string",
+            "description": "`workspace`, `env`, or `default`."
+          }
+        },
+        "example": {
+          "mode": {},
+          "source": {}
         }
       },
       "EmbeddingModelItem": {
@@ -17192,6 +17248,98 @@
           "output_tokens": {}
         }
       },
+      "ExtractionModeFieldsDto": {
+        "type": "object",
+        "description": "Request fragment (SPEC-160). Every field is optional; absent leaves the key unchanged.",
+        "properties": {
+          "decision_gate_preset": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Decision gate preset: `strict`, `balanced`, `recall`, or `inherit`."
+          },
+          "decision_model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Decision model name, for example `tev1:0.8b`, or `inherit`."
+          },
+          "decision_pack_size": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Questions per decision request, 1 to 16. `0` clears the override."
+          },
+          "extraction_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`llm`, `decision`, or `inherit` (clears the workspace default)."
+          }
+        },
+        "example": {
+          "decision_gate_preset": {},
+          "decision_model": {},
+          "decision_pack_size": {},
+          "extraction_mode": {}
+        }
+      },
+      "ExtractionModeView": {
+        "type": "object",
+        "description": "Response fragment (SPEC-160).",
+        "properties": {
+          "decision_gate_preset": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decision_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decision_pack_size": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "effective_extraction_mode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EffectiveExtractionModeDto",
+                "description": "Mode after the server default is folded in. Null if a stored value is invalid."
+              }
+            ]
+          },
+          "extraction_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Workspace default word, or null when the workspace inherits."
+          }
+        },
+        "example": {
+          "decision_gate_preset": {},
+          "decision_model": {},
+          "decision_pack_size": {},
+          "effective_extraction_mode": {},
+          "extraction_mode": {}
+        }
+      },
       "ExtractionStatsResponse": {
         "type": "object",
         "description": "Extraction statistics.",
@@ -17337,6 +17485,20 @@
             "description": "Estimated seconds until claim (measured drain; clamped when unknown).",
             "minimum": 0
           },
+          "extraction_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPEC-160: the extraction mode this document will run with (`llm` or `decision`)."
+          },
+          "extraction_mode_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPEC-160: who chose the mode (`document`, `workspace`, `env`, `default`)."
+          },
           "filename": {
             "type": "string",
             "description": "Original filename."
@@ -17390,6 +17552,8 @@
           "entity_count": {},
           "eta_basis": {},
           "eta_seconds": {},
+          "extraction_mode": {},
+          "extraction_mode_source": {},
           "filename": {},
           "is_duplicate": {},
           "queue_position": {},
@@ -23844,6 +24008,20 @@
             "description": "Estimated seconds until claim (measured drain; clamped when unknown).",
             "minimum": 0
           },
+          "extraction_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPEC-160: the extraction mode this document will run with (`llm` or `decision`)."
+          },
+          "extraction_mode_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPEC-160: who chose the mode (`document`, `workspace`, `env`, `default`)."
+          },
           "ingestion_estimate": {
             "oneOf": [
               {
@@ -23898,6 +24076,8 @@
           "estimated_time_seconds": {},
           "eta_basis": {},
           "eta_seconds": {},
+          "extraction_mode": {},
+          "extraction_mode_source": {},
           "ingestion_estimate": {},
           "message": {},
           "metadata": {},
@@ -30724,306 +30904,277 @@
         }
       },
       "UpdateWorkspaceApiRequest": {
-        "type": "object",
-        "description": "Request to update a workspace.\n\n## Model Configuration Updates (SPEC-032)\n\nChanging LLM provider/model is safe and takes effect immediately for new ingestions.\nChanging embedding provider/model requires rebuilding vectors (use rebuild-embeddings endpoint).",
-        "properties": {
-          "chunk_overlap_token_size": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "minimum": 0
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExtractionModeFieldsDto",
+            "description": "SPEC-160: extraction mode and decision settings (future ingestions only)."
           },
-          "chunk_token_size": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "minimum": 0
-          },
-          "chunking_mode": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-116 chunking mode. Omit = leave unchanged; `inherit` clears."
-          },
-          "default_reasoning_effort": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-109: set/clear workspace default reasoning effort."
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "New description."
-          },
-          "embedding_dimension": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Update embedding dimension.",
-            "minimum": 0
-          },
-          "embedding_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Update embedding model.\nWARNING: Requires vector rebuild - use rebuild-embeddings endpoint after updating."
-          },
-          "embedding_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Update embedding provider."
-          },
-          "entity_type_colors": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "Custom entity-type → hex color map (SPEC-102). Omit = leave unchanged;\nempty object clears the workspace override.",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
-          "entity_types": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Entity types for future ingestions (does not rewrite existing graph nodes)."
-          },
-          "entity_types_strict": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "description": "Strict entity type limit (default true). Set false to allow free-form types."
-          },
-          "extract_budget_mode": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-117: `inherit` clears; `custom` + ints sets. Omit = leave unchanged."
-          },
-          "extract_max_entities": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "minimum": 0
-          },
-          "extract_max_records": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "minimum": 0
-          },
-          "extraction_language": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Extraction output language (SPEC-096). Omit = leave unchanged;\nempty string or `\"none\"` clears the workspace override."
-          },
-          "is_active": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "description": "Whether the workspace is active."
-          },
-          "kg_schema_preset": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Domain preset id (SPEC-114). Empty / `\"none\"` clears."
-          },
-          "llm_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Update LLM model (takes effect on next ingestion)."
-          },
-          "llm_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Update LLM provider."
-          },
-          "llm_roles": {
-            "description": "SPEC-109: merge into workspace `llm_roles` metadata."
-          },
-          "max_documents": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Maximum number of documents.",
-            "minimum": 0
-          },
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "New workspace name."
-          },
-          "pdf_parser_backend": {
-            "oneOf": [
-              {
-                "type": "null"
+          {
+            "type": "object",
+            "properties": {
+              "chunk_overlap_token_size": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
               },
-              {
-                "$ref": "#/components/schemas/PdfParserBackendUpdateName",
-                "description": "Default PDF parser backend for this workspace\n(`vision` | `edgeparse` | `edgeparse-ocr` | `auto` | `none` to clear)."
+              "chunk_token_size": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              },
+              "chunking_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-116 chunking mode. Omit = leave unchanged; `inherit` clears."
+              },
+              "default_reasoning_effort": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-109: set/clear workspace default reasoning effort."
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "New description."
+              },
+              "embedding_dimension": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Update embedding dimension.",
+                "minimum": 0
+              },
+              "embedding_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Update embedding model.\nWARNING: Requires vector rebuild - use rebuild-embeddings endpoint after updating."
+              },
+              "embedding_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Update embedding provider."
+              },
+              "entity_type_colors": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "Custom entity-type → hex color map (SPEC-102). Omit = leave unchanged;\nempty object clears the workspace override.",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              },
+              "entity_types": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Entity types for future ingestions (does not rewrite existing graph nodes)."
+              },
+              "entity_types_strict": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Strict entity type limit (default true). Set false to allow free-form types."
+              },
+              "extract_budget_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-117: `inherit` clears; `custom` + ints sets. Omit = leave unchanged."
+              },
+              "extract_max_entities": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              },
+              "extract_max_records": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              },
+              "extraction_language": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Extraction output language (SPEC-096). Omit = leave unchanged;\nempty string or `\"none\"` clears the workspace override."
+              },
+              "is_active": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Whether the workspace is active."
+              },
+              "kg_schema_preset": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Domain preset id (SPEC-114). Empty / `\"none\"` clears."
+              },
+              "llm_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Update LLM model (takes effect on next ingestion)."
+              },
+              "llm_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Update LLM provider."
+              },
+              "llm_roles": {
+                "description": "SPEC-109: merge into workspace `llm_roles` metadata."
+              },
+              "max_documents": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Maximum number of documents.",
+                "minimum": 0
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "New workspace name."
+              },
+              "pdf_parser_backend": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PdfParserBackendUpdateName",
+                    "description": "Default PDF parser backend for this workspace\n(`vision` | `edgeparse` | `edgeparse-ocr` | `auto` | `none` to clear)."
+                  }
+                ]
+              },
+              "relation_edges": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/RelationEdgeDto"
+                },
+                "description": "Typed edge constraints (SPEC-114b). Omit = leave unchanged; empty clears."
+              },
+              "relation_types": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Relation type allow-list (SPEC-114). Omit = leave unchanged; empty clears."
+              },
+              "relation_types_strict": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Strict relation type limit (SPEC-114)."
+              },
+              "vision_chart_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_extract_charts": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_extract_figures": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_extract_images": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_figure_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_image_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_llm_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Vision LLM model for PDF page image extraction (e.g., \"gpt-4o\", \"gemma3:latest\").\nWhen set, this workspace will use this model for PDF → Markdown vision extraction.\nPass empty string or \"none\" to clear the workspace override."
+              },
+              "vision_llm_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Vision LLM provider for PDF extraction (\"openai\", \"ollama\", \"lmstudio\").\nPass empty string or \"none\" to clear the workspace override."
+              },
+              "vision_page_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
-            ]
-          },
-          "relation_edges": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/RelationEdgeDto"
-            },
-            "description": "Typed edge constraints (SPEC-114b). Omit = leave unchanged; empty clears."
-          },
-          "relation_types": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Relation type allow-list (SPEC-114). Omit = leave unchanged; empty clears."
-          },
-          "relation_types_strict": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "description": "Strict relation type limit (SPEC-114)."
-          },
-          "vision_chart_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_extract_charts": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_extract_figures": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_extract_images": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_figure_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_image_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_llm_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Vision LLM model for PDF page image extraction (e.g., \"gpt-4o\", \"gemma3:latest\").\nWhen set, this workspace will use this model for PDF → Markdown vision extraction.\nPass empty string or \"none\" to clear the workspace override."
-          },
-          "vision_llm_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Vision LLM provider for PDF extraction (\"openai\", \"ollama\", \"lmstudio\").\nPass empty string or \"none\" to clear the workspace override."
-          },
-          "vision_page_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
+            }
           }
-        },
-        "example": {
-          "chunk_overlap_token_size": {},
-          "chunk_token_size": {},
-          "chunking_mode": {},
-          "default_reasoning_effort": {},
-          "description": {},
-          "embedding_dimension": {},
-          "embedding_model": {},
-          "embedding_provider": {},
-          "entity_type_colors": {},
-          "entity_types": [],
-          "entity_types_strict": {},
-          "extract_budget_mode": {},
-          "extract_max_entities": {},
-          "extract_max_records": {},
-          "extraction_language": {},
-          "is_active": {},
-          "kg_schema_preset": {},
-          "llm_model": {},
-          "llm_provider": {},
-          "llm_roles": {},
-          "max_documents": {},
-          "name": {},
-          "pdf_parser_backend": {},
-          "relation_edges": [],
-          "relation_types": [],
-          "relation_types_strict": {},
-          "vision_chart_system_prompt": {},
-          "vision_extract_charts": {},
-          "vision_extract_figures": {},
-          "vision_extract_images": {},
-          "vision_figure_system_prompt": {},
-          "vision_image_system_prompt": {},
-          "vision_llm_model": {},
-          "vision_llm_provider": {},
-          "vision_page_system_prompt": {}
-        }
+        ],
+        "description": "Request to update a workspace.\n\n## Model Configuration Updates (SPEC-032)\n\nChanging LLM provider/model is safe and takes effect immediately for new ingestions.\nChanging embedding provider/model requires rebuilding vectors (use rebuild-embeddings endpoint)."
       },
       "UploadDocumentRequest": {
         "type": "object",
@@ -31050,6 +31201,13 @@
             "type": "string",
             "description": "Document content."
           },
+          "decision_gate_preset": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPEC-160: decision gate preset for this document (`strict`, `balanced`, `recall`)."
+          },
           "enable_gleaning": {
             "type": "boolean",
             "description": "Enable gleaning (multiple extraction passes) for higher quality entity extraction."
@@ -31071,6 +31229,13 @@
             "format": "int32",
             "description": "SPEC-117: optional per-upload max total entity+relationship rows per response.",
             "minimum": 0
+          },
+          "extraction_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPEC-160: `llm`, `decision`, or `inherit`. Absent inherits workspace, then server."
           },
           "max_gleaning": {
             "type": "integer",
@@ -31169,6 +31334,20 @@
             "format": "int64",
             "description": "Estimated seconds until claim (measured drain; clamped when unknown).",
             "minimum": 0
+          },
+          "extraction_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPEC-160: the extraction mode this document will run with (`llm` or `decision`)."
+          },
+          "extraction_mode_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SPEC-160: who chose the mode (`document`, `workspace`, `env`, `default`)."
           },
           "queue_position": {
             "type": [
@@ -31421,372 +31600,374 @@
         }
       },
       "WorkspaceResponse": {
-        "type": "object",
-        "description": "Workspace response DTO.\n\nIncludes full model configuration (SPEC-032) for transparency.",
-        "required": [
-          "id",
-          "tenant_id",
-          "name",
-          "slug",
-          "is_active",
-          "llm_model",
-          "llm_provider",
-          "llm_full_id",
-          "embedding_model",
-          "embedding_provider",
-          "embedding_dimension",
-          "embedding_full_id",
-          "entity_types_strict",
-          "relation_types_strict",
-          "created_at",
-          "updated_at"
-        ],
-        "properties": {
-          "chunk_overlap_token_size": {
-            "type": [
-              "integer",
-              "null"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExtractionModeView",
+            "description": "SPEC-160: workspace extraction mode, effective mode, and decision settings."
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "tenant_id",
+              "name",
+              "slug",
+              "is_active",
+              "llm_model",
+              "llm_provider",
+              "llm_full_id",
+              "embedding_model",
+              "embedding_provider",
+              "embedding_dimension",
+              "embedding_full_id",
+              "entity_types_strict",
+              "relation_types_strict",
+              "created_at",
+              "updated_at"
             ],
-            "format": "int32",
-            "minimum": 0
-          },
-          "chunk_token_size": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "minimum": 0
-          },
-          "chunking_mode": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-116 chunking mode (`adaptive` | `fixed`). Absent = inherit fleet env."
-          },
-          "created_at": {
-            "type": "string",
-            "description": "Creation timestamp."
-          },
-          "default_reasoning_effort": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-109: workspace default reasoning effort."
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Description."
-          },
-          "embedding_dimension": {
-            "type": "integer",
-            "description": "Embedding vector dimension.",
-            "minimum": 0
-          },
-          "embedding_full_id": {
-            "type": "string",
-            "description": "Fully qualified embedding model ID (provider/model format)."
-          },
-          "embedding_model": {
-            "type": "string",
-            "description": "Embedding model used for this workspace."
-          },
-          "embedding_provider": {
-            "type": "string",
-            "description": "Embedding provider (openai, ollama, lmstudio)."
-          },
-          "embedding_resolution_source": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "entity_type_colors": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "Custom entity-type → hex color map for graph visualization (SPEC-102).",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
+            "properties": {
+              "chunk_overlap_token_size": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              },
+              "chunk_token_size": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              },
+              "chunking_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-116 chunking mode (`adaptive` | `fixed`). Absent = inherit fleet env."
+              },
+              "created_at": {
+                "type": "string",
+                "description": "Creation timestamp."
+              },
+              "default_reasoning_effort": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-109: workspace default reasoning effort."
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Description."
+              },
+              "embedding_dimension": {
+                "type": "integer",
+                "description": "Embedding vector dimension.",
+                "minimum": 0
+              },
+              "embedding_full_id": {
+                "type": "string",
+                "description": "Fully qualified embedding model ID (provider/model format)."
+              },
+              "embedding_model": {
+                "type": "string",
+                "description": "Embedding model used for this workspace."
+              },
+              "embedding_provider": {
+                "type": "string",
+                "description": "Embedding provider (openai, ollama, lmstudio)."
+              },
+              "embedding_resolution_source": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "entity_type_colors": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "Custom entity-type → hex color map for graph visualization (SPEC-102).",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              },
+              "entity_types": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Custom entity types configured for this workspace.\nNone means the workspace uses server default_entity_types."
+              },
+              "entity_types_strict": {
+                "type": "boolean",
+                "description": "When true, unknown types are remapped to OTHER/CONCEPT (default true)."
+              },
+              "extract_budget_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-117: absent = inherit fleet env; present when custom ints stored."
+              },
+              "extract_max_entities": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              },
+              "extract_max_records": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              },
+              "extraction_language": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Configured extraction language override (SPEC-096).\n`null` / omitted means inherit `EDGEQUAKE_EXTRACTION_LANGUAGE` or English."
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Workspace ID."
+              },
+              "is_active": {
+                "type": "boolean",
+                "description": "Whether the workspace is active."
+              },
+              "kg_schema_preset": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Domain preset id (SPEC-114), if set."
+              },
+              "llm_full_id": {
+                "type": "string",
+                "description": "Fully qualified LLM model ID (provider/model format)."
+              },
+              "llm_model": {
+                "type": "string",
+                "description": "LLM model for knowledge graph generation and summarization."
+              },
+              "llm_provider": {
+                "type": "string",
+                "description": "LLM provider (openai, ollama, lmstudio)."
+              },
+              "llm_resolution_source": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Provenance: `workspace` | `tenant` | `env` | `default`."
+              },
+              "llm_roles": {
+                "description": "SPEC-109: per-role LLM overrides (incl. reasoning_effort)."
+              },
+              "max_documents": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Maximum documents allowed.",
+                "minimum": 0
+              },
+              "name": {
+                "type": "string",
+                "description": "Workspace name."
+              },
+              "pdf_parser_backend": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PdfParserBackendName",
+                    "description": "Default PDF parser backend for this workspace\n(`vision` | `edgeparse` | `edgeparse-ocr` | `auto`; None means server default)."
+                  }
+                ]
+              },
+              "relation_edges": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/RelationEdgeDto"
+                },
+                "description": "Typed edge constraints (SPEC-114b). Absent/empty ⇒ unconstrained endpoints."
+              },
+              "relation_types": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Relation type allow-list (SPEC-114). None/empty means free-form relations."
+              },
+              "relation_types_strict": {
+                "type": "boolean",
+                "description": "When true, unknown relations remap (default true when list present)."
+              },
+              "resolved_embedding_dimension": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "resolved_embedding_model": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "resolved_embedding_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-123: effective embedding stack with provenance."
+              },
+              "resolved_llm_model": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "resolved_llm_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-123: effective LLM after Request>Workspace>Tenant>Env (LAW-123-8)."
+              },
+              "resolved_vision_llm_model": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "resolved_vision_llm_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "SPEC-123: effective vision LLM (VLM — not an embedding model)."
+              },
+              "slug": {
+                "type": "string",
+                "description": "URL-friendly slug."
+              },
+              "stats": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/WorkspaceStatsResponse",
+                    "description": "Aggregate stats for this workspace.\n\nOnly populated when the caller asks for them\n(`GET /tenants/{tenant_id}/workspaces?include_stats=true`), so existing\nclients see byte-identical payloads. Avoids the N+1 round-trip of\nlisting workspaces then calling `/workspaces/{id}/stats` for each one."
+                  }
+                ]
+              },
+              "tenant_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Parent tenant ID."
+              },
+              "updated_at": {
+                "type": "string",
+                "description": "Last update timestamp."
+              },
+              "vision_chart_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_extract_charts": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_extract_figures": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_extract_images": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "vision_figure_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_image_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_llm_model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Vision LLM model for PDF page image extraction (None if not configured)."
+              },
+              "vision_llm_provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Vision LLM provider for PDF → Markdown extraction (None if not configured)."
+              },
+              "vision_llm_resolution_source": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vision_page_system_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
             }
-          },
-          "entity_types": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Custom entity types configured for this workspace.\nNone means the workspace uses server default_entity_types."
-          },
-          "entity_types_strict": {
-            "type": "boolean",
-            "description": "When true, unknown types are remapped to OTHER/CONCEPT (default true)."
-          },
-          "extract_budget_mode": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-117: absent = inherit fleet env; present when custom ints stored."
-          },
-          "extract_max_entities": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "minimum": 0
-          },
-          "extract_max_records": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int32",
-            "minimum": 0
-          },
-          "extraction_language": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Configured extraction language override (SPEC-096).\n`null` / omitted means inherit `EDGEQUAKE_EXTRACTION_LANGUAGE` or English."
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Workspace ID."
-          },
-          "is_active": {
-            "type": "boolean",
-            "description": "Whether the workspace is active."
-          },
-          "kg_schema_preset": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Domain preset id (SPEC-114), if set."
-          },
-          "llm_full_id": {
-            "type": "string",
-            "description": "Fully qualified LLM model ID (provider/model format)."
-          },
-          "llm_model": {
-            "type": "string",
-            "description": "LLM model for knowledge graph generation and summarization."
-          },
-          "llm_provider": {
-            "type": "string",
-            "description": "LLM provider (openai, ollama, lmstudio)."
-          },
-          "llm_resolution_source": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Provenance: `workspace` | `tenant` | `env` | `default`."
-          },
-          "llm_roles": {
-            "description": "SPEC-109: per-role LLM overrides (incl. reasoning_effort)."
-          },
-          "max_documents": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "Maximum documents allowed.",
-            "minimum": 0
-          },
-          "name": {
-            "type": "string",
-            "description": "Workspace name."
-          },
-          "pdf_parser_backend": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PdfParserBackendName",
-                "description": "Default PDF parser backend for this workspace\n(`vision` | `edgeparse` | `edgeparse-ocr` | `auto`; None means server default)."
-              }
-            ]
-          },
-          "relation_edges": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/RelationEdgeDto"
-            },
-            "description": "Typed edge constraints (SPEC-114b). Absent/empty ⇒ unconstrained endpoints."
-          },
-          "relation_types": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Relation type allow-list (SPEC-114). None/empty means free-form relations."
-          },
-          "relation_types_strict": {
-            "type": "boolean",
-            "description": "When true, unknown relations remap (default true when list present)."
-          },
-          "resolved_embedding_dimension": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0
-          },
-          "resolved_embedding_model": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "resolved_embedding_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-123: effective embedding stack with provenance."
-          },
-          "resolved_llm_model": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "resolved_llm_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-123: effective LLM after Request>Workspace>Tenant>Env (LAW-123-8)."
-          },
-          "resolved_vision_llm_model": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "resolved_vision_llm_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SPEC-123: effective vision LLM (VLM — not an embedding model)."
-          },
-          "slug": {
-            "type": "string",
-            "description": "URL-friendly slug."
-          },
-          "stats": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WorkspaceStatsResponse",
-                "description": "Aggregate stats for this workspace.\n\nOnly populated when the caller asks for them\n(`GET /tenants/{tenant_id}/workspaces?include_stats=true`), so existing\nclients see byte-identical payloads. Avoids the N+1 round-trip of\nlisting workspaces then calling `/workspaces/{id}/stats` for each one."
-              }
-            ]
-          },
-          "tenant_id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Parent tenant ID."
-          },
-          "updated_at": {
-            "type": "string",
-            "description": "Last update timestamp."
-          },
-          "vision_chart_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_extract_charts": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_extract_figures": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_extract_images": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "vision_figure_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_image_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_llm_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Vision LLM model for PDF page image extraction (None if not configured)."
-          },
-          "vision_llm_provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Vision LLM provider for PDF → Markdown extraction (None if not configured)."
-          },
-          "vision_llm_resolution_source": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vision_page_system_prompt": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
-        },
-        "example": {
-          "id": "00000000-0000-0000-0000-000000000002",
-          "name": "Default Workspace",
-          "slug": "default",
-          "tenant_id": "00000000-0000-0000-0000-000000000001"
-        }
+        ],
+        "description": "Workspace response DTO.\n\nIncludes full model configuration (SPEC-032) for transparency."
       },
       "WorkspaceStatsResponse": {
         "type": "object",

@@ -105,7 +105,7 @@ export function ModelChip({ className }: ModelChipProps) {
           variant="ghost"
           size="sm"
           className={cn(
-            "h-8 max-w-[11rem] gap-1.5 px-2 text-xs font-medium",
+            "h-8 max-w-[11rem] min-w-0 overflow-hidden gap-1.5 px-2 text-xs font-medium",
             "text-muted-foreground hover:text-foreground",
             open && "bg-muted/70 text-foreground",
             className,
@@ -121,7 +121,7 @@ export function ModelChip({ className }: ModelChipProps) {
           ) : (
             <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
           )}
-          <span className="truncate">{triggerLabel}</span>
+          <span className="min-w-0 flex-1 truncate">{triggerLabel}</span>
           {!modelStreams ? (
             <span
               className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"

@@ -339,6 +339,19 @@ curl -X POST http://localhost:8080/api/v1/documents \
 
 ---
 
+## Extraction mode (SPEC-160)
+
+Optional on every ingest route above. Omit it and the document follows the workspace, then `EDGEQUAKE_EXTRACTION_MODE`, then `llm`.
+
+| Field | Where | Values |
+| ----- | ----- | ------ |
+| `extraction_mode` | JSON body or multipart field | `inherit`, `llm`, `decision` |
+| `decision_gate_preset` | multipart field, optional | `strict`, `balanced`, `recall` |
+
+`decision` requires the local decision backend. A missing model or a down backend returns **422** and stores nothing. See [Decision extraction](../concepts/decision-extraction.md).
+
+---
+
 ## API Endpoint Summary
 
 | Endpoint                          | Method | Content-Type               | Purpose                    |

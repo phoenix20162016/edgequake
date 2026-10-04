@@ -26,6 +26,8 @@ import {
   admitPartialMessage,
   admitSuccessMessage,
 } from "@/lib/documents/admit-copy";
+import type { ExtractionModeWord } from "@/constants/extraction-mode";
+import { decisionUploadErrorMessage } from "@/lib/upload/decision-upload-error";
 import { performFileUpload } from "@/lib/upload/perform-file-upload";
 import {
   createBoundedExecutor,
@@ -65,6 +67,8 @@ export interface UseFileUploadOptions {
   pdfParserBackend?: "vision" | "edgeparse" | "edgeparse-ocr" | "auto";
   /** SPEC-109: vision convert reasoning effort (multipart). */
   visionReasoningEffort?: string;
+  /** SPEC-160: per-upload extraction mode. Omit to inherit the workspace default. */
+  extractionMode?: ExtractionModeWord;
   /** SPEC-015V */
   visionExtractImages?: boolean;
   visionExtractCharts?: boolean;
@@ -129,6 +133,7 @@ export function useFileUpload(
   const {
     pdfParserBackend,
     visionReasoningEffort,
+    extractionMode,
     visionExtractImages,
     visionExtractCharts,
     visionExtractFigures,
@@ -321,6 +326,7 @@ export function useFileUpload(
                   uploadOptions?.pdfParserBackend ?? pdfParserBackend,
                 visionReasoningEffort:
                   uploadOptions?.visionReasoningEffort ?? visionReasoningEffort,
+                extractionMode,
                 visionExtractImages,
                 visionExtractCharts,
                 visionExtractFigures,
@@ -522,10 +528,12 @@ export function useFileUpload(
               successCount++;
             } catch (error) {
               // SPEC-132 LAW-132-3: per-file terminal error; executor finally frees the slot.
-              const errorMessage = perFileUploadErrorMessage(
-                error,
-                t("documents.upload.uploadFailed", "Upload failed"),
-              );
+              const errorMessage =
+                decisionUploadErrorMessage(error, t) ??
+                perFileUploadErrorMessage(
+                  error,
+                  t("documents.upload.uploadFailed", "Upload failed"),
+                );
               updateUploadingFile(uploadId, {
                 status: "error" as const,
                 progress: 100,
@@ -610,6 +618,7 @@ export function useFileUpload(
       onUploadStart,
       pdfParserBackend,
       visionReasoningEffort,
+      extractionMode,
       visionExtractImages,
       visionExtractCharts,
       visionExtractFigures,
@@ -695,6 +704,7 @@ export function useFileUpload(
                 force_reindex: true,
                 // SPEC-123 V4: preserve upload-level parser override on Replace.
                 pdf_parser_backend: pdfParserBackend,
+                extraction_mode: extractionMode,
               });
               queryClient.invalidateQueries({ queryKey: ["documents"] });
             } catch (err) {
@@ -706,6 +716,7 @@ export function useFileUpload(
                 batchTrackId: `upload_${Date.now()}_${Math.random()
                   .toString(36)
                   .slice(2, 10)}`,
+                extractionMode,
               });
               queryClient.invalidateQueries({ queryKey: ["documents"] });
             } catch (err) {
@@ -747,7 +758,13 @@ export function useFileUpload(
 
       doReplaceAll();
     },
-    [pendingDuplicates, handleFilesUpload, queryClient, pdfParserBackend],
+    [
+      pendingDuplicates,
+      handleFilesUpload,
+      queryClient,
+      pdfParserBackend,
+      extractionMode,
+    ],
   );
 
   /**

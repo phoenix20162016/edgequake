@@ -157,3 +157,29 @@ describe('embedding live catalog onChange contract', () => {
     expect(payload.embedding_dimension).toBeGreaterThan(0);
   });
 });
+
+describe('SPEC-160 reconfigure Decision payload', () => {
+  it('emits extraction mode and decision engine when those keys change', () => {
+    const payload = buildWorkspaceUpdatePayload({
+      useServerDefaults: true,
+      pdfParserBackend: 'none',
+      extractionLanguage: null,
+      entityTypes: [],
+      entityTypesStrict: true,
+      decisionEnabled: true,
+      decisionModel: 'tev1:latest',
+      decisionPreset: 'recall',
+      decisionPackSize: '6',
+      extractionMode: 'decision',
+      changedKeys: ['decisionEngine', 'extractionMode'],
+    });
+    expect(payload).toMatchObject({
+      decision_enabled: true,
+      decision_model: 'tev1:latest',
+      decision_gate_preset: 'recall',
+      decision_pack_size: 6,
+      extraction_mode: 'decision',
+    });
+    expect(payload.llm_model).toBeUndefined();
+  });
+});

@@ -210,6 +210,14 @@ pub enum ApiError {
     #[error("Pipeline error: {0}")]
     Pipeline(#[from] edgequake_pipeline::error::PipelineError),
 
+    /// Client error with a stable machine code (SPEC-160 `invalid_extraction_mode`, …).
+    #[error("{message}")]
+    Coded {
+        code: &'static str,
+        message: String,
+        status: StatusCode,
+    },
+
     /// Stateless parse API error (SPEC-094). Carries dotted `parse.*` code + HTTP status.
     #[error("{message}")]
     Parse {
@@ -242,7 +250,7 @@ impl ApiError {
             Self::Storage(error) => storage_error_status(error),
             Self::Llm(_) => StatusCode::BAD_GATEWAY,
             Self::Pipeline(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::Parse { status, .. } => *status,
+            Self::Parse { status, .. } | Self::Coded { status, .. } => *status,
         }
     }
 
@@ -270,6 +278,7 @@ impl ApiError {
             Self::Llm(_) => "llm",
             Self::Pipeline(_) => "pipeline",
             Self::Parse { .. } => "parse",
+            Self::Coded { .. } => "api",
             Self::Unauthorized(Some(_)) | Self::Forbidden(Some(_)) | Self::AccountLocked => "auth",
             _ => "api",
         }
@@ -360,6 +369,16 @@ impl ApiError {
                 diag
             }
             Self::Pipeline(e) => pipeline_error_diagnostic(e),
+            Self::Coded {
+                code,
+                message,
+                status,
+            } => json!({
+                "kind": "coded",
+                "code": code,
+                "message": message,
+                "status": status.as_u16(),
+            }),
             Self::Parse {
                 code,
                 message,
@@ -407,7 +426,25 @@ impl ApiError {
             Self::Storage(error) => storage_error_code(error),
             Self::Llm(_) => "LLM_ERROR",
             Self::Pipeline(_) => "PIPELINE_ERROR",
-            Self::Parse { code, .. } => code,
+            Self::Parse { code, .. } | Self::Coded { code, .. } => code,
+        }
+    }
+
+    /// 422 with a stable SPEC-160 code.
+    pub fn unprocessable_coded(code: &'static str, message: impl Into<String>) -> Self {
+        Self::Coded {
+            code,
+            message: message.into(),
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+        }
+    }
+
+    /// 400 with a stable SPEC-160 code.
+    pub fn bad_request_coded(code: &'static str, message: impl Into<String>) -> Self {
+        Self::Coded {
+            code,
+            message: message.into(),
+            status: StatusCode::BAD_REQUEST,
         }
     }
 }
@@ -1324,6 +1361,7 @@ mod tests {
                 feature: "test".into(),
             },
             ApiError::Internal("test".into()),
+            ApiError::unprocessable_coded("invalid_extraction_mode", "bad word"),
             ApiError::Parse {
                 code: "parse.too_large",
                 message: "too big".into(),

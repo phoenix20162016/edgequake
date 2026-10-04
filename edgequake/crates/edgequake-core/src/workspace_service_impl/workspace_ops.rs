@@ -208,6 +208,18 @@ impl WorkspaceServiceImpl {
             request.extract_max_records,
         )
         .map_err(Error::validation)?;
+        // SPEC-160: extraction mode + decision settings (future ingestions only)
+        crate::decision_metadata::apply_extraction_mode_fields(
+            &mut workspace.metadata,
+            &crate::decision_metadata::ExtractionModeFields {
+                extraction_mode: request.extraction_mode.as_deref(),
+                decision_gate_preset: request.decision_gate_preset.as_deref(),
+                decision_model: request.decision_model.as_deref(),
+                decision_pack_size: request.decision_pack_size,
+                decision_enabled: request.decision_enabled,
+            },
+        )
+        .map_err(Error::validation)?;
         // SPEC-015V: Vision extract toggles + prompts
         apply_vision_extract_metadata(
             &mut workspace.metadata,
@@ -500,6 +512,18 @@ impl WorkspaceServiceImpl {
             request.extract_budget_mode,
             request.extract_max_entities,
             request.extract_max_records,
+        )
+        .map_err(Error::validation)?;
+        // SPEC-160: extraction mode + decision settings (future ingestions only)
+        crate::decision_metadata::apply_extraction_mode_fields(
+            &mut workspace.metadata,
+            &crate::decision_metadata::ExtractionModeFields {
+                extraction_mode: request.extraction_mode.as_deref(),
+                decision_gate_preset: request.decision_gate_preset.as_deref(),
+                decision_model: request.decision_model.as_deref(),
+                decision_pack_size: request.decision_pack_size,
+                decision_enabled: request.decision_enabled,
+            },
         )
         .map_err(Error::validation)?;
         apply_vision_extract_metadata(

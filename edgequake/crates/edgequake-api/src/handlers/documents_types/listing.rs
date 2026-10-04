@@ -259,6 +259,10 @@ pub struct DocumentSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(example = "extracting")]
     pub cancelled_from_stage: Option<String>,
+
+    /// SPEC-160: extraction mode, who chose it, and decision-run counts.
+    #[serde(flatten)]
+    pub extraction: super::DocumentExtractionView,
 }
 
 // ── SPEC-031: Lightweight document search for the scope picker ───────────────

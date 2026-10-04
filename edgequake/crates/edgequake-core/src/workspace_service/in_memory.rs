@@ -412,6 +412,18 @@ impl WorkspaceService for InMemoryWorkspaceService {
             request.extract_max_records,
         )
         .map_err(Error::validation)?;
+        // SPEC-160: extraction mode + decision settings (future ingestions only)
+        crate::decision_metadata::apply_extraction_mode_fields(
+            &mut workspace.metadata,
+            &crate::decision_metadata::ExtractionModeFields {
+                extraction_mode: request.extraction_mode.as_deref(),
+                decision_gate_preset: request.decision_gate_preset.as_deref(),
+                decision_model: request.decision_model.as_deref(),
+                decision_pack_size: request.decision_pack_size,
+                decision_enabled: request.decision_enabled,
+            },
+        )
+        .map_err(Error::validation)?;
         edgequake_pdf::VisionExtractConfig::apply_to_metadata(
             &mut workspace.metadata,
             &edgequake_pdf::VisionExtractOverlay {
@@ -648,6 +660,18 @@ impl WorkspaceService for InMemoryWorkspaceService {
             request.extract_budget_mode,
             request.extract_max_entities,
             request.extract_max_records,
+        )
+        .map_err(Error::validation)?;
+        // SPEC-160: extraction mode + decision settings (future ingestions only)
+        crate::decision_metadata::apply_extraction_mode_fields(
+            &mut workspace.metadata,
+            &crate::decision_metadata::ExtractionModeFields {
+                extraction_mode: request.extraction_mode.as_deref(),
+                decision_gate_preset: request.decision_gate_preset.as_deref(),
+                decision_model: request.decision_model.as_deref(),
+                decision_pack_size: request.decision_pack_size,
+                decision_enabled: request.decision_enabled,
+            },
         )
         .map_err(Error::validation)?;
         edgequake_pdf::VisionExtractConfig::apply_to_metadata(
@@ -1121,6 +1145,11 @@ mod tests {
             extract_budget_mode: None,
             extract_max_entities: None,
             extract_max_records: None,
+            extraction_mode: None,
+            decision_gate_preset: None,
+            decision_model: None,
+            decision_pack_size: None,
+            decision_enabled: None,
             entity_type_colors: None,
             relation_types: None,
             relation_types_strict: None,
@@ -1266,6 +1295,11 @@ mod tests {
                 extract_budget_mode: None,
                 extract_max_entities: None,
                 extract_max_records: None,
+                extraction_mode: None,
+                decision_gate_preset: None,
+                decision_model: None,
+                decision_pack_size: None,
+            decision_enabled: None,
                 entity_type_colors: None,
                 relation_types: None,
                 relation_types_strict: None,
@@ -1310,6 +1344,11 @@ mod tests {
             extract_budget_mode: None,
             extract_max_entities: None,
             extract_max_records: None,
+            extraction_mode: None,
+            decision_gate_preset: None,
+            decision_model: None,
+            decision_pack_size: None,
+            decision_enabled: None,
             entity_type_colors: None,
             relation_types: None,
             relation_types_strict: None,

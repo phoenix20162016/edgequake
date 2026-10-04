@@ -47,6 +47,9 @@ pub async fn create_workspace(
 ) -> Result<(StatusCode, Json<WorkspaceResponse>), ApiError> {
     use edgequake_core::CreateWorkspaceRequest;
 
+    // SPEC-160: coded 400 before any state is touched.
+    request.extraction.validate()?;
+
     // SPEC-032: Fetch parent tenant to inherit default model configuration if not provided
     let tenant = state
         .workspace_service
@@ -128,6 +131,12 @@ pub async fn create_workspace(
         extract_budget_mode: request.extract_budget_mode.clone(),
         extract_max_entities: request.extract_max_entities,
         extract_max_records: request.extract_max_records,
+        // SPEC-160: extraction mode + decision settings
+        extraction_mode: request.extraction.extraction_mode.clone(),
+        decision_gate_preset: request.extraction.decision_gate_preset.clone(),
+        decision_model: request.extraction.decision_model.clone(),
+        decision_pack_size: request.extraction.decision_pack_size,
+        decision_enabled: request.extraction.decision_enabled,
         // SPEC-102: entity type colors for graph visualization
         entity_type_colors: request.entity_type_colors.clone(),
         // SPEC-114 / 114b: relation types + schema preset + typed edges
@@ -347,6 +356,9 @@ pub async fn update_workspace(
 ) -> Result<Json<WorkspaceResponse>, ApiError> {
     use edgequake_core::UpdateWorkspaceRequest;
 
+    // SPEC-160: coded 400 before any state is touched.
+    request.extraction.validate()?;
+
     // BR0201: verify workspace belongs to requesting tenant before mutating
     verify_workspace_tenant_access(&state, workspace_id, &tenant_ctx).await?;
 
@@ -388,6 +400,11 @@ pub async fn update_workspace(
         extract_budget_mode: request.extract_budget_mode,
         extract_max_entities: request.extract_max_entities,
         extract_max_records: request.extract_max_records,
+        extraction_mode: request.extraction.extraction_mode,
+        decision_gate_preset: request.extraction.decision_gate_preset,
+        decision_model: request.extraction.decision_model,
+        decision_pack_size: request.extraction.decision_pack_size,
+        decision_enabled: request.extraction.decision_enabled,
         entity_type_colors: request.entity_type_colors,
         relation_types: request.relation_types,
         relation_types_strict: request.relation_types_strict,
@@ -563,6 +580,9 @@ pub async fn delete_workspace(
             (0, 0)
         }
     };
+
+    // 3a. SPEC-160: decision cache and review rows follow the workspace (EC-160-37).
+    crate::services::decision_cleanup::purge_decision_workspace(&state, &workspace_id_str).await;
 
     // 3b. Delete workspace-scoped PDF rows so duplicate detection and document
     // listings cannot surface stale uploads after the workspace is gone.

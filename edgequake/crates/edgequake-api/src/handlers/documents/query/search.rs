@@ -419,6 +419,7 @@ mod tests {
             eta_basis: None,
             query_ready: None,
             cancelled_from_stage: None,
+            extraction: Default::default(),
         };
         let merged = merge_search_candidates(vec![], vec![search_candidate_from_summary(&summary)]);
         let items = filter_search_candidates(merged, Some("ai"), Some("completed"));

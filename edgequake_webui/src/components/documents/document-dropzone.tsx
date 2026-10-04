@@ -6,12 +6,16 @@ import type React from 'react';
 import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { DropzoneInputProps, DropzoneRootProps } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
+import { UploadExtractionModeSelect } from '@/components/documents/upload-extraction-mode-select';
+import type {
+  ExtractionModeWord,
+  UploadExtractionChoice,
+} from '@/constants/extraction-mode';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import {
   shouldShowVisionExtractControls,
@@ -21,7 +25,7 @@ import {
 import { useLlmModels } from '@/hooks/use-providers';
 import { useTranslation } from 'react-i18next';
 import { MAX_UPLOAD_LABEL } from '@/lib/api/upload-limits';
-import { formatWorkspaceDefaultPdfParserLabel } from '@/lib/pdf/resolve-pdf-parser-backend';
+import { formatWorkspaceDefaultPdfParserLabel, formatWorkspaceDefaultPdfParserShortLabel } from '@/lib/pdf/resolve-pdf-parser-backend';
 import {
   effectiveEffortWhenAuto,
   modelSupportsThinking,
@@ -56,6 +60,12 @@ export interface DocumentDropzoneProps {
    * (e.g. Workspace Default (Vision)). Falls back to server → Vision when unset.
    */
   workspacePdfParserBackend?: PdfParserBackend | null;
+  /** SPEC-160: per-upload extraction choice. Omit the handler to hide the select. */
+  extractionMode?: UploadExtractionChoice;
+  onExtractionModeChange?: (value: UploadExtractionChoice) => void;
+  /** SPEC-160: mode a default upload would get, and the workspace's decision model. */
+  workspaceExtractionMode?: ExtractionModeWord | null;
+  workspaceDecisionModel?: string | null;
   /** SPEC-109: optional vision reasoning effort for VLM convert. */
   visionReasoningEffort?: string;
   onVisionReasoningEffortChange?: (value: string | undefined) => void;
@@ -102,6 +112,17 @@ function ParserSelect({
     t,
     workspacePdfParserBackend,
   );
+  const workspaceDefaultTrigger = compact
+    ? formatWorkspaceDefaultPdfParserShortLabel(t, workspacePdfParserBackend)
+    : workspaceDefaultLabel;
+  const parserWords: Record<Exclude<UploadPdfParserChoice, 'default'>, string> = {
+    vision: t('documents.upload.pdfParserVision', 'Vision'),
+    edgeparse: t('documents.upload.pdfParserEdgeParse', 'EdgeParse'),
+    'edgeparse-ocr': t('documents.upload.pdfParserEdgeParseOcr', 'EdgeParse + OCR'),
+    auto: t('documents.upload.pdfParserAuto', 'Auto'),
+  };
+  const triggerText =
+    pdfParserBackend === 'default' ? workspaceDefaultTrigger : parserWords[pdfParserBackend];
   return (
     <div
       className={cn(
@@ -136,10 +157,10 @@ function ParserSelect({
           )}
           data-testid="spec038-upload-parser-select"
           title={
-            pdfParserBackend === 'default' ? workspaceDefaultLabel : undefined
+            pdfParserBackend === 'default' ? workspaceDefaultLabel : triggerText
           }
         >
-          <SelectValue />
+          <span className="min-w-0 flex-1 truncate text-left">{triggerText}</span>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="default">{workspaceDefaultLabel}</SelectItem>
@@ -209,6 +230,21 @@ function FormatChips({ label, imagesLabel }: { label: string; imagesLabel: strin
   );
 }
 
+/**
+ * Width policy shared by every select in the settings bar:
+ * stack fills its column, row shrinks (and truncates) to share one line,
+ * free keeps a readable minimum and goes full width on phones.
+ */
+function settingTriggerWidth(
+  layout: 'stack' | 'row' | 'free',
+  /** A literal Tailwind class (e.g. `max-w-[16rem]`) so the JIT scanner sees it. */
+  maxWidthClass: string,
+): string {
+  if (layout === 'stack') return 'w-full max-w-none';
+  if (layout === 'row') return cn('w-full min-w-0', maxWidthClass);
+  return cn('min-w-[11rem] w-auto max-sm:w-full max-sm:max-w-none', maxWidthClass);
+}
+
 function DropzoneSettingsBar({
   stacked,
   label,
@@ -224,7 +260,9 @@ function DropzoneSettingsBar({
     <div
       className={cn(
         'flex shrink-0 cursor-auto gap-2 border-t border-border/70 bg-background px-3 py-2',
-        stacked ? 'flex-col items-stretch' : 'flex-row items-center justify-between',
+        stacked
+          ? 'flex-col items-stretch'
+          : 'flex-row items-center justify-between max-sm:flex-col max-sm:items-stretch',
       )}
       data-testid="upload-parser-vision-combo"
       onClick={(event) => event.stopPropagation()}
@@ -236,7 +274,9 @@ function DropzoneSettingsBar({
       <div
         className={cn(
           'flex min-w-0 items-center gap-2',
-          stacked ? 'w-full flex-col items-stretch' : 'justify-end',
+          stacked
+            ? 'w-full flex-col items-stretch'
+            : 'justify-end max-sm:w-full max-sm:flex-col max-sm:items-stretch',
         )}
       >
         {children}
@@ -265,6 +305,10 @@ export function DocumentDropzone({
   pdfParserBackend,
   onPdfParserBackendChange,
   workspacePdfParserBackend,
+  extractionMode = 'default',
+  onExtractionModeChange,
+  workspaceExtractionMode,
+  workspaceDecisionModel,
   visionReasoningEffort,
   onVisionReasoningEffortChange,
   visionExtract,
@@ -400,6 +444,7 @@ export function DocumentDropzone({
           { limit: MAX_UPLOAD_LABEL },
         );
 
+  const fillLayoutKind = fillIsStack ? 'stack' : fillIsRow ? 'row' : 'free';
   const settings = (
     <>
       <ParserSelect
@@ -410,13 +455,26 @@ export function DocumentDropzone({
         hideSideLabel={collapsed || Boolean(fill)}
         triggerClassName={
           compact || collapsed || fill
-            ? cn(
-                'h-7 text-xs',
-                fillIsStack ? 'w-full max-w-none' : 'min-w-[11rem] w-auto max-w-[16rem]',
-              )
+            ? cn('h-7 text-xs', settingTriggerWidth(fillLayoutKind, 'max-w-[16rem]'))
             : 'min-w-[13.5rem] w-auto max-w-[18rem] h-9'
         }
       />
+      {onExtractionModeChange ? (
+        <UploadExtractionModeSelect
+          value={extractionMode}
+          onValueChange={onExtractionModeChange}
+          workspaceMode={workspaceExtractionMode}
+          decisionModel={workspaceDecisionModel}
+          compact={compact || collapsed || Boolean(fill)}
+          hideSideLabel={collapsed || Boolean(fill)}
+          singleLineWarning={fillIsRow}
+          triggerClassName={
+            fill || compact || collapsed
+              ? settingTriggerWidth(fillLayoutKind, 'max-w-[16rem]')
+              : undefined
+          }
+        />
+      ) : null}
       {showVisionPanel && visionExtract && onVisionExtractChange ? (
         <VisionSettingsPanel
           value={visionExtract}
@@ -464,7 +522,7 @@ export function DocumentDropzone({
               'absolute inset-0 rounded-none border border-dashed',
               fillIsRow
                 ? 'flex-row items-center gap-2 px-3 py-1.5'
-                : 'min-h-0 flex-col items-stretch justify-start gap-0 p-0',
+                : 'min-h-0 flex-col items-stretch justify-start gap-0 overflow-y-auto p-0',
               isDragActive
                 ? 'border-primary bg-primary/5 ring-2 ring-inset ring-primary/20'
                 : 'border-muted-foreground/40 bg-muted/15 hover:border-primary/50 hover:bg-muted/25',
@@ -636,7 +694,8 @@ export function DocumentDropzone({
           </div>
           <div
             className={cn(
-              'flex shrink-0 items-center gap-2',
+              'flex items-center gap-2',
+              fillIsRow ? 'min-w-0 flex-[3]' : 'shrink-0',
               !fill &&
                 'max-sm:basis-full max-sm:border-t max-sm:border-border/50 max-sm:pt-1.5 max-sm:pl-0 sm:border-l sm:border-border/70 sm:pl-3',
             )}

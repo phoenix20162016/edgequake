@@ -6,6 +6,7 @@ use edgequake_llm::traits::{EmbeddingProvider, LLMProvider};
 
 use crate::adaptive_chunking::ChunkingPolicy;
 use crate::chunker::{ChunkOptions, ChunkStrategy, ChunkerConfig};
+use crate::extraction_mode::ExtractionMode;
 use crate::extractor::{EntityExtractor, GleaningConfig, GleaningExtractor, LLMExtractor};
 use crate::pipeline::{Pipeline, PipelineConfig};
 use crate::prompts::{EntityExtractionSchema, ExtractionCaps};
@@ -47,6 +48,15 @@ pub struct IngestionPipelineOptions {
     pub reasoning_effort: Option<String>,
     /// SPEC-117: resolved extract caps (`None` ≡ fleet env / 40/100 at build time).
     pub extraction_caps: Option<ExtractionCaps>,
+    /// SPEC-160: resolved extraction mode (document > workspace > env > `llm`).
+    ///
+    /// `build_ingestion_pipeline` builds the LLM extractor only. A caller that
+    /// resolves `Decision` must wire a decision extractor itself (LAW-160-4).
+    pub extraction_mode: ExtractionMode,
+    /// SPEC-160: document-level overrides as sent at upload
+    /// (`extraction_mode`, `decision_gate_preset`). `None` ≡ the document set nothing.
+    /// The workspace pipeline factory resolves them against workspace and env.
+    pub document_extraction: Option<serde_json::Value>,
 }
 
 impl IngestionPipelineOptions {
@@ -64,7 +74,33 @@ impl IngestionPipelineOptions {
             extraction_language: crate::prompts::DEFAULT_EXTRACTION_LANGUAGE.to_string(),
             reasoning_effort: None,
             extraction_caps: None,
+            extraction_mode: ExtractionMode::default(),
+            document_extraction: None,
         }
+    }
+
+    /// Attach the document-level extraction overrides (SPEC-160).
+    ///
+    /// Reads only `extraction_mode` and `decision_gate_preset`; an object with
+    /// neither key is stored as `None`.
+    pub fn with_document_extraction_from(mut self, metadata: &serde_json::Value) -> Self {
+        let keep = [
+            crate::extraction_mode::META_EXTRACTION_MODE,
+            crate::extractor::decision::gate::META_DECISION_GATE_PRESET,
+        ];
+        let picked: serde_json::Map<String, serde_json::Value> = keep
+            .iter()
+            .filter_map(|k| metadata.get(*k).map(|v| (k.to_string(), v.clone())))
+            .collect();
+        self.document_extraction =
+            (!picked.is_empty()).then_some(serde_json::Value::Object(picked));
+        self
+    }
+
+    /// Set the resolved extraction mode (SPEC-160).
+    pub fn with_extraction_mode(mut self, mode: ExtractionMode) -> Self {
+        self.extraction_mode = mode;
+        self
     }
 
     /// Set workspace chunking policy (SPEC-116). Document `chunk_options` still win last.
@@ -183,6 +219,51 @@ pub fn build_chunker_config_with_policy(
     config
 }
 
+/// Chunking and extraction knobs shared by every extraction mode (DRY).
+fn ingestion_pipeline_config(options: &IngestionPipelineOptions) -> PipelineConfig {
+    let chunker_config = build_chunker_config_with_policy(
+        options.document_size_bytes,
+        options.chunk_strategy,
+        options.chunking_policy.as_ref(),
+        options.chunk_options.as_ref(),
+    );
+    let provider = options.llm_provider.as_deref().unwrap_or("");
+    PipelineConfig {
+        chunker: chunker_config,
+        chunk_strategy: options.chunk_strategy,
+        ..PipelineConfig::from_env_for_provider(provider)
+    }
+}
+
+/// Build a pipeline whose extractor the caller supplies (SPEC-160 decision mode).
+///
+/// No chat LLM is involved: the only model call is the extractor's, so text
+/// does not leave the decision backend (LAW-160-3). Gleaning does not apply:
+/// a closed decision has no "missed entity" pass.
+///
+/// Set `options.llm_provider` to the extractor's provider name so local
+/// concurrency and timeout profiles apply.
+pub fn build_pipeline_with_extractor(
+    extractor: Arc<dyn EntityExtractor>,
+    embedding: Arc<dyn EmbeddingProvider>,
+    options: IngestionPipelineOptions,
+) -> Pipeline {
+    let pipeline_config = ingestion_pipeline_config(&options);
+    tracing::info!(
+        doc_size_bytes = options.document_size_bytes,
+        chunk_size = pipeline_config.chunker.chunk_size,
+        chunk_strategy = options.chunk_strategy.as_str(),
+        extractor = extractor.name(),
+        extractor_model = extractor.model_name(),
+        chunk_timeout_secs = pipeline_config.chunk_extraction_timeout_secs,
+        max_concurrent_extractions = pipeline_config.max_concurrent_extractions,
+        "Building ingestion pipeline with a custom extractor"
+    );
+    Pipeline::new(pipeline_config)
+        .with_extractor(extractor)
+        .with_embedding_provider(embedding)
+}
+
 /// Build a document-scoped ingestion pipeline with adaptive chunking and optional gleaning.
 pub fn build_ingestion_pipeline(
     llm: Arc<dyn LLMProvider>,
@@ -190,19 +271,8 @@ pub fn build_ingestion_pipeline(
     entity_schema: EntityExtractionSchema,
     options: IngestionPipelineOptions,
 ) -> Pipeline {
-    let chunker_config = build_chunker_config_with_policy(
-        options.document_size_bytes,
-        options.chunk_strategy,
-        options.chunking_policy.as_ref(),
-        options.chunk_options.as_ref(),
-    );
-
     let provider = options.llm_provider.as_deref().unwrap_or("");
-    let pipeline_config = PipelineConfig {
-        chunker: chunker_config,
-        chunk_strategy: options.chunk_strategy,
-        ..PipelineConfig::from_env_for_provider(provider)
-    };
+    let pipeline_config = ingestion_pipeline_config(&options);
 
     let (enable_gleaning, max_gleaning) = crate::pipeline::resolve_gleaning_for_provider(
         provider,
@@ -289,6 +359,24 @@ mod tests {
     use super::*;
     use edgequake_llm::MockProvider;
 
+    // T-160-U67 — only the two SPEC-160 keys travel; other metadata is dropped.
+    #[test]
+    fn document_extraction_keeps_two_keys() {
+        let meta = serde_json::json!({
+            "extraction_mode": "decision",
+            "decision_gate_preset": "recall",
+            "title": "x"
+        });
+        let o =
+            IngestionPipelineOptions::from_document_size(10).with_document_extraction_from(&meta);
+        let kept = o.document_extraction.unwrap();
+        assert_eq!(kept.as_object().unwrap().len(), 2);
+        assert!(kept.get("title").is_none());
+        let none = IngestionPipelineOptions::from_document_size(10)
+            .with_document_extraction_from(&serde_json::json!({"title": "x"}));
+        assert!(none.document_extraction.is_none());
+    }
+
     #[test]
     fn large_document_gets_smaller_chunks() {
         // WHY: adaptive_chunk_size(150_000) = 600, but MockProvider.max_tokens() = 512
@@ -308,6 +396,15 @@ mod tests {
             256,
             "Expected chunk_size to be capped at 256 by MockProvider.max_tokens()=512"
         );
+    }
+
+    // T-160-U11 — options default to the LLM mode and carry an explicit mode.
+    #[test]
+    fn spec160_options_default_to_llm_and_carry_mode() {
+        let opts = IngestionPipelineOptions::from_document_size(1_000);
+        assert_eq!(opts.extraction_mode, ExtractionMode::Llm);
+        let opts = opts.with_extraction_mode(ExtractionMode::Decision);
+        assert_eq!(opts.extraction_mode, ExtractionMode::Decision);
     }
 
     #[test]

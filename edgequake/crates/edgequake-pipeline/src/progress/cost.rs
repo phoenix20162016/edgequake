@@ -189,6 +189,24 @@ impl Clone for CostTracker {
 }
 
 /// Default model pricing configurations.
+/// Provider-name prefix of decision backends (SPEC-160).
+pub const DECISION_PROVIDER_PREFIX: &str = "decision:";
+
+/// Pricing for the model an extractor reports (SSOT for both extraction paths).
+///
+/// A decision backend runs on hardware the operator owns, so its cost is zero
+/// (SPEC-160 EC-160-45). Any other unknown model falls back to the
+/// gpt-4.1-nano estimate, as before.
+pub fn pricing_for_extractor(model_name: &str, provider_name: &str) -> ModelPricing {
+    if provider_name.starts_with(DECISION_PROVIDER_PREFIX) {
+        return ModelPricing::new(model_name, 0.0, 0.0);
+    }
+    default_model_pricing()
+        .get(model_name)
+        .cloned()
+        .unwrap_or_else(|| ModelPricing::new("gpt-4.1-nano", 0.00015, 0.0006))
+}
+
 pub fn default_model_pricing() -> HashMap<String, ModelPricing> {
     let mut pricing = HashMap::new();
 
@@ -340,5 +358,16 @@ mod tests {
         assert!(pricing.contains_key("gpt-4o-mini"));
         assert!(pricing.contains_key("claude-3-haiku"));
         assert!(pricing.contains_key("text-embedding-3-small"));
+    }
+
+    // T-160-U52 — a decision backend costs nothing; other unknown models keep the estimate.
+    #[test]
+    fn decision_provider_is_free() {
+        let free = pricing_for_extractor("tev1:0.8b", "decision:ollama");
+        assert_eq!(free.calculate_cost(10_000, 100), 0.0);
+        let est = pricing_for_extractor("never-heard-of-it", "openai");
+        assert!(est.calculate_cost(1_000, 1_000) > 0.0);
+        let known = pricing_for_extractor("gpt-4.1", "openai");
+        assert_eq!(known.model, "gpt-4.1");
     }
 }

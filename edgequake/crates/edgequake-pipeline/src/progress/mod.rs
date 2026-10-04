@@ -22,7 +22,10 @@ mod stage_status;
 
 pub use stage_status::StageStatus;
 
-pub use cost::{default_model_pricing, CostBreakdown, CostTracker, ModelPricing, OperationCost};
+pub use cost::{
+    default_model_pricing, pricing_for_extractor, CostBreakdown, CostTracker, ModelPricing,
+    OperationCost, DECISION_PROVIDER_PREFIX,
+};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

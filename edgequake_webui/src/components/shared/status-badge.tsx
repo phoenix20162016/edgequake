@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 export type StatusTone = 'neutral' | 'success' | 'warning' | 'info' | 'danger';
 
-const TONE_CLASS: Record<StatusTone, string> = {
+export const TONE_CLASS: Record<StatusTone, string> = {
   neutral: 'bg-muted text-muted-foreground border-border',
   success: 'bg-success/15 text-success border-success/30',
   warning: 'bg-warning/20 text-warning-foreground border-warning/40',

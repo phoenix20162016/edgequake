@@ -7,6 +7,7 @@ import {
   uploadFile,
   uploadPdfDocument,
 } from "@/lib/api/edgequake";
+import type { ExtractionModeWord } from "@/constants/extraction-mode";
 import type { PdfUploadOptions } from "@/types";
 import type { MultipartUploadProgress } from "@/lib/upload/multipart-upload-client";
 
@@ -31,6 +32,8 @@ export interface PerformFileUploadOptions {
   visionImageSystemPrompt?: string;
   visionChartSystemPrompt?: string;
   visionFigureSystemPrompt?: string;
+  /** SPEC-160: per-upload extraction mode. Omit to inherit the workspace default. */
+  extractionMode?: ExtractionModeWord;
   onUploadProgress?: (progress: MultipartUploadProgress) => void;
 }
 
@@ -83,6 +86,7 @@ export async function performFileUpload(
       vision_image_system_prompt: options.visionImageSystemPrompt,
       vision_chart_system_prompt: options.visionChartSystemPrompt,
       vision_figure_system_prompt: options.visionFigureSystemPrompt,
+      extraction_mode: options.extractionMode,
       onUploadProgress: options.onUploadProgress,
       metadata: options.expectedBatchCount
         ? { expected_batch_count: options.expectedBatchCount }
@@ -105,6 +109,7 @@ export async function performFileUpload(
 
   if (kind === "image") {
     const fileResponse = await uploadFile(file, {
+      extraction_mode: options.extractionMode,
       onUploadProgress: options.onUploadProgress,
     });
     return {
@@ -135,6 +140,7 @@ export async function performFileUpload(
     title: file.name,
     async_processing: true,
     track_id: options.batchTrackId,
+    extraction_mode: options.extractionMode,
     metadata: options.expectedBatchCount
       ? { expected_batch_count: options.expectedBatchCount }
       : undefined,

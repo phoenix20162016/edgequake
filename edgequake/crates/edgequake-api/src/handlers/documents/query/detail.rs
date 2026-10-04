@@ -583,5 +583,8 @@ async fn get_document_inner(
         pdf_id,
         multimodal_summary,
         multimodal_items,
+        extraction: meta_obj
+            .map(crate::handlers::documents_types::DocumentExtractionView::from_metadata)
+            .unwrap_or_default(),
     }))
 }

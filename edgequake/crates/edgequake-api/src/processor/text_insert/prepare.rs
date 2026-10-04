@@ -238,12 +238,19 @@ impl DocumentTaskProcessor {
             ingestion_options
         };
 
+        // SPEC-160: document-level extraction mode / gate preset (resolved by the factory).
+        let ingestion_options = match data.metadata.as_ref() {
+            Some(meta) => ingestion_options.with_document_extraction_from(meta),
+            None => ingestion_options,
+        };
+
         let pipeline = if self.strict_workspace_mode {
             match self
                 .get_workspace_pipeline_for_ingestion(
                     workspace_id,
                     ingestion_options.clone(),
                     crate::workspace_pipeline_factory::PipelineFallbackPolicy::Strict,
+                    cancel_token.clone(),
                 )
                 .await
             {
@@ -256,12 +263,14 @@ impl DocumentTaskProcessor {
                         "OODA-16: Failed to create workspace pipeline in strict mode"
                     );
                     // Update document status to Failed with clear error message
+                    // SPEC-160: a mode error is not a provider error; keep its coded text.
+                    let message = if crate::workspace_pipeline_decision::is_mode_error(&e) {
+                        e.clone()
+                    } else {
+                        format!("Workspace provider error: {}", e)
+                    };
                     let _ = self
-                        .update_document_status(
-                            &document_id,
-                            "failed",
-                            Some(&format!("Workspace provider error: {}", e)),
-                        )
+                        .update_document_status(&document_id, "failed", Some(&message))
                         .await;
                     return Err(TaskError::Process(format!(
                         "Workspace pipeline error: {}",
@@ -275,11 +284,19 @@ impl DocumentTaskProcessor {
                     workspace_id,
                     ingestion_options.clone(),
                     crate::workspace_pipeline_factory::PipelineFallbackPolicy::LenientGlobal,
+                    cancel_token.clone(),
                 )
                 .await
             {
                 Ok(p) => p,
                 Err(e) => {
+                    // SPEC-160 (LAW-160-4): a mode error never falls back to the LLM pipeline.
+                    if crate::workspace_pipeline_decision::is_mode_error(&e) {
+                        let _ = self
+                            .update_document_status(&document_id, "failed", Some(&e))
+                            .await;
+                        return Err(TaskError::Process(e));
+                    }
                     // SPEC-046: never silently drop Semantic (V) onto Recursive.
                     if ingestion_options.chunk_strategy.requires_embeddings() {
                         error!(

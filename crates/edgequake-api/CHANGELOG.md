@@ -6,6 +6,7 @@ All notable changes to the EdgeQuake API crate are tracked here. See the root CH
 
 ### Added
 
+- **SPEC-160** extraction-mode admission, workspace fields, document `decision_stats`, and `GET /api/v1/decision/status` plus `GET /api/v1/decision/models`.
 - CHANGELOG.md for API crate.
 
 ## [0.1.0] - 2026-02-12

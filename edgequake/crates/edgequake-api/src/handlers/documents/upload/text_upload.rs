@@ -11,7 +11,8 @@ use crate::state::AppState;
 
 use crate::handlers::documents::upload::{
     admit_document_for_processing, parse_upload_chunk_fields, DocumentAdmissionInput,
-    DocumentAdmissionOutcome, GleaningAdmissionOptions, ADMISSION_ACCEPTED_STATUS,
+    DocumentAdmissionOutcome, GleaningAdmissionOptions, UploadExtraction,
+    ADMISSION_ACCEPTED_STATUS,
 };
 use crate::handlers::documents_types::*;
 
@@ -66,6 +67,12 @@ pub async fn upload_document(
     )
     .map_err(crate::error::ApiError::ValidationError)?;
 
+    // SPEC-160: JSON body words travel in the metadata envelope, like the form fields.
+    let extraction = UploadExtraction {
+        mode: request.extraction_mode.clone(),
+        gate_preset: request.decision_gate_preset.clone(),
+    };
+
     let outcome = admit_document_for_processing(
         &state,
         &tenant_ctx,
@@ -78,7 +85,7 @@ pub async fn upload_document(
             mime_type: Some("text/markdown".to_string()),
             raw_byte_size: content_length,
             content_hash,
-            custom_metadata: request.metadata,
+            custom_metadata: extraction.merge_into(request.metadata),
             track_id: request.track_id,
             expected_batch_count: None,
             gleaning: GleaningAdmissionOptions::new(request.enable_gleaning, request.max_gleaning),
@@ -111,6 +118,8 @@ pub async fn upload_document(
                 queue_position: None,
                 eta_seconds: None,
                 eta_basis: None,
+                extraction_mode: None,
+                extraction_mode_source: None,
             }),
         )),
         DocumentAdmissionOutcome::Accepted(accepted) => Ok((
@@ -131,6 +140,8 @@ pub async fn upload_document(
                     .queue
                     .as_ref()
                     .map(|q| q.basis.as_str().to_string()),
+                extraction_mode: Some(accepted.extraction.mode_str().to_string()),
+                extraction_mode_source: Some(accepted.extraction.source_str().to_string()),
             }),
         )),
     }

@@ -296,6 +296,7 @@ pub async fn list_relational_document_summaries_limited(
                 eta_basis: None,
                 query_ready: None,
                 cancelled_from_stage: None,
+                extraction: Default::default(),
             }
         })
         .collect();
@@ -1047,6 +1048,7 @@ mod tests {
             eta_basis: None,
             query_ready: None,
             cancelled_from_stage: None,
+            extraction: Default::default(),
         }];
 
         let pg = vec![DocumentSummary {
@@ -1083,6 +1085,7 @@ mod tests {
             eta_basis: None,
             query_ready: None,
             cancelled_from_stage: None,
+            extraction: Default::default(),
         }];
 
         let merged = merge_document_summaries(kv, pg);
@@ -1128,6 +1131,7 @@ mod tests {
             eta_basis: None,
             query_ready: None,
             cancelled_from_stage: None,
+            extraction: Default::default(),
         }];
 
         let pg = vec![DocumentSummary {
@@ -1164,6 +1168,7 @@ mod tests {
             eta_basis: None,
             query_ready: None,
             cancelled_from_stage: None,
+            extraction: Default::default(),
         }];
 
         let merged = merge_document_summaries(kv, pg);
@@ -1207,6 +1212,7 @@ mod tests {
             eta_basis: None,
             query_ready: None,
             cancelled_from_stage: None,
+            extraction: Default::default(),
         }
     }
 

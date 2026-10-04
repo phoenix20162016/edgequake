@@ -39,6 +39,7 @@ pub mod cache;
 pub mod chunking_metadata;
 pub mod config;
 pub mod conversation_service;
+pub mod decision_metadata;
 pub mod entity_type_colors;
 pub mod env;
 pub mod error;

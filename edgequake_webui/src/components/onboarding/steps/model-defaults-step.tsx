@@ -1,8 +1,10 @@
 'use client';
 
 import { ServerDefaultsCard } from '@/components/onboarding/server-defaults-card';
+import { ReasoningEffortSelect } from '@/components/settings/reasoning-effort-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { DecisionEngineFields } from '@/components/workspace/decision-engine-fields';
 import {
   EmbeddingModelSelector,
   type EmbeddingSelection,
@@ -11,16 +13,17 @@ import {
   LLMModelSelector,
   type LLMSelection,
 } from '@/components/workspace/llm-model-selector';
-import { ReasoningEffortSelect } from '@/components/settings/reasoning-effort-select';
 import { useInheritedModelDefaults } from '@/hooks/use-inherited-model-defaults';
+import { useDecisionModels, useDecisionStatus } from '@/hooks/use-decision-status';
 import { useLlmModels } from '@/hooks/use-providers';
+import { formatInheritModelLabel } from '@/lib/onboarding/inherited-defaults';
+import type { WizardDraft } from '@/lib/onboarding/wizard-state';
 import {
   effectiveEffortWhenAuto,
   modelSupportsThinking,
   supportedReasoningEffortsForModel,
 } from '@/lib/settings/reasoning-effort-supported';
-import { formatInheritModelLabel } from '@/lib/onboarding/inherited-defaults';
-import type { WizardDraft } from '@/lib/onboarding/wizard-state';
+import { draftIssue, type ExtractionModeDraft } from '@/lib/workspace/extraction-mode-draft';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -85,6 +88,16 @@ export function ModelDefaultsStep({
   );
 
   const { isLoading, hasConfiguredDefaults } = inherited;
+  const decisionStatus = useDecisionStatus(draft.decisionModel);
+  const decisionModels = useDecisionModels();
+  const decisionDraft: ExtractionModeDraft = {
+    mode: 'inherit',
+    enabled: draft.decisionEnabled,
+    preset: draft.decisionPreset,
+    model: draft.decisionModel,
+    packSize: draft.decisionPackSize,
+  };
+  const decisionIssue = draftIssue(decisionDraft, decisionStatus.data?.limits);
 
   // Only force Advanced after defaults have finished loading and are incomplete.
   useEffect(() => {
@@ -147,6 +160,36 @@ export function ModelDefaultsStep({
           onAdvancedOpenChange(true);
         }}
       />
+
+      <div data-testid="wizard-decision-engine">
+        <DecisionEngineFields
+          draft={decisionDraft}
+          onChange={(patch) =>
+            onChange({
+              ...(patch.enabled !== undefined ? { decisionEnabled: patch.enabled } : {}),
+              ...(patch.model !== undefined ? { decisionModel: patch.model } : {}),
+              ...(patch.preset !== undefined ? { decisionPreset: patch.preset } : {}),
+              ...(patch.packSize !== undefined ? { decisionPackSize: patch.packSize } : {}),
+            })
+          }
+          limits={decisionStatus.data?.limits}
+          issue={decisionIssue}
+          forcedOn={decisionStatus.data?.activation === 'forced'}
+          lockedByAdmin={decisionStatus.data?.activation === 'locked'}
+          models={decisionModels.data?.models}
+          modelsLoading={decisionModels.isLoading}
+          host={
+            decisionStatus.data?.provider?.base_url_host ??
+            decisionStatus.data?.backend?.base_url_host ??
+            null
+          }
+          status={decisionStatus.data}
+          statusLoading={decisionStatus.isLoading}
+          statusError={decisionStatus.isError}
+          onRetryStatus={() => void decisionStatus.refetch()}
+          statusRetrying={decisionStatus.isFetching}
+        />
+      </div>
 
       {showAdvanced ? (
         <div className="space-y-3" data-testid="wizard-models-advanced">

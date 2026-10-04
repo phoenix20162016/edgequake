@@ -191,7 +191,7 @@ export function UploadProgressList({
                     <Progress value={uploadFile.progress} className="h-1 mt-1" />
                   )}
                   {uploadFile.error && (
-                    <p className="text-xs text-red-500 mt-1">{uploadFile.error}</p>
+                    <p className="text-xs text-red-500 mt-1" data-testid="upload-error">{uploadFile.error}</p>
                   )}
                 </div>
                 <Button

@@ -931,6 +931,12 @@ async fn async_main_postgres() -> Result<()> {
         }
     };
 
+    // SPEC-160: a bad EDGEQUAKE_DECISION_* value stops the boot with the setting named.
+    // Silent defaults would hide a typo until the first decision upload (LAW-160-4).
+    if let Err(error) = state.decision.boot_check() {
+        return Err(anyhow::anyhow!("{error}")).context("invalid EDGEQUAKE_DECISION_* setting");
+    }
+
     if let Some(ref bootstrap) = state.migration_bootstrap {
         if bootstrap.migration_038.is_degraded() {
             tracing::warn!(

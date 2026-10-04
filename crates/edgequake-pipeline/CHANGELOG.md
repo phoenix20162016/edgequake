@@ -6,6 +6,7 @@ All notable changes to the EdgeQuake Pipeline crate are tracked here. See the ro
 
 ### Added
 
+- **SPEC-160** decision extractor: mode resolver, Ollama System One backend, gate, and per-document stats. Chat-LLM extraction stays the default.
 - CHANGELOG.md for pipeline crate.
 
 ## [0.1.0] - 2026-02-12

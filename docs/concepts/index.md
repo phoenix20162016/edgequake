@@ -10,6 +10,7 @@ Learn the key ideas that power EdgeQuake.
 - **[Graph-RAG](/docs/concepts/graph-rag/)** — How graph-based retrieval augmented generation works.
 - **[Knowledge Graphs](/docs/concepts/knowledge-graph/)** — Entities, relationships, and graph structure.
 - **[Entity Extraction](/docs/concepts/entity-extraction/)** — Turning unstructured text into structured entities.
+- **[Decision Extraction](/docs/concepts/decision-extraction/)** — Preview mode: closed questions on a local decision model (SPEC-160).
 - **[Hybrid Retrieval](/docs/concepts/hybrid-retrieval/)** — Combining vector search with graph traversal.
 
 **Operational concepts (v0.23.0):**

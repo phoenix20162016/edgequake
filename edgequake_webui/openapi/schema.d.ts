@@ -961,6 +961,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/decision/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Probe the decision backend. */
+        get: operations["get_decision_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -5703,13 +5720,8 @@ export interface components {
          *     Models can be specified as `model_name` or `provider/model_name`:
          *     - `"gemma3:12b"` - auto-detects provider as "ollama"
          *     - `"ollama/gemma3:12b"` - explicit provider
-         * @example {
-         *       "name": "Default Workspace",
-         *       "slug": "default",
-         *       "tenant_id": "00000000-0000-0000-0000-000000000001"
-         *     }
          */
-        CreateWorkspaceApiRequest: {
+        CreateWorkspaceApiRequest: components["schemas"]["ExtractionModeFieldsDto"] & {
             /**
              * Format: int32
              * @description SPEC-116: fixed overlap tokens (default 100).
@@ -6134,41 +6146,8 @@ export interface components {
             /** @description Total tokens (input + output). */
             total_tokens: number;
         };
-        /**
-         * @description Document details response with full content.
-         * @example {
-         *       "chunk_count": {},
-         *       "content": {},
-         *       "content_hash": {},
-         *       "content_length": {},
-         *       "content_summary": {},
-         *       "created_at": {},
-         *       "display_status": {},
-         *       "entity_count": {},
-         *       "error_message": {},
-         *       "file_name": {},
-         *       "file_size": {},
-         *       "id": {},
-         *       "lineage": {},
-         *       "metadata": {},
-         *       "mime_type": {},
-         *       "multimodal_items": [],
-         *       "multimodal_summary": {},
-         *       "pdf_id": {},
-         *       "processed_at": {},
-         *       "relationship_count": {},
-         *       "source_type": {},
-         *       "status": {},
-         *       "tenant_id": {},
-         *       "title": {},
-         *       "track_id": {},
-         *       "ui_phase": {},
-         *       "updated_at": {},
-         *       "warning_message": {},
-         *       "workspace_id": {}
-         *     }
-         */
-        DocumentDetailResponse: {
+        /** @description Document details response with full content. */
+        DocumentDetailResponse: components["schemas"]["DocumentExtractionView"] & {
             /** @description Number of chunks. */
             chunk_count: number;
             /** @description Full document content. */
@@ -6229,6 +6208,30 @@ export interface components {
             warning_message?: string | null;
             /** @description Workspace ID for multi-tenancy. */
             workspace_id?: string | null;
+        };
+        /**
+         * @description Fields flattened into the document list row and the document detail.
+         *
+         *     All fields are absent for a plain LLM document, so existing clients see no change.
+         * @example {
+         *       "decision_stats": {},
+         *       "extraction_mode": {},
+         *       "extraction_mode_source": {}
+         *     }
+         */
+        DocumentExtractionView: {
+            /** @description Per-document counts of a decision run: graph facts, review rows, model calls. */
+            decision_stats?: Record<string, never> | null;
+            /**
+             * @description `decision` once a decision run left stats, or the word the upload asked for.
+             * @example decision
+             */
+            extraction_mode?: string | null;
+            /**
+             * @description Who chose the mode: `document`, `workspace`, `env`, `default`.
+             * @example workspace
+             */
+            extraction_mode_source?: string | null;
         };
         /**
          * @description Document filter criteria for narrowing query scope.
@@ -6438,43 +6441,8 @@ export interface components {
          * @description Document summary.
          *
          *     @implements SPEC-002: Unified Ingestion Pipeline
-         * @example {
-         *       "cancelled_from_stage": {},
-         *       "chunk_count": {},
-         *       "content_length": {},
-         *       "content_summary": {},
-         *       "cost_usd": {},
-         *       "created_at": {},
-         *       "current_stage": {},
-         *       "display_status": {},
-         *       "embedding_model": {},
-         *       "entity_count": {},
-         *       "error_message": {},
-         *       "eta_basis": {},
-         *       "eta_seconds": {},
-         *       "file_name": {},
-         *       "id": {},
-         *       "input_tokens": {},
-         *       "llm_model": {},
-         *       "output_tokens": {},
-         *       "pdf_id": {},
-         *       "progress_counts": {},
-         *       "query_ready": {},
-         *       "queue_position": {},
-         *       "run_progress": {},
-         *       "source_type": {},
-         *       "stage_message": {},
-         *       "stage_progress": {},
-         *       "status": {},
-         *       "title": {},
-         *       "total_tokens": {},
-         *       "track_id": {},
-         *       "ui_phase": {},
-         *       "updated_at": {},
-         *       "warning_message": {}
-         *     }
          */
-        DocumentSummary: {
+        DocumentSummary: components["schemas"]["DocumentExtractionView"] & {
             /**
              * @description Last non-terminal pipeline stage when cancel froze the run (INV-10).
              *     Present when `status`/`current_stage` is `cancelled`.
@@ -6651,6 +6619,19 @@ export interface components {
             request_id?: string | null;
             sources: string[];
             tenant_id?: string | null;
+        };
+        /**
+         * @description The mode a new document would get, and who decided it.
+         * @example {
+         *       "mode": {},
+         *       "source": {}
+         *     }
+         */
+        EffectiveExtractionModeDto: {
+            /** @description `llm` or `decision`. */
+            mode: string;
+            /** @description `workspace`, `env`, or `default`. */
+            source: string;
         };
         /** @description Embedding model item with provider info. */
         EmbeddingModelItem: components["schemas"]["ModelResponse"] & {
@@ -7170,6 +7151,47 @@ export interface components {
             output_tokens: number;
         };
         /**
+         * @description Request fragment (SPEC-160). Every field is optional; absent leaves the key unchanged.
+         * @example {
+         *       "decision_gate_preset": {},
+         *       "decision_model": {},
+         *       "decision_pack_size": {},
+         *       "extraction_mode": {}
+         *     }
+         */
+        ExtractionModeFieldsDto: {
+            /** @description Decision gate preset: `strict`, `balanced`, `recall`, or `inherit`. */
+            decision_gate_preset?: string | null;
+            /** @description Decision model name, for example `tev1:0.8b`, or `inherit`. */
+            decision_model?: string | null;
+            /**
+             * Format: int64
+             * @description Questions per decision request, 1 to 16. `0` clears the override.
+             */
+            decision_pack_size?: number | null;
+            /** @description `llm`, `decision`, or `inherit` (clears the workspace default). */
+            extraction_mode?: string | null;
+        };
+        /**
+         * @description Response fragment (SPEC-160).
+         * @example {
+         *       "decision_gate_preset": {},
+         *       "decision_model": {},
+         *       "decision_pack_size": {},
+         *       "effective_extraction_mode": {},
+         *       "extraction_mode": {}
+         *     }
+         */
+        ExtractionModeView: {
+            decision_gate_preset?: string | null;
+            decision_model?: string | null;
+            /** Format: int32 */
+            decision_pack_size?: number | null;
+            effective_extraction_mode?: null | components["schemas"]["EffectiveExtractionModeDto"];
+            /** @description Workspace default word, or null when the workspace inherits. */
+            extraction_mode?: string | null;
+        };
+        /**
          * @description Extraction statistics.
          * @example {
          *       "processing_time_ms": {},
@@ -7228,6 +7250,8 @@ export interface components {
          *       "entity_count": {},
          *       "eta_basis": {},
          *       "eta_seconds": {},
+         *       "extraction_mode": {},
+         *       "extraction_mode_source": {},
          *       "filename": {},
          *       "is_duplicate": {},
          *       "queue_position": {},
@@ -7254,6 +7278,10 @@ export interface components {
              * @description Estimated seconds until claim (measured drain; clamped when unknown).
              */
             eta_seconds?: number | null;
+            /** @description SPEC-160: the extraction mode this document will run with (`llm` or `decision`). */
+            extraction_mode?: string | null;
+            /** @description SPEC-160: who chose the mode (`document`, `workspace`, `env`, `default`). */
+            extraction_mode_source?: string | null;
             /** @description Original filename. */
             filename: string;
             /** @description Whether this was a duplicate (already processed). */
@@ -10543,6 +10571,8 @@ export interface components {
          *       "estimated_time_seconds": {},
          *       "eta_basis": {},
          *       "eta_seconds": {},
+         *       "extraction_mode": {},
+         *       "extraction_mode_source": {},
          *       "ingestion_estimate": {},
          *       "message": {},
          *       "metadata": {},
@@ -10574,6 +10604,10 @@ export interface components {
              * @description Estimated seconds until claim (measured drain; clamped when unknown).
              */
             eta_seconds?: number | null;
+            /** @description SPEC-160: the extraction mode this document will run with (`llm` or `decision`). */
+            extraction_mode?: string | null;
+            /** @description SPEC-160: who chose the mode (`document`, `workspace`, `env`, `default`). */
+            extraction_mode_source?: string | null;
             ingestion_estimate?: null | components["schemas"]["IngestionEstimate"];
             /** @description Human-readable message. */
             message: string;
@@ -14131,45 +14165,8 @@ export interface components {
          *
          *     Changing LLM provider/model is safe and takes effect immediately for new ingestions.
          *     Changing embedding provider/model requires rebuilding vectors (use rebuild-embeddings endpoint).
-         * @example {
-         *       "chunk_overlap_token_size": {},
-         *       "chunk_token_size": {},
-         *       "chunking_mode": {},
-         *       "default_reasoning_effort": {},
-         *       "description": {},
-         *       "embedding_dimension": {},
-         *       "embedding_model": {},
-         *       "embedding_provider": {},
-         *       "entity_type_colors": {},
-         *       "entity_types": [],
-         *       "entity_types_strict": {},
-         *       "extract_budget_mode": {},
-         *       "extract_max_entities": {},
-         *       "extract_max_records": {},
-         *       "extraction_language": {},
-         *       "is_active": {},
-         *       "kg_schema_preset": {},
-         *       "llm_model": {},
-         *       "llm_provider": {},
-         *       "llm_roles": {},
-         *       "max_documents": {},
-         *       "name": {},
-         *       "pdf_parser_backend": {},
-         *       "relation_edges": [],
-         *       "relation_types": [],
-         *       "relation_types_strict": {},
-         *       "vision_chart_system_prompt": {},
-         *       "vision_extract_charts": {},
-         *       "vision_extract_figures": {},
-         *       "vision_extract_images": {},
-         *       "vision_figure_system_prompt": {},
-         *       "vision_image_system_prompt": {},
-         *       "vision_llm_model": {},
-         *       "vision_llm_provider": {},
-         *       "vision_page_system_prompt": {}
-         *     }
          */
-        UpdateWorkspaceApiRequest: {
+        UpdateWorkspaceApiRequest: components["schemas"]["ExtractionModeFieldsDto"] & {
             /** Format: int32 */
             chunk_overlap_token_size?: number | null;
             /** Format: int32 */
@@ -14270,6 +14267,8 @@ export interface components {
             chunk_strategy?: string | null;
             /** @description Document content. */
             content: string;
+            /** @description SPEC-160: decision gate preset for this document (`strict`, `balanced`, `recall`). */
+            decision_gate_preset?: string | null;
             /** @description Enable gleaning (multiple extraction passes) for higher quality entity extraction. */
             enable_gleaning?: boolean;
             /**
@@ -14282,6 +14281,8 @@ export interface components {
              * @description SPEC-117: optional per-upload max total entity+relationship rows per response.
              */
             extract_max_records?: number | null;
+            /** @description SPEC-160: `llm`, `decision`, or `inherit`. Absent inherits workspace, then server. */
+            extraction_mode?: string | null;
             /** @description Maximum number of gleaning passes (1-3 recommended). */
             max_gleaning?: number;
             /** @description Optional document metadata. */
@@ -14318,6 +14319,10 @@ export interface components {
              * @description Estimated seconds until claim (measured drain; clamped when unknown).
              */
             eta_seconds?: number | null;
+            /** @description SPEC-160: the extraction mode this document will run with (`llm` or `decision`). */
+            extraction_mode?: string | null;
+            /** @description SPEC-160: who chose the mode (`document`, `workspace`, `env`, `default`). */
+            extraction_mode_source?: string | null;
             /**
              * Format: int64
              * @description Queue projection (SPEC-091 QW2 / LAW-Q4): 1-based position in the FCFS
@@ -14439,14 +14444,8 @@ export interface components {
          * @description Workspace response DTO.
          *
          *     Includes full model configuration (SPEC-032) for transparency.
-         * @example {
-         *       "id": "00000000-0000-0000-0000-000000000002",
-         *       "name": "Default Workspace",
-         *       "slug": "default",
-         *       "tenant_id": "00000000-0000-0000-0000-000000000001"
-         *     }
          */
-        WorkspaceResponse: {
+        WorkspaceResponse: components["schemas"]["ExtractionModeView"] & {
             /** Format: int32 */
             chunk_overlap_token_size?: number | null;
             /** Format: int32 */
@@ -16399,6 +16398,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceCostSummaryResponse"];
+                };
+            };
+        };
+    };
+    get_decision_status: {
+        parameters: {
+            query?: {
+                /** @description Probe this model tag instead of the server default (a workspace's own model). */
+                model?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Decision backend state. Host only, no secrets. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

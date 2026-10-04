@@ -205,6 +205,10 @@ pub async fn purge_document_list_surfaces(
         .delete(&keys)
         .await
         .map_err(ApiError::from)?;
+    // SPEC-160: review rows hold sentence text and follow the document (EC-160-36).
+    for id in identity_variants(document_id, key_prefix, key_id_mismatch) {
+        crate::services::decision_cleanup::purge_decision_document(state, workspace_id, id).await;
+    }
 
     #[cfg(feature = "postgres")]
     let mut relational_rows_deleted = 0u64;

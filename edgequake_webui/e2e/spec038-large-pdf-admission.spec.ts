@@ -53,10 +53,13 @@ test.describe("SPEC-038 Large PDF Admission", () => {
   }) => {
     const parser = page.getByTestId("spec038-upload-parser-select");
     await expect(parser).toBeVisible({ timeout: 15_000 });
-    await expect(parser).toHaveText(/Workspace Default \(Vision\)/);
-    // Trigger must be wide enough that the full inherit label is visible (not "Workspace [").
+    await expect(parser).toHaveText(/Workspace \(Vision\)/);
+    await parser.click();
+    await expect(page.getByRole("option", { name: /Workspace Default \(Vision\)/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    // Trigger must keep the chevron; short inherit copy is the compact contract.
     const box = await parser.boundingBox();
-    expect(box?.width ?? 0).toBeGreaterThanOrEqual(168);
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(140);
   });
 
   test("shows admission dialog for 603-page PDF fixture", async ({ page }) => {
@@ -206,7 +209,7 @@ test.describe("SPEC-038 Large PDF Admission — workspace EdgeParse default", ()
   test("upload parser select shows EdgeParse workspace default", async ({ page }) => {
     const parser = page.getByTestId("spec038-upload-parser-select");
     await expect(parser).toBeVisible({ timeout: 15_000 });
-    await expect(parser).toHaveText(/Workspace Default \(EdgeParse\)/);
+    await expect(parser).toHaveText(/Workspace \(EdgeParse\)/);
   });
 
   test.fixme("skips admission when workspace default is EdgeParse", async ({ page }) => {

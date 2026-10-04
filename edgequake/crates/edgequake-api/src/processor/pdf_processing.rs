@@ -93,11 +93,7 @@ fn build_text_insert_from_pdf_convert(
     extraction_warning: Option<String>,
     document_language: Option<String>,
 ) -> edgequake_tasks::TextInsertData {
-    edgequake_tasks::TextInsertData {
-        text: markdown,
-        file_source: filename.to_string(),
-        workspace_id: data.workspace_id.to_string(),
-        metadata: Some(json!({
+    let mut metadata = json!({
             "document_id": document_id,
             "source": "pdf_upload",
             "source_type": "pdf",
@@ -117,7 +113,21 @@ fn build_text_insert_from_pdf_convert(
                 .map(|m| m.merge_only())
                 .unwrap_or(false),
             "document_language": document_language,
-        })),
+    });
+    // SPEC-160: carry the document's extraction words to the Insert task.
+    if let (Some(words), Some(obj)) = (
+        data.document_extraction
+            .as_ref()
+            .and_then(|w| w.as_object()),
+        metadata.as_object_mut(),
+    ) {
+        obj.extend(words.iter().map(|(k, v)| (k.clone(), v.clone())));
+    }
+    edgequake_tasks::TextInsertData {
+        text: markdown,
+        file_source: filename.to_string(),
+        workspace_id: data.workspace_id.to_string(),
+        metadata: Some(metadata),
         reuse_excluded_pages: data.page_scope.as_ref().map(|s| s.pages.clone()),
     }
 }
@@ -2391,6 +2401,7 @@ mod tests {
             vision_reasoning_effort: None,
             vision_extract: Default::default(),
             page_scope: None,
+            document_extraction: None,
         };
         let mut task = Task::new(
             tenant_id,
@@ -2582,5 +2593,77 @@ mod spec134_strategy {
             resolve_vision_model_for_modality(PageModality::Mixed, Some("cfg-model"), "configured"),
             "cfg-model"
         );
+    }
+}
+
+#[cfg(all(test, feature = "postgres"))]
+mod spec160_document_extraction {
+    use super::*;
+    use uuid::Uuid;
+
+    fn data(document_extraction: Option<serde_json::Value>) -> edgequake_tasks::PdfProcessingData {
+        edgequake_tasks::PdfProcessingData {
+            pdf_id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            workspace_id: Uuid::new_v4(),
+            enable_vision: false,
+            vision_provider: "mock".to_string(),
+            vision_model: None,
+            existing_document_id: None,
+            pdf_parser_backend: edgequake_pdf::PdfParserBackend::EdgeParse,
+            pdf_parser_backend_explicit: true,
+            restart_from_scratch: false,
+            reprocess_mode: None,
+            multimodal_process_options: None,
+            vision_reasoning_effort: None,
+            vision_extract: Default::default(),
+            page_scope: None,
+            document_extraction,
+        }
+    }
+
+    fn insert_metadata(d: &edgequake_tasks::PdfProcessingData) -> serde_json::Value {
+        build_text_insert_from_pdf_convert(
+            "# Title".to_string(),
+            "a.pdf",
+            d,
+            "doc-1",
+            Some(1),
+            10,
+            "sha",
+            None,
+            None,
+            None,
+            None,
+        )
+        .metadata
+        .expect("metadata")
+    }
+
+    // T-160-U80 — the PDF task carries the document words to the Insert task.
+    #[test]
+    fn insert_task_inherits_document_words() {
+        let words = json!({"extraction_mode": "decision", "decision_gate_preset": "strict"});
+        let meta = insert_metadata(&data(Some(words)));
+        assert_eq!(meta["extraction_mode"], "decision");
+        assert_eq!(meta["decision_gate_preset"], "strict");
+        assert_eq!(meta["source"], "pdf_upload", "base keys survive the merge");
+    }
+
+    // T-160-U81 — no words means no keys: the workspace and server decide.
+    #[test]
+    fn insert_task_without_words_inherits() {
+        let meta = insert_metadata(&data(None));
+        assert!(meta.get("extraction_mode").is_none());
+        assert!(meta.get("decision_gate_preset").is_none());
+    }
+
+    // T-160-U82 — a task payload written before SPEC-160 still deserializes.
+    #[test]
+    fn old_payload_deserializes() {
+        let mut v = serde_json::to_value(data(None)).unwrap();
+        v.as_object_mut().unwrap().remove("document_extraction");
+        let back: edgequake_tasks::PdfProcessingData = serde_json::from_value(v).unwrap();
+        assert!(back.document_extraction.is_none());
     }
 }

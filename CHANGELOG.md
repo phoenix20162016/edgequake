@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Decision extraction (SPEC-160, preview).** A second knowledge-graph mode,
+  `decision`, where a local decision model (default `tev1:0.8b` on Ollama
+  System One) answers closed questions. Only accepted answers enter the graph.
+  Review-band facts go to `decision_review`. The chat-LLM extractor stays the
+  default (`document > workspace > env > llm`). The engine is available unless
+  `EDGEQUAKE_DECISION_ENABLED=0`. It does not follow `OLLAMA_HOST`.
+  Guide: [`docs/concepts/decision-extraction.md`](docs/concepts/decision-extraction.md).
+  Pack: [`specs/160-tev1/`](specs/160-tev1/README.md).
+- Schema train **165 → 166** (migration `166_spec160_decision.sql`):
+  `decision_cache` and `decision_review`. Additive. Run `edgequake migrate`
+  before serving this binary.
+- API: workspace `extraction_mode`, `decision_model`, `decision_pack_size`,
+  `decision_gate_preset`; the same mode word on text, file, PDF, and batch
+  upload; document `extraction_mode`, `extraction_mode_source`, and
+  `decision_stats`; `GET /api/v1/decision/status` and
+  `GET /api/v1/decision/models` (200 with host only, 3s probe).
+- Web UI: workspace extraction card, per-upload mode select, document badge
+  and counts. Gate presets show **Uncalibrated**. Playwright: `e2e/spec160/`.
+
+### Residuals
+
+- `openai_logprobs` / `llama-server` is refused at boot. Ollama System One is
+  the only backend.
+- No review screen. Review rows are stored and counted.
+- Gate presets are uncalibrated. A two-document English probe is in
+  [`specs/160-tev1/measurements/w8-report.md`](specs/160-tev1/measurements/w8-report.md).
+  `tev1:0.8b` at `balanced` is a smoke option on that set. SPEC-001 Acc was
+  not re-run. The mode stays a preview.
+
 ## [0.30.0] — 2026-10-03
 
 Minor: **SPEC-158** enterprise authentication. Keycloak Organizations map to

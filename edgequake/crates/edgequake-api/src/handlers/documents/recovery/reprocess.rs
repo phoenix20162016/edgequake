@@ -456,6 +456,7 @@ async fn requeue_one_failed_pdf(
         vision_reasoning_effort,
         vision_extract: Default::default(),
         page_scope: None,
+        document_extraction: None,
     };
 
     let track_id = format!("pdf-{}", Uuid::new_v4());

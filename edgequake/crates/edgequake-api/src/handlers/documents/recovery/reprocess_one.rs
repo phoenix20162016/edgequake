@@ -572,6 +572,7 @@ async fn enqueue_pdf_reprocess(
         vision_reasoning_effort,
         vision_extract: Default::default(),
         page_scope: None,
+        document_extraction: None,
     };
 
     let task = Task::new(

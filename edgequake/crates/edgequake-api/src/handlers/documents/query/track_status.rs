@@ -172,6 +172,9 @@ pub async fn get_track_status(
                         .get("cancelled_from_stage")
                         .and_then(|v| v.as_str())
                         .map(String::from),
+                    extraction: crate::handlers::documents_types::DocumentExtractionView::from_metadata(
+                        obj,
+                    ),
                 });
             }
         }

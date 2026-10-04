@@ -4,7 +4,9 @@
 
 import { getRuntimeServerBaseUrl } from "@/lib/runtime-config";
 import { postMultipart, type MultipartUploadProgress } from "@/lib/upload/multipart-upload-client";
+import { appendExtractionMode } from "@/lib/upload/extraction-mode-field";
 import { buildPdfUploadFormData } from "@/lib/upload/pdf-upload-form-data";
+import type { ExtractionModeWord } from "@/constants/extraction-mode";
 import { api, DOCUMENTS_API_TIMEOUT_MS } from "../client";
 import { buildQueryString, withQuery } from "../query-params";
 
@@ -87,10 +89,15 @@ export async function uploadDocument(
 
 export async function uploadFile(
   file: File,
-  options?: { onUploadProgress?: (progress: MultipartUploadProgress) => void },
+  options?: {
+    onUploadProgress?: (progress: MultipartUploadProgress) => void;
+    /** SPEC-160: omit to inherit the workspace default. */
+    extraction_mode?: ExtractionModeWord;
+  },
 ): Promise<UploadDocumentResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  appendExtractionMode(formData, options?.extraction_mode);
 
   return postMultipart<UploadDocumentResponse>("/documents/upload", formData, {
     fileSizeBytes: file.size,

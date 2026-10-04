@@ -161,6 +161,12 @@ pub struct PdfProcessingData {
     /// SPEC-151: optional page-scoped reprocess (selected pages + stages).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub page_scope: Option<edgequake_pdf::PageScope>,
+
+    /// SPEC-160: document-level extraction words (`extraction_mode`,
+    /// `decision_gate_preset`) copied into the follow-on Insert task metadata.
+    /// `None` means the document inherits the workspace and server defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub document_extraction: Option<serde_json::Value>,
 }
 
 /// Text insert task payload

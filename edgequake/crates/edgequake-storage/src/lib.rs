@@ -96,6 +96,7 @@ pub use filter_column_policy::{
 pub mod chunk_fts;
 pub mod dataop;
 pub mod dataop_annotations;
+pub mod decision;
 pub mod drain_claim;
 pub mod embedding_family;
 pub use embedding_family::{

@@ -12,6 +12,9 @@ use edgequake_pipeline::{ChunkOptions, ChunkStrategy};
 use edgequake_storage::kv_keys;
 use edgequake_tasks::{estimate_queue, QueueEstimate, Task, TaskType, TextInsertData};
 
+use super::extraction_admission::{
+    admit_extraction, AdmittedExtraction, ExtractionForm, UploadExtraction,
+};
 use crate::error::{ApiError, ApiResult};
 use crate::handlers::documents::storage_helpers::{
     resolve_workspace_duplicate_for_reingestion, DuplicateReingestAction,
@@ -95,6 +98,8 @@ pub struct DocumentAdmissionAccepted {
     /// SPEC-091 QW2 (LAW-Q4): queue position + ETA at admission time.
     /// None only if the projection query failed (projection never blocks admission).
     pub queue: Option<QueueEstimate>,
+    /// SPEC-160: the mode this document will run with and who decided it.
+    pub extraction: AdmittedExtraction,
 }
 
 /// Result when duplicate is still processing (no new task).
@@ -139,6 +144,10 @@ pub async fn admit_document_for_processing(
             ));
         }
     }
+
+    // SPEC-160: bad word, disabled mode, or a down backend is a 422 before any state is written.
+    let upload_extraction = UploadExtraction::from_envelope(input.custom_metadata.as_ref());
+    let admitted_extraction = admit_extraction(state, &workspace_id, &upload_extraction).await?;
 
     // SPEC-066: fail-closed when workspace declares max_documents.
     crate::services::document_quota::enforce_max_documents_admission(state, &workspace_id).await?;
@@ -235,6 +244,10 @@ pub async fn admit_document_for_processing(
         task_meta["extract_max_entities"] = json!(ents);
         task_meta["extract_max_records"] = json!(recs);
     }
+    // SPEC-160: canonical document words only; absent words inherit at the worker.
+    for (key, value) in upload_extraction.parse()?.task_keys() {
+        task_meta[key] = value;
+    }
     let task_data = TextInsertData {
         text: String::new(),
         file_source: input.title.clone(),
@@ -324,6 +337,9 @@ pub async fn admit_document_for_processing(
         "stage_progress": 0.0,
         "stage_message": "Document received, starting processing",
         "admission_staging": true,
+        // SPEC-160: record what this document will run with (read by the UI and the fingerprint).
+        "extraction_mode": admitted_extraction.mode_str(),
+        "extraction_mode_source": admitted_extraction.source_str(),
     });
 
     // SPEC-084 / GH-318: persist expected batch size under the client track key.
@@ -406,6 +422,7 @@ pub async fn admit_document_for_processing(
             .and_then(|o| o.chunk_overlap_token_size),
         mm_opts.as_deref(),
     )
+    .with_extraction_mode(admitted_extraction.mode)
     .with_content_hash(&input.content_hash);
     if let Some(obj) = doc_metadata.as_object_mut() {
         apply_fingerprint_to_metadata(obj, &fp.digest());
@@ -465,6 +482,7 @@ pub async fn admit_document_for_processing(
             task_id,
             content_hash: input.content_hash,
             queue,
+            extraction: admitted_extraction,
         },
     ))
 }
@@ -570,6 +588,8 @@ pub struct MultipartUploadFields {
     chunk_options_raw: Option<Value>,
     extract_max_entities: Option<u32>,
     extract_max_records: Option<u32>,
+    /// SPEC-160: `extraction_mode` / `decision_gate_preset` form fields.
+    extraction: ExtractionForm,
 }
 
 impl MultipartUploadFields {
@@ -590,11 +610,20 @@ impl MultipartUploadFields {
             "extract_max_records" if !text.is_empty() => {
                 self.extract_max_records = text.trim().parse().ok();
             }
-            _ => {}
+            other => {
+                self.extraction.ingest(other, text);
+            }
         }
     }
 
+    /// SPEC-160: the validated-later extraction words. 422 if a field was sent twice.
+    pub fn effective_extraction(&self) -> ApiResult<UploadExtraction> {
+        self.extraction.finish()
+    }
+
     /// Resolved chunk fields with metadata envelope fallback.
+    ///
+    /// The third item is the metadata envelope with the SPEC-160 form words merged in.
     pub fn effective_chunk_fields(
         &self,
     ) -> (Option<ChunkStrategy>, Option<ChunkOptions>, Option<Value>) {
@@ -611,7 +640,14 @@ impl MultipartUploadFields {
                 options = meta_options;
             }
         }
-        (strategy, options, self.metadata.clone())
+        (
+            strategy,
+            options,
+            self.extraction
+                .finish()
+                .unwrap_or_default()
+                .merge_into(self.metadata.clone()),
+        )
     }
 
     /// SPEC-117: form fields win over metadata envelope keys.

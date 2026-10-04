@@ -63,6 +63,7 @@ pub mod chunker;
 pub mod contextual_chunk;
 pub mod entity_display;
 pub mod error;
+pub mod extraction_mode;
 pub mod extractor;
 pub mod ingestion_pipeline;
 pub mod ingestion_types;
@@ -113,6 +114,12 @@ pub use chunker::{
 pub use error::{
     ChunkExtractionOutcome, ChunkFailure, PipelineError, ResilientExtractionResult, Result,
 };
+pub use extraction_mode::{
+    apply_extraction_mode_metadata, extraction_mode_from_metadata, extraction_mode_from_value,
+    parse_mode_override, resolve_extraction_mode, resolve_extraction_mode_from_env, ExtractionMode,
+    ExtractionModeSource, ResolvedExtractionMode, UnknownExtractionMode, EXTRACTION_MODE_ENV,
+    META_EXTRACTION_MODE,
+};
 pub use extractor::{
     assign_token_usage, effective_temperature_for_model, extraction_completion_options,
     extraction_completion_options_with_effort, recommended_chunk_size_for_bytes,
@@ -123,7 +130,7 @@ pub use extractor::{
 };
 pub use ingestion_pipeline::{
     build_chunker_config, build_chunker_config_with_policy, build_ingestion_pipeline,
-    build_ingestion_pipeline_simple, IngestionPipelineOptions,
+    build_ingestion_pipeline_simple, build_pipeline_with_extractor, IngestionPipelineOptions,
 };
 pub use markdown_ir::{
     extract_markdown_blocks, format_breadcrumb, is_atx_heading_only_text, parse_atx_heading,

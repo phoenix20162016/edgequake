@@ -267,6 +267,15 @@ export interface UpdateWorkspaceRequest {
   extract_budget_mode?: string | null;
   extract_max_entities?: number | null;
   extract_max_records?: number | null;
+  /**
+   * SPEC-160 extraction mode. `extraction_mode`, `decision_gate_preset` and
+   * `decision_model` accept `"inherit"` to clear; `decision_pack_size: 0` clears.
+   */
+  extraction_mode?: string;
+  decision_gate_preset?: string;
+  decision_model?: string;
+  decision_pack_size?: number;
+  decision_enabled?: boolean;
   /** SPEC-015V — Vision extract toggles (absent → server default ON). */
   vision_extract_images?: boolean;
   vision_extract_charts?: boolean;

@@ -100,10 +100,13 @@ pub const MAX_CONCURRENT_EXTRACTIONS_CAP: usize = 32;
 ///
 /// Excludes `mock` (fast in-process) — only Ollama / LM Studio need the slow profile.
 pub fn is_local_extraction_provider(provider_name: &str) -> bool {
-    matches!(
-        provider_name.trim().to_ascii_lowercase().as_str(),
-        "ollama" | "lmstudio" | "lm-studio" | "lm_studio"
-    )
+    let name = provider_name.trim().to_ascii_lowercase();
+    // SPEC-160: a decision backend is one model on one machine, like Ollama.
+    name.starts_with(crate::progress::DECISION_PROVIDER_PREFIX)
+        || matches!(
+            name.as_str(),
+            "ollama" | "lmstudio" | "lm-studio" | "lm_studio"
+        )
 }
 
 /// Pure priority resolution for fairness clamp provider (SPEC-057 P2).
@@ -886,4 +889,18 @@ mod tests {
     }
 
     static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    // T-160-U53 — decision backends use the local, one-at-a-time profile (EC-160-08).
+    #[test]
+    fn decision_provider_is_local() {
+        assert!(is_local_extraction_provider("decision:ollama"));
+        assert!(is_local_extraction_provider(" Decision:OpenAI_Logprobs "));
+        assert!(is_local_extraction_provider("ollama"));
+        assert!(!is_local_extraction_provider("openai"));
+        let cfg = PipelineConfig::from_env_for_provider("decision:ollama");
+        assert_eq!(
+            cfg.max_concurrent_extractions,
+            LOCAL_MAX_CONCURRENT_EXTRACTIONS
+        );
+    }
 }

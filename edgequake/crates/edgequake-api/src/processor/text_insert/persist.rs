@@ -393,6 +393,13 @@ impl DocumentTaskProcessor {
         stats_with_lineage.embedding_provider = Some(provider_lineage.embedding_provider.clone());
         stats_with_lineage.embedding_model = Some(provider_lineage.embedding_model.clone());
         stats_with_lineage.embedding_dimensions = Some(provider_lineage.embedding_dimension);
+        // SPEC-160: a decision run used no chat LLM. Lineage must say what answered.
+        if let Some(decision) =
+            edgequake_pipeline::extractor::decision::outcome_from_extractions(&result.extractions)
+        {
+            stats_with_lineage.llm_provider = Some("decision".to_string());
+            stats_with_lineage.llm_model = decision.stats.model;
+        }
 
         // FIX-1: Validate processing results before marking completed
         // WHY: Prevent silent failures where status="completed" but entity_count=0
