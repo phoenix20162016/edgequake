@@ -321,7 +321,7 @@ export default function KnowledgePage() {
       {/* SPEC-100: min-h grid shell so skeleton↔list does not CLS */}
       {isLoading && !data ? (
         <div
-          className="grid min-h-[16rem] gap-4 md:grid-cols-2 lg:grid-cols-3"
+          className="grid min-h-[16rem] min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0"
           data-testid="spec100-knowledge-grid-skeleton"
         >
           {[1, 2, 3].map((i) => (
@@ -352,7 +352,7 @@ export default function KnowledgePage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
           {data.items.map((item) => (
             <Link
               key={item.injection_id}

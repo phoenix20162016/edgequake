@@ -167,7 +167,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Theme */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="eq-setting-row">
             <div className="space-y-1">
               <label id="settings-field-0" className="text-sm font-medium">{t('settings.appearance.theme', 'Theme')}</label>
               <p className="text-sm text-muted-foreground">
@@ -204,7 +204,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Language */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="eq-setting-row">
             <div className="space-y-1">
               <label id="settings-field-1" className="text-sm font-medium">{t('settings.appearance.language', 'Language')}</label>
               <p className="text-sm text-muted-foreground">
@@ -262,7 +262,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Show Labels */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-2" className="text-sm font-medium">{t('settings.graph.showNodeLabels', 'Show Node Labels')}</label>
               <p className="text-xs text-muted-foreground">
@@ -279,7 +279,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Show Edge Labels */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-3" className="text-sm font-medium">{t('settings.graph.showEdgeLabels', 'Show Edge Labels')}</label>
               <p className="text-xs text-muted-foreground">
@@ -296,7 +296,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Node Size */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-4" className="text-sm font-medium">{t('settings.graph.nodeSize', 'Node Size')}</label>
               <p className="text-xs text-muted-foreground">
@@ -321,7 +321,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Layout */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-5" className="text-sm font-medium">{t('settings.graph.defaultLayout', 'Default Layout')}</label>
               <p className="text-xs text-muted-foreground">
@@ -362,7 +362,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Default Mode */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-6" className="text-sm font-medium">{t('settings.query.defaultMode', 'Default Query Mode')}</label>
               <p className="text-xs text-muted-foreground">
@@ -401,7 +401,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Streaming */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-7" className="text-sm font-medium">{t('settings.query.enableStreaming', 'Enable Streaming')}</label>
               <p className="text-xs text-muted-foreground">
@@ -418,7 +418,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Reranking - SOTA Feature */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-8" className="text-sm font-medium">{t('settings.query.enableReranking', 'Enable Reranking')}</label>
               <p className="text-xs text-muted-foreground">
@@ -433,7 +433,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Rerank Top K */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-9" className="text-sm font-medium">{t('settings.query.rerankTopK', 'Rerank Top K')}</label>
               <p className="text-xs text-muted-foreground">
@@ -471,7 +471,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Gleaning */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-10" className="text-sm font-medium">{t('settings.ingestion.enableGleaning', 'Enable Gleaning')}</label>
               <p className="text-xs text-muted-foreground">
@@ -488,7 +488,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Max Gleaning Passes */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-11" className="text-sm font-medium">{t('settings.ingestion.maxGleaning', 'Max Gleaning Passes')}</label>
               <p className="text-xs text-muted-foreground">
@@ -513,7 +513,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* LLM Summarization */}
-          <div className="flex items-center justify-between">
+          <div className="eq-setting-row">
             <div>
               <label id="settings-field-12" className="text-sm font-medium">{t('settings.ingestion.llmSummarization', 'LLM Summarization')}</label>
               <p className="text-xs text-muted-foreground">
@@ -542,7 +542,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Import/Export Settings */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="eq-setting-row">
             <div className="space-y-1">
               <label className="text-sm font-medium">{t('settings.data.backup', 'Settings Backup')}</label>
               <p className="text-sm text-muted-foreground">
@@ -573,7 +573,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Clear History */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="eq-setting-row">
             <div className="space-y-1">
               <label className="text-sm font-medium">{t('settings.data.queryHistory', 'Query History')}</label>
               <p className="text-sm text-muted-foreground">
@@ -606,7 +606,7 @@ export default function SettingsPage() {
           <Separator />
 
           {/* Reset Settings */}
-          <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-destructive/5 border border-destructive/20">
+          <div className="eq-setting-row p-4 rounded-lg bg-destructive/5 border border-destructive/20">
             <div className="space-y-1">
               <label className="text-sm font-medium text-destructive">{t('settings.data.resetAll', 'Reset All Settings')}</label>
               <p className="text-sm text-muted-foreground">

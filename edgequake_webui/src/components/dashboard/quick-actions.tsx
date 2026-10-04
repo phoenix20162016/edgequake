@@ -54,7 +54,7 @@ export function QuickActions({ emphasizeUpload = false }: QuickActionsProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="grid gap-2 sm:grid-cols-3" data-testid="dashboard-quick-actions">
+    <div className="grid min-w-0 gap-2 sm:grid-cols-3 [&>*]:min-w-0" data-testid="dashboard-quick-actions">
       {actions.map((action) => {
         const Icon = action.icon;
         const primary = emphasizeUpload && action.id === 'upload';

@@ -19,9 +19,9 @@ export interface DecisionExtractionSectionProps {
 
 function StatCell({ label, value, hint, testId }: { label: string; value: number; hint?: string; testId: string }) {
   return (
-    <div className="rounded-md bg-muted/40 px-2 py-1.5 text-center" title={hint} data-testid={testId}>
+    <div className="rounded-md bg-muted/40 px-2 py-1.5 text-center min-w-0 overflow-hidden" title={hint ?? label} data-testid={testId}>
       <div className="text-base font-semibold tabular-nums leading-tight">{value}</div>
-      <div className="text-[11px] leading-tight text-muted-foreground">{label}</div>
+      <div className="text-[11px] leading-tight text-muted-foreground truncate">{label}</div>
     </div>
   );
 }
@@ -48,7 +48,7 @@ export function DecisionExtractionSection({ source, stats }: DecisionExtractionS
       </div>
       {stats ? (
         <>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="eq-metric-grid">
             <StatCell testId="decision-stat-entities" value={stats.entities} label={t('extractionMode.stats.entities', 'Entities')} />
             <StatCell testId="decision-stat-relations" value={stats.relations} label={t('extractionMode.stats.relations', 'Relations')} />
             <StatCell

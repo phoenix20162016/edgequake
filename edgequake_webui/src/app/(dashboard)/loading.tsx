@@ -14,7 +14,7 @@ export default function DashboardHomeLoading() {
       data-testid="dashboard-route-loading"
     >
       <Skeleton className="h-8 w-48" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
         {[...Array(4)].map((_, i) => (
           <Skeleton key={i} className="h-24 w-full rounded-md" />
         ))}

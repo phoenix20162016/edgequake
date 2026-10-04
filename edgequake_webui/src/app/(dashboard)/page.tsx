@@ -200,7 +200,7 @@ export default function DashboardPage() {
 
         {/* Statistics Section - Shows workspace-specific counts */}
         {/* @implements FEAT1001 - Dashboard statistics visualization */}
-        <section aria-label={t('dashboard.sections.stats', 'Statistics')} className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+        <section aria-label={t('dashboard.sections.stats', 'Statistics')} className="grid min-w-0 grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4 [&>*]:min-w-0">
           <StatsCard
             title={t('dashboard.stats.documents', 'Documents')}
             value={documentValue}

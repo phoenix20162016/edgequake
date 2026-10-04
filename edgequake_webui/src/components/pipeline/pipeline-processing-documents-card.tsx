@@ -38,7 +38,7 @@ export function PipelineProcessingDocumentsCard() {
   return (
     <Card data-testid="spec100-pipeline-active-docs">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
+        <CardTitle className="text-lg flex min-w-0 flex-wrap items-center gap-2">
           <FileText className="h-5 w-5" />
           Active Documents
           {activeCount > 0 && <Badge variant="secondary">{activeCount}</Badge>}
@@ -73,7 +73,7 @@ export function PipelineProcessingDocumentsCard() {
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between p-2 rounded-lg border bg-card"
+                  className="eq-toolbar justify-between p-2 rounded-lg border bg-card"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />

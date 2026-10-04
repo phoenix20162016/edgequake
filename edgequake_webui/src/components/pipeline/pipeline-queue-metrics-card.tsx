@@ -50,7 +50,7 @@ export function PipelineQueueMetricsCard() {
   return (
     <Card data-testid="spec100-pipeline-queue-metrics" className="min-h-[280px]">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="eq-toolbar justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <Gauge className="h-5 w-5" />
             Queue Metrics
@@ -68,7 +68,7 @@ export function PipelineQueueMetricsCard() {
         {cold ? (
           <div className="space-y-4" data-testid="spec100-pipeline-queue-skeleton">
             <Skeleton className="h-2 w-full" />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="eq-metric-grid">
               <Skeleton className="h-16" />
               <Skeleton className="h-16" />
               <Skeleton className="h-16" />
@@ -100,7 +100,7 @@ export function PipelineQueueMetricsCard() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="eq-metric-grid text-sm">
               <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded text-center">
                 <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
                   <Zap className="h-3 w-3" />

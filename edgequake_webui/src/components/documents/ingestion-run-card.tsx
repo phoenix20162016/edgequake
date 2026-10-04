@@ -216,11 +216,11 @@ export function IngestionRunCard({
         className ??
         (compact
           ? cancelTerminal
-            ? "space-y-1 rounded-md border border-orange-200/70 bg-orange-50/30 px-2 py-1.5 dark:border-orange-900/50 dark:bg-orange-950/20"
-            : "space-y-1 rounded-md border border-border/60 bg-background/90 px-2 py-1.5"
+            ? "min-w-0 space-y-1 overflow-hidden rounded-md border border-orange-200/70 bg-orange-50/30 px-2 py-1.5 dark:border-orange-900/50 dark:bg-orange-950/20"
+            : "min-w-0 space-y-1 overflow-hidden rounded-md border border-border/60 bg-background/90 px-2 py-1.5"
           : cancelTerminal
-            ? "space-y-2 rounded-md border border-orange-200/80 bg-orange-50/40 p-2.5 shadow-sm dark:border-orange-900/50 dark:bg-orange-950/20"
-            : "space-y-2 rounded-md border border-border/80 bg-background p-2.5 shadow-sm")
+            ? "min-w-0 space-y-2 overflow-hidden rounded-md border border-orange-200/80 bg-orange-50/40 p-2.5 shadow-sm dark:border-orange-900/50 dark:bg-orange-950/20"
+            : "min-w-0 space-y-2 overflow-hidden rounded-md border border-border/80 bg-background p-2.5 shadow-sm")
       }
       data-testid={testId ?? "spec086-ingestion-run-card"}
       data-document-id={run.documentId}
@@ -231,8 +231,8 @@ export function IngestionRunCard({
       data-admission={cancelTerminal ? "cancelled" : (admission ?? "running")}
       data-compact={compact ? "true" : "false"}
     >
-      <div className="flex items-center justify-between gap-2 text-sm">
-        <span className="truncate font-medium text-foreground">
+      <div className="flex min-w-0 items-center justify-between gap-2 text-sm">
+        <span className="min-w-0 truncate font-medium text-foreground">
           {run.filename}
         </span>
         <div className="flex shrink-0 items-center gap-2">

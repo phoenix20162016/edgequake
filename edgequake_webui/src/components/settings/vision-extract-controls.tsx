@@ -383,7 +383,7 @@ export function VisionSettingsPanel({
           }
           className={cn(
             'bg-background justify-between gap-1.5 font-normal min-w-0 overflow-hidden',
-            compact ? 'h-7 px-2 text-xs min-w-[7.5rem]' : 'h-9 px-3 text-sm min-w-[9rem]',
+            compact ? 'h-7 min-w-0 px-2 text-xs' : 'h-9 min-w-0 px-3 text-sm',
             customized && 'border-foreground/30',
             className,
           )}

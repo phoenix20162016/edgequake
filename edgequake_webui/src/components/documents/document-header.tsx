@@ -134,7 +134,7 @@ export function DocumentHeader({
     <>
       <ConnectionBanner />
       
-      <header className="flex items-center justify-between gap-3 flex-wrap">
+      <header className="eq-toolbar justify-between gap-3">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">{t('documents.title')}</h1>
@@ -159,7 +159,7 @@ export function DocumentHeader({
               variant="outline"
               size="sm"
               onClick={() => onPipelineDialogChange(true)}
-              className={`${pipelineButtonClass} min-w-[7.5rem] ${
+              className={`${pipelineButtonClass} min-w-0 max-w-full ${
                 showPipelineIndicator
                   ? ''
                   : 'invisible pointer-events-none'

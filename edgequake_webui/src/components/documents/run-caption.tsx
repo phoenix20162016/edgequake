@@ -93,7 +93,7 @@ export function RunCaption({
     <>
       <div
         className={cn(
-          "flex items-center justify-between gap-3 text-xs",
+          "eq-toolbar justify-between gap-3 text-xs",
           srOnly && "sr-only",
           stepDetail?.failed &&
             "rounded-md border border-rose-200 bg-rose-50/80 px-2 py-1.5 dark:border-rose-900 dark:bg-rose-950/40",

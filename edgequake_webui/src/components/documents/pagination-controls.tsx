@@ -38,7 +38,7 @@ export function PaginationControls({
   const handleLastPage = () => onPageChange(totalPages);
 
   return (
-    <div className="flex items-center justify-between px-2 py-3 gap-4">
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 overflow-hidden px-2 py-3">
       {/* Left: showing range — communicates scope at a glance (DI-05) */}
       <div className="flex items-center gap-3 text-sm text-muted-foreground min-w-0">
         {totalItems !== undefined && totalItems > 0 ? (

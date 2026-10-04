@@ -126,7 +126,7 @@ function ParserSelect({
   return (
     <div
       className={cn(
-        'flex items-center gap-2',
+        'flex min-w-0 items-center gap-2',
         hideSideLabel ? 'min-w-0 flex-1' : 'shrink-0',
       )}
       onClick={(event) => event.stopPropagation()}
@@ -149,11 +149,11 @@ function ParserSelect({
       >
         <SelectTrigger
           className={cn(
-            'bg-background',
+            'min-w-0 bg-background',
             triggerClassName ??
               (compact
-                ? 'min-w-[10.5rem] w-auto max-w-[14rem] h-7 text-xs'
-                : 'min-w-[13.5rem] w-auto max-w-[18rem] h-9'),
+                ? 'h-7 w-auto min-w-0 max-w-[14rem] text-xs'
+                : 'h-9 w-auto min-w-0 max-w-[18rem]'),
           )}
           data-testid="spec038-upload-parser-select"
           title={
@@ -232,17 +232,19 @@ function FormatChips({ label, imagesLabel }: { label: string; imagesLabel: strin
 
 /**
  * Width policy shared by every select in the settings bar:
- * stack fills its column, row shrinks (and truncates) to share one line,
- * free keeps a readable minimum and goes full width on phones.
+ * stack fills its column, row and free shrink and wrap instead of overlapping.
  */
 function settingTriggerWidth(
   layout: 'stack' | 'row' | 'free',
   /** A literal Tailwind class (e.g. `max-w-[16rem]`) so the JIT scanner sees it. */
   maxWidthClass: string,
 ): string {
-  if (layout === 'stack') return 'w-full max-w-none';
-  if (layout === 'row') return cn('w-full min-w-0', maxWidthClass);
-  return cn('min-w-[11rem] w-auto max-sm:w-full max-sm:max-w-none', maxWidthClass);
+  if (layout === 'stack') return 'w-full max-w-none min-w-0';
+  return cn('min-w-0 w-full flex-1 basis-[9rem]', maxWidthClass);
+}
+
+function settingControlShell(stacked: boolean): string {
+  return stacked ? 'w-full min-w-0' : 'min-w-0 flex-1 basis-[9rem] max-w-full';
 }
 
 function DropzoneSettingsBar({
@@ -259,10 +261,10 @@ function DropzoneSettingsBar({
   return (
     <div
       className={cn(
-        'flex shrink-0 cursor-auto gap-2 border-t border-border/70 bg-background px-3 py-2',
+        'flex shrink-0 cursor-auto gap-2 overflow-hidden border-t border-border/70 bg-background px-3 py-2',
         stacked
           ? 'flex-col items-stretch'
-          : 'flex-row items-center justify-between max-sm:flex-col max-sm:items-stretch',
+          : 'flex-row flex-wrap items-center',
       )}
       data-testid="upload-parser-vision-combo"
       onClick={(event) => event.stopPropagation()}
@@ -273,10 +275,8 @@ function DropzoneSettingsBar({
       </span>
       <div
         className={cn(
-          'flex min-w-0 items-center gap-2',
-          stacked
-            ? 'w-full flex-col items-stretch'
-            : 'justify-end max-sm:w-full max-sm:flex-col max-sm:items-stretch',
+          'flex min-w-0 items-stretch gap-2',
+          stacked ? 'w-full flex-col' : 'flex-1 flex-wrap',
         )}
       >
         {children}
@@ -445,35 +445,40 @@ export function DocumentDropzone({
         );
 
   const fillLayoutKind = fillIsStack ? 'stack' : fillIsRow ? 'row' : 'free';
+  const controlShell = settingControlShell(fillIsStack);
   const settings = (
     <>
-      <ParserSelect
-        pdfParserBackend={pdfParserBackend}
-        onPdfParserBackendChange={onPdfParserBackendChange}
-        workspacePdfParserBackend={workspacePdfParserBackend}
-        compact={compact || collapsed || Boolean(fill)}
-        hideSideLabel={collapsed || Boolean(fill)}
-        triggerClassName={
-          compact || collapsed || fill
-            ? cn('h-7 text-xs', settingTriggerWidth(fillLayoutKind, 'max-w-[16rem]'))
-            : 'min-w-[13.5rem] w-auto max-w-[18rem] h-9'
-        }
-      />
-      {onExtractionModeChange ? (
-        <UploadExtractionModeSelect
-          value={extractionMode}
-          onValueChange={onExtractionModeChange}
-          workspaceMode={workspaceExtractionMode}
-          decisionModel={workspaceDecisionModel}
+      <div className={controlShell}>
+        <ParserSelect
+          pdfParserBackend={pdfParserBackend}
+          onPdfParserBackendChange={onPdfParserBackendChange}
+          workspacePdfParserBackend={workspacePdfParserBackend}
           compact={compact || collapsed || Boolean(fill)}
           hideSideLabel={collapsed || Boolean(fill)}
-          singleLineWarning={fillIsRow}
           triggerClassName={
-            fill || compact || collapsed
-              ? settingTriggerWidth(fillLayoutKind, 'max-w-[16rem]')
-              : undefined
+            compact || collapsed || fill
+              ? cn('h-7 text-xs', settingTriggerWidth(fillLayoutKind, 'max-w-[16rem]'))
+              : 'h-9 w-auto min-w-0 max-w-[18rem]'
           }
         />
+      </div>
+      {onExtractionModeChange ? (
+        <div className={controlShell}>
+          <UploadExtractionModeSelect
+            value={extractionMode}
+            onValueChange={onExtractionModeChange}
+            workspaceMode={workspaceExtractionMode}
+            decisionModel={workspaceDecisionModel}
+            compact={compact || collapsed || Boolean(fill)}
+            hideSideLabel={collapsed || Boolean(fill)}
+            singleLineWarning={fillIsRow}
+            triggerClassName={
+              fill || compact || collapsed
+                ? settingTriggerWidth(fillLayoutKind, 'max-w-[16rem]')
+                : undefined
+            }
+          />
+        </div>
       ) : null}
       {showVisionPanel && visionExtract && onVisionExtractChange ? (
         <VisionSettingsPanel
@@ -481,7 +486,7 @@ export function DocumentDropzone({
           onChange={onVisionExtractChange}
           showInheritHint={pdfParserBackend === 'default'}
           compact={compact || collapsed || Boolean(fill)}
-          className={fillIsStack ? 'w-full' : undefined}
+          className={fillIsStack ? 'w-full min-w-0' : cn(controlShell, 'min-w-0')}
           effort={
             showVisionEffort && onVisionReasoningEffortChange
               ? {
@@ -694,8 +699,8 @@ export function DocumentDropzone({
           </div>
           <div
             className={cn(
-              'flex items-center gap-2',
-              fillIsRow ? 'min-w-0 flex-[3]' : 'shrink-0',
+              'flex min-w-0 flex-wrap items-center gap-2 overflow-hidden',
+              fillIsRow ? 'flex-[3]' : 'shrink-0',
               !fill &&
                 'max-sm:basis-full max-sm:border-t max-sm:border-border/50 max-sm:pt-1.5 max-sm:pl-0 sm:border-l sm:border-border/70 sm:pl-3',
             )}

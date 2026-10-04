@@ -43,7 +43,7 @@ export function PipelineChunkProgressCard() {
   return (
     <Card data-testid="spec100-pipeline-chunk-slot">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
+        <CardTitle className="text-lg flex min-w-0 flex-wrap items-center gap-2">
           <Layers className="h-5 w-5" />
           Chunk Progress
           {hasActiveProgress && (
@@ -72,7 +72,7 @@ export function PipelineChunkProgressCard() {
                   key={progress.documentId}
                   className="p-3 rounded-lg border bg-card space-y-3"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="eq-toolbar justify-between">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium truncate max-w-48">
@@ -109,7 +109,7 @@ export function PipelineChunkProgressCard() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="eq-metric-grid text-xs">
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Brain className="h-3 w-3" />
                       <span>In: {formatTokenCount(progress.tokensIn)}</span>

@@ -14,6 +14,16 @@ vi.mock("@/hooks/use-providers", () => ({
   useLlmModels: () => ({ data: undefined }),
 }));
 
+vi.mock("@/hooks/use-decision-status", () => ({
+  useDecisionStatus: () => ({
+    data: {
+      enabled: true,
+      activation: "forced",
+      limits: { pack_size: 4, timeout_secs: 600 },
+    },
+  }),
+}));
+
 function installBox(width: number, height: number) {
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     () =>
@@ -154,6 +164,24 @@ describe("DocumentDropzone", () => {
     );
     expect(screen.queryByTestId("document-dropzone-browse")).not.toBeInTheDocument();
     expect(screen.queryByTestId("document-dropzone-formats")).not.toBeInTheDocument();
+  });
+
+  it("wraps parser and extraction controls on a narrow dock instead of overlapping", () => {
+    installBox(360, 280);
+    renderZone({
+      quiet: true,
+      onExtractionModeChange: () => {},
+    });
+
+    const bar = screen.getByTestId("upload-parser-vision-combo");
+    expect(bar.className).toMatch(/flex-wrap/);
+    expect(bar.className).toMatch(/overflow-hidden/);
+    expect(screen.getByTestId("spec038-upload-parser-select").className).toMatch(
+      /min-w-0/,
+    );
+    expect(screen.getByTestId("upload-extraction-mode-select").className).toMatch(
+      /min-w-0/,
+    );
   });
 
   it("softens the invitation while processing continues", () => {

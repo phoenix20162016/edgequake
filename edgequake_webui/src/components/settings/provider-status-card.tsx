@@ -204,8 +204,8 @@ export EDGEQUAKE_LLM_MODEL="MiniMax-M2.7"`,
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="eq-toolbar justify-between">
+          <div className="min-w-0">
             <CardTitle className="flex items-center gap-2">
               <Server className="h-5 w-5" />
               LLM Provider Status

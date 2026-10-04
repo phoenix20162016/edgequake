@@ -210,7 +210,7 @@ export function WorkspaceZone({
 
       <div
         className={cn(
-          "relative flex min-h-0 flex-1 flex-col overscroll-contain",
+          "relative flex min-h-0 min-w-0 flex-1 flex-col overscroll-contain",
           zone === "intake" ? "overflow-hidden" : "overflow-auto",
         )}
       >

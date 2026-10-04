@@ -130,7 +130,7 @@ function PhaseLabel({
   return (
     <span
       className={cn(
-        "inline-flex min-w-0 items-center gap-1.5 text-xs transition-colors",
+        "flex w-full min-w-0 items-center gap-1.5 overflow-hidden text-xs transition-colors",
         chip ? "rounded-md px-2 py-0.5" : "leading-none",
         status === "active" && "font-medium",
         chip
@@ -162,7 +162,7 @@ function PhaseLabel({
           status === "active" && "motion-reduce:animate-none",
         )}
       />
-      <span className="truncate">{PHASE_STRIP_LABELS[phase]}</span>
+      <span className="min-w-0 truncate">{PHASE_STRIP_LABELS[phase]}</span>
     </span>
   );
 }
@@ -192,7 +192,7 @@ export function PhaseStrip({ run, progress, className }: PhaseStripProps) {
     const segments = buildPhaseSegments(run, progress.stagePct);
     return (
       <div
-        className={cn("grid grid-cols-4 gap-2", className)}
+        className={cn("eq-metric-grid sm:gap-2", className)}
         data-testid="spec091-phase-strip"
         data-variant="segmented"
         data-wire-stage={run.stage}
@@ -201,7 +201,7 @@ export function PhaseStrip({ run, progress, className }: PhaseStripProps) {
         {segments.map((segment) => (
           <div
             key={segment.phase}
-            className="min-w-0 space-y-1.5"
+            className="min-w-0 overflow-hidden space-y-1.5"
             title={
               segment.status === "done" && segment.summary
                 ? segment.summary

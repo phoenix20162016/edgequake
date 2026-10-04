@@ -782,7 +782,7 @@ export function GraphViewer() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Toolbar - compact; secondary actions collapse on mobile */}
         <header 
-          className="flex items-center justify-between border-b px-2 sm:px-4 py-2 shrink-0 bg-card/90 backdrop-blur-sm"
+          className="eq-toolbar justify-between border-b px-2 sm:px-4 py-2 shrink-0 bg-card/90 backdrop-blur-sm"
           data-tour="graph-header"
         >
           <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
@@ -805,7 +805,7 @@ export function GraphViewer() {
             {/* SPEC-100: always reserve count chip so load→data does not shove toolbar */}
             {!isMobile && (
               <span
-                className="min-w-[9.5rem] text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md tabular-nums"
+                className="min-w-0 max-w-full truncate text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md tabular-nums"
                 data-testid="spec100-graph-count-slot"
               >
                 {headerNodeCount > 0 || headerEdgeCount > 0 || !isDocumentScoped
@@ -814,7 +814,7 @@ export function GraphViewer() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          <div className="eq-toolbar min-w-0 shrink-0">
             {/* Show filter button on mobile and tablet (right panel is hidden) */}
             {isSmallScreen && (
               <Button 

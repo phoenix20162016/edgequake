@@ -60,7 +60,7 @@ export function WorkspaceStatsCards({
   ] as const;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid min-w-0 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 [&>*]:min-w-0">
       {items.map(({ key, icon: Icon, label, value, footer }) => (
         <Card key={key}>
           <CardHeader className="pb-2">

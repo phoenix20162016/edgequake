@@ -70,7 +70,7 @@ export function PipelineTaskQueueCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="eq-toolbar justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <Clock className="h-5 w-5" />
             Task Queue

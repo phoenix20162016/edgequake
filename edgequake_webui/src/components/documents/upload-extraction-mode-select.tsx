@@ -90,10 +90,12 @@ export function UploadExtractionModeSelect({
           testId="upload-extraction-mode-select"
           ariaLabel={t('extractionMode.upload.label', 'Extraction for this upload')}
           triggerClassName={cn(
-            compact
-              ? 'h-7 min-w-[9.5rem] w-auto max-w-[14rem] text-xs'
-              : 'h-9 min-w-[13.5rem] w-auto max-w-[18rem]',
-            triggerClassName,
+            'min-w-0',
+            compact ? 'h-7 w-full text-xs' : 'h-9 w-full',
+            triggerClassName ??
+              (compact
+                ? 'w-auto max-w-[14rem]'
+                : 'w-auto max-w-[18rem]'),
           )}
         />
       </div>

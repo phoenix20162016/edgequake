@@ -106,7 +106,7 @@ export function AppAttributionSettingsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="eq-metric-grid gap-4">
           <div className="space-y-2">
             <Label htmlFor="app-id">App ID</Label>
             <Input

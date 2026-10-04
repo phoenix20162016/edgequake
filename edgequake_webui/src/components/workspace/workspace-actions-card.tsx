@@ -100,7 +100,7 @@ export function WorkspaceActionsCard({
         </div>
 
         <dl
-          className="grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-lg border border-dashed bg-muted/20 px-3 py-2.5 text-xs sm:grid-cols-4"
+          className="eq-metric-grid gap-x-4 gap-y-1.5 rounded-lg border border-dashed bg-muted/20 px-3 py-2.5 text-xs"
           data-testid="workspace-metadata"
         >
           <div className="min-w-0 space-y-0.5">

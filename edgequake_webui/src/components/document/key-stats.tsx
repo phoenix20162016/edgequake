@@ -23,7 +23,7 @@ interface KeyStatsProps {
 
 export function KeyStats({ document }: KeyStatsProps) {
   return (
-    <div className="grid w-full grid-cols-2 gap-2">
+    <div className="eq-metric-grid gap-2">
       <StatCard
         icon={<FileText className="h-4 w-4" />}
         label="Chunks"
@@ -70,7 +70,7 @@ function StatCard({ icon, label, value, color }: StatCardProps) {
   return (
     <div 
       className={cn(
-        'flex flex-col gap-1 p-2.5 rounded-lg border bg-card',
+        'flex min-w-0 flex-col gap-1 overflow-hidden p-2.5 rounded-lg border bg-card',
         'transition-all duration-200 ease-out cursor-default',
       )}
     >

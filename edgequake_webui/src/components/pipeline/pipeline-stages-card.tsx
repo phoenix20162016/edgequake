@@ -81,7 +81,7 @@ export function PipelineStagesCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="eq-toolbar justify-between">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               <Layers className="h-5 w-5" />
@@ -133,7 +133,7 @@ export function PipelineStagesCard() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="eq-metric-grid gap-4">
           {PIPELINE_PHASES.map((phase) => {
             const count =
               phaseCounts[phase.key as keyof typeof phaseCounts] || 0;
@@ -143,7 +143,7 @@ export function PipelineStagesCard() {
             return (
               <div
                 key={phase.key}
-                className={`flex flex-col items-center p-4 rounded-lg border-2 transition-all ${
+                className={`flex min-w-0 flex-col items-center overflow-hidden p-4 rounded-lg border-2 transition-all ${
                   isActivePhase ? phase.bgColor : "bg-muted/50 border-muted"
                 }`}
               >
@@ -157,7 +157,7 @@ export function PipelineStagesCard() {
                   }`}
                 />
                 <span
-                  className={`text-sm font-medium mt-2 ${
+                  className={`text-sm font-medium mt-2 truncate max-w-full ${
                     isActivePhase ? phase.color : "text-muted-foreground"
                   }`}
                 >

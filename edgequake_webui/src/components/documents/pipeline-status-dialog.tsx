@@ -695,7 +695,7 @@ export function PipelineStatusDialog({
               )}
 
               {data && (
-                <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="eq-metric-grid text-sm">
                   <div className="p-2 bg-amber-50 dark:bg-amber-950 rounded text-center">
                     <p className="text-xs text-muted-foreground">{t('pipeline.waitingLabel', 'Waiting')}</p>
                     <p className="text-lg font-bold text-amber-600">{waitingCount}</p>
@@ -788,7 +788,7 @@ export function PipelineStatusDialog({
               )}
 
               {/* Statistics Grid */}
-              <div className="grid grid-cols-4 gap-2 text-sm">
+              <div className="eq-metric-grid text-sm">
                 <div className="p-2 bg-yellow-50 dark:bg-yellow-950 rounded text-center">
                   <p className="text-xs text-muted-foreground">Pending</p>
                   <p className="text-lg font-bold text-yellow-600">{data.pending_tasks}</p>

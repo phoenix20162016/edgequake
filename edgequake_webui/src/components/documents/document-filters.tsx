@@ -55,14 +55,14 @@ export function DocumentFilters({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <div className="eq-toolbar">
       {/* Status Filter */}
       <Select
         value={status}
         onValueChange={(v) => onStatusChange(v as DocStatus)}
       >
         <SelectTrigger
-          className="w-44 h-9"
+          className="h-9 w-full min-w-0 max-w-44"
           aria-label={t('documents.filter.status', 'Filter by status')}
         >
           <SelectValue placeholder={t('documents.filter.status')} />

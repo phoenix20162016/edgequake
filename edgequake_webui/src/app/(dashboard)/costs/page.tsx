@@ -137,7 +137,7 @@ export default function CostDashboardPage() {
 
         <div className="space-y-page">
           {/* Top row: Summary and Budget */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-page">
+          <div className="grid min-w-0 grid-cols-1 lg:grid-cols-3 gap-page [&>*]:min-w-0">
             <div className="lg:col-span-2">
               <CostSummaryCard
                 summary={summary ?? null}
@@ -155,7 +155,7 @@ export default function CostDashboardPage() {
           </div>
 
           {/* Charts row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-page">
+          <div className="grid min-w-0 grid-cols-1 lg:grid-cols-2 gap-page [&>*]:min-w-0">
             {/* Cost by operation */}
             <CostBreakdownChart
               breakdown={summary ? {

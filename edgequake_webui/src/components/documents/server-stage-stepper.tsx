@@ -129,7 +129,7 @@ export function ServerStageStepper({
 
   return (
     <div
-      className={cn("space-y-2", className)}
+      className={cn("min-w-0 space-y-2", className)}
       data-testid="spec048-server-stage-stepper"
       data-stage={run.stage}
       data-admission={admissionPhase ?? "running"}
@@ -145,7 +145,7 @@ export function ServerStageStepper({
       ) : null}
 
       {variant === "phases" ? (
-        <PhaseStrip run={run} progress={phaseProgress} />
+        <PhaseStrip run={run} progress={phaseProgress} className="min-w-0" />
       ) : (
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         {steps.map((step) => (

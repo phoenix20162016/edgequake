@@ -203,7 +203,7 @@ export default function WorkspacePage() {
           data-testid="spec100-workspace-skeleton"
         >
           <Skeleton className="h-10 w-72" />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-32" />
             ))}
@@ -296,7 +296,7 @@ export default function WorkspacePage() {
         <WorkspaceExtractionModeCard workspace={workspace} />
 
         <div
-          className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start"
+          className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start [&>*]:min-w-0"
           data-testid="workspace-kg-schema-row"
         >
           <WorkspaceEntityTypesCard

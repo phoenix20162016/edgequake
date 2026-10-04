@@ -200,7 +200,7 @@ export function QueryInterface() {
       <div ref={rootRef} className="flex h-full min-h-0">
         <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
           <header
-            className="flex items-center justify-between border-b px-page py-2 shrink-0 bg-background/80 backdrop-blur-sm gap-2"
+            className="eq-toolbar justify-between border-b px-page py-2 shrink-0 bg-background/80 backdrop-blur-sm"
             role="banner"
           >
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -220,7 +220,7 @@ export function QueryInterface() {
                     )}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="eq-toolbar min-w-0 shrink-0">
               <Button
                 variant="outline"
                 size="sm"

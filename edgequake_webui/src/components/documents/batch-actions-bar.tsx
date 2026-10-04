@@ -48,12 +48,12 @@ export function BatchActionsBar({
   return (
     <div
       className={[
-        'shrink-0 px-1 py-1.5 bg-primary/5 rounded-md border border-primary/20 flex items-center justify-between',
+        'eq-toolbar shrink-0 px-1 py-1.5 bg-primary/5 rounded-md border border-primary/20 justify-between',
         'motion-safe:animate-[slideDown_150ms_ease-out]',
       ].join(' ')}
       data-testid="batch-actions-bar"
     >
-      <div className="flex items-center gap-3">
+      <div className="eq-toolbar min-w-0">
         <span className="text-sm font-medium">
           {t('documents.bulk.selected', { count: selectedCount }) || `${selectedCount} selected`}
         </span>
@@ -61,7 +61,7 @@ export function BatchActionsBar({
           Press <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Esc</kbd> to clear
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="eq-toolbar shrink-0">
         {onCancel && cancellableCount > 0 ? (
           <Button
             variant="outline"
