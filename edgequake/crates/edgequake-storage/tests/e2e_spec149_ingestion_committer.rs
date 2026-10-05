@@ -117,6 +117,51 @@ fn command(
 }
 
 #[tokio::test]
+async fn retired_binding_is_not_replaced_and_ingestion_rolls_back() {
+    use edgequake_storage::{
+        contracts::{BindingRegistry, BindingRole, BindingState},
+        PgBindingRegistry,
+    };
+    let Some((_config, pool, tenant, workspace)) = setup("spec149_retired_binding").await else {
+        return;
+    };
+    let registry = PgBindingRegistry::new(pool.clone());
+    let scope = AccessScope::new(TenantId::new(tenant), WorkspaceId::new(workspace));
+    let bindings = registry.ensure_scope_bindings(&scope, &[]).await.unwrap();
+    let graph = bindings
+        .iter()
+        .find(|b| b.role == BindingRole::Graph)
+        .unwrap();
+    sqlx::query("UPDATE data_bindings SET state = 'retired', provider = 'external_graph' WHERE binding_id = $1")
+        .bind(graph.binding_id).execute(&pool).await.unwrap();
+    let resolved = registry.ensure_scope_bindings(&scope, &[]).await.unwrap();
+    let retained = resolved
+        .iter()
+        .find(|b| b.role == BindingRole::Graph)
+        .unwrap();
+    assert_eq!(retained.binding_id, graph.binding_id);
+    assert_eq!(retained.provider, "external_graph");
+    assert_eq!(retained.state, BindingState::Retired);
+    let document = Uuid::new_v4();
+    let batch = command(tenant, workspace, document, &format!("retired:{document}"));
+    let error = PgIngestionCommitter::new(pool.clone())
+        .commit_batch(&batch)
+        .await
+        .expect_err("missing active graph role must reject ingestion");
+    assert!(matches!(error, AccessError::Unavailable(_)));
+    assert!(error
+        .to_string()
+        .contains("required active binding role 'graph' is missing"));
+    let counts: (i64, i64, i64, i64) = sqlx::query_as(
+        "SELECT (SELECT count(*) FROM mutation_requests WHERE tenant_id = $1 AND workspace_id = $2), \
+                (SELECT count(*) FROM chunks WHERE document_id = $3), \
+                (SELECT count(*) FROM projection_events WHERE object_id = $3), \
+                (SELECT count(*) FROM data_bindings WHERE tenant_id = $1 AND workspace_id = $2 AND role = 'graph')"
+    ).bind(tenant).bind(workspace).bind(document).fetch_one(&pool).await.unwrap();
+    assert_eq!(counts, (0, 0, 0, 1));
+}
+
+#[tokio::test]
 async fn fresh_migrate_applies_150_provider_access_ledger() {
     let Some((_config, pool, _, _)) = setup("spec149_migration").await else {
         return;
@@ -731,10 +776,21 @@ async fn document_reader_matches_committed_generation() {
         idempotency_key: format!("delete:{document_id}:1"),
         command_digest: [21; 32],
     };
-    committer
+    let receipt = committer
         .tombstone_document(&delete)
         .await
         .expect("tombstone");
+    // A resumed delete with a new request key reads the existing bytea
+    // receipt through the tombstoned branch, rather than deleting twice.
+    let resumed = edgequake_storage_contracts::DeleteDocument {
+        idempotency_key: format!("resume-delete:{document_id}:1"),
+        ..delete.clone()
+    };
+    let replay = committer
+        .tombstone_document(&resumed)
+        .await
+        .expect("resume tombstone");
+    assert_eq!(receipt, replay);
     let views = committer
         .get_many(&scope, &[DocumentId::new(document_id)])
         .await

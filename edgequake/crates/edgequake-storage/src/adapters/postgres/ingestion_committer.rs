@@ -47,6 +47,9 @@ impl PgIngestionCommitter {
     async fn load_receipt(&self, command: &PreparedIngestionBatch) -> AccessResult<CommitReceipt> {
         let tenant_id = command.scope.tenant().into_uuid();
         let workspace_id = command.scope.workspace().into_uuid();
+        let mut tx = super::rls::begin_tenant_transaction(&self.pool, &command.scope)
+            .await
+            .map_err(AccessError::from)?;
         let row = sqlx::query_as::<_, (Vec<u8>, Vec<u8>)>(
             r#"
             SELECT digest, receipt
@@ -61,7 +64,7 @@ impl PgIngestionCommitter {
         .bind(workspace_id)
         .bind(COMMIT_OPERATION)
         .bind(&command.idempotency_key)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&mut *tx)
         .await
         .map_err(|error| classify_sqlx("read committed ingestion receipt", error))?
         .ok_or_else(|| {
@@ -70,6 +73,9 @@ impl PgIngestionCommitter {
                 command.idempotency_key
             ))
         })?;
+        tx.commit()
+            .await
+            .map_err(|e| classify_sqlx("close receipt read", e))?;
         decode_commit_receipt(command, &row.0, &row.1)
     }
 }
@@ -78,11 +84,9 @@ impl PgIngestionCommitter {
 impl IngestionCommitter for PgIngestionCommitter {
     async fn commit_batch(&self, command: &PreparedIngestionBatch) -> AccessResult<CommitReceipt> {
         let validated = validate_prepared_ingestion_batch(command)?;
-        let mut tx = self
-            .pool
-            .begin()
+        let mut tx = super::rls::begin_tenant_transaction(&self.pool, &command.scope)
             .await
-            .map_err(|error| classify_sqlx("begin ingestion transaction", error))?;
+            .map_err(AccessError::from)?;
 
         if let Some(receipt) = find_receipt_in_transaction(&mut tx, command).await? {
             tx.rollback()
@@ -188,11 +192,9 @@ impl LifecycleCommitter for PgIngestionCommitter {
             .ok_or_else(|| AccessError::InvalidInput("tombstone revision overflow".into()))?;
         let tombstone_revision_i64 = checked_i64(tombstone_revision, "tombstone revision")?;
 
-        let mut tx = self
-            .pool
-            .begin()
+        let mut tx = super::rls::begin_tenant_transaction(&self.pool, &command.scope)
             .await
-            .map_err(|error| classify_sqlx("begin tombstone transaction", error))?;
+            .map_err(AccessError::from)?;
 
         if let Some((digest, receipt)) = sqlx::query_as::<_, (Vec<u8>, Vec<u8>)>(
             "SELECT digest, receipt FROM public.mutation_requests \
@@ -264,7 +266,7 @@ impl LifecycleCommitter for PgIngestionCommitter {
             if let Some(receipt) = sqlx::query_scalar::<_, Vec<u8>>(
                 "SELECT receipt FROM public.mutation_requests \
                  WHERE tenant_id = $1 AND workspace_id = $2 AND operation = $3 \
-                   AND receipt::jsonb->>'document_id' = $4 \
+                   AND convert_from(receipt, 'UTF8')::jsonb->>'document_id' = $4 \
                  ORDER BY created_at DESC LIMIT 1",
             )
             .bind(tenant_id)
@@ -423,6 +425,9 @@ impl DocumentReader for PgIngestionCommitter {
             ));
         }
         let wanted: Vec<Uuid> = ids.iter().map(|id| id.into_uuid()).collect();
+        let mut tx = super::rls::begin_tenant_transaction(&self.pool, scope)
+            .await
+            .map_err(AccessError::from)?;
         let rows = sqlx::query_as::<_, (Uuid, i64, String, Vec<u8>)>(
             r#"
             SELECT DISTINCT ON (logical_id) logical_id, revision, state, digest
@@ -437,9 +442,12 @@ impl DocumentReader for PgIngestionCommitter {
         .bind(scope.tenant().into_uuid())
         .bind(scope.workspace().into_uuid())
         .bind(&wanted)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await
         .map_err(|error| classify_sqlx("read document revisions", error))?;
+        tx.commit()
+            .await
+            .map_err(|e| classify_sqlx("close document read", e))?;
         let mut by_id = std::collections::HashMap::new();
         for (logical_id, revision, state, digest) in rows {
             by_id.insert(
@@ -465,6 +473,9 @@ impl DocumentReader for PgIngestionCommitter {
                 AccessError::InvalidInput("document page cursor is not a UUID".into())
             })?),
         };
+        let mut tx = super::rls::begin_tenant_transaction(&self.pool, scope)
+            .await
+            .map_err(AccessError::from)?;
         let rows = sqlx::query_as::<_, (Uuid, i64, String, Vec<u8>)>(
             r#"
             SELECT logical_id, revision, state, digest
@@ -489,10 +500,13 @@ impl DocumentReader for PgIngestionCommitter {
         .bind(scope.workspace().into_uuid())
         .bind(cursor)
         .bind(limit + 1)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await
         .map_err(|error| classify_sqlx("list document revisions", error))?;
 
+        tx.commit()
+            .await
+            .map_err(|e| classify_sqlx("close document list", e))?;
         let ids: Vec<String> = rows
             .iter()
             .map(|(logical_id, _, _, _)| logical_id.to_string())
@@ -986,32 +1000,25 @@ async fn ensure_p0_bindings_in_transaction(
     for role in P0_REQUIRED_ROLES {
         let descriptor = PgBindingRegistry::descriptor_for_role(scope, *role);
         // Inline upsert keeps provisioning inside the authority transaction.
-        sqlx::query(
-            r#"
-            INSERT INTO public.data_bindings (
-                binding_id, tenant_id, workspace_id, role, provider, config_ref,
-                layout, physical_index, model_descriptor, generation, state
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (binding_id) DO NOTHING
-            "#,
-        )
-        .bind(descriptor.binding_id)
-        .bind(tenant_id)
-        .bind(workspace_id)
-        .bind(descriptor.role.as_str())
-        .bind(&descriptor.provider)
-        .bind(&descriptor.config_ref)
-        .bind(&descriptor.layout)
-        .bind(&descriptor.physical_index)
-        .bind(descriptor.model_descriptor.as_deref())
-        .bind(
-            i64::try_from(descriptor.generation)
-                .map_err(|_| AccessError::InvalidInput("binding generation exceeds i64".into()))?,
-        )
-        .bind(BindingState::Active.as_str())
-        .execute(&mut **tx)
-        .await
-        .map_err(|error| classify_sqlx("ensure P0 data binding", error))?;
+        sqlx::query(super::binding_registry::INSERT_DEFAULT_BINDING)
+            .bind(descriptor.binding_id)
+            .bind(tenant_id)
+            .bind(workspace_id)
+            .bind(descriptor.role.as_str())
+            .bind(&descriptor.provider)
+            .bind(&descriptor.config_ref)
+            .bind(&descriptor.layout)
+            .bind(&descriptor.physical_index)
+            .bind(descriptor.model_descriptor.as_deref())
+            .bind(
+                i64::try_from(descriptor.generation).map_err(|_| {
+                    AccessError::InvalidInput("binding generation exceeds i64".into())
+                })?,
+            )
+            .bind(BindingState::Active.as_str())
+            .execute(&mut **tx)
+            .await
+            .map_err(|error| classify_sqlx("ensure P0 data binding", error))?;
     }
 
     let active: Vec<(Uuid, String, String)> = sqlx::query_as(

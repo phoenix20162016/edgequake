@@ -113,6 +113,7 @@ pub mod reasoning_effort_resolve;
 pub mod relational_sidecar_store;
 pub mod reprocess_admission;
 pub mod reprocess_stage_reset;
+pub mod request_authorization;
 pub mod retract_document_indexes;
 pub mod retrieval_id_cache;
 pub mod route_registry;
@@ -138,6 +139,7 @@ pub mod vlm_provider_resolver;
 pub mod workspace_content_hash_dedup;
 pub mod workspace_document_index;
 pub mod workspace_document_wipe;
+pub mod workspace_visibility;
 pub mod workspace_wipe_admission;
 
 pub use audit::{

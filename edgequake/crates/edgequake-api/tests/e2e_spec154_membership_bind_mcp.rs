@@ -14,10 +14,10 @@ use uuid::Uuid;
 
 #[tokio::test]
 async fn ec_154_13_mcp_header_workspace_mismatch_forbidden_under_strict_bind() {
-    let mut state = auth_enabled_mcp_state();
+    let mut state = auth_enabled_mcp_state().await;
     state.security.strict_tenant_bind = true;
 
-    let user_id = Uuid::new_v4();
+    let user_id = edgequake_api::middleware::default_user_uuid();
     let resource = "http://127.0.0.1:8080/mcp";
     let claims = Claims::new(user_id, Role::User, 3600)
         .with_audience(vec![resource.to_string()])
@@ -59,7 +59,7 @@ async fn ec_154_13_mcp_header_workspace_mismatch_forbidden_under_strict_bind() {
 
 #[tokio::test]
 async fn ec_154_master_key_still_reaches_mcp_under_strict_bind() {
-    let mut state = auth_enabled_mcp_state();
+    let mut state = auth_enabled_mcp_state().await;
     state.security.strict_tenant_bind = true;
     let app = build_mcp_app(state);
 
@@ -87,7 +87,7 @@ async fn ec_154_master_key_still_reaches_mcp_under_strict_bind() {
 
 #[tokio::test]
 async fn ec_154_mcp_jwt_matching_workspace_still_ok() {
-    let mut state = auth_enabled_mcp_state();
+    let mut state = auth_enabled_mcp_state().await;
     state.security.strict_tenant_bind = true;
     let token = issue_mcp_jwt(&state, Role::User, "edgequake:read");
     let app = build_mcp_app(state);
@@ -107,11 +107,15 @@ async fn ec_154_mcp_jwt_matching_workspace_still_ok() {
 /// EC-154-30: authenticated JWT without workspace claim + tool foreign workspace_id → forbidden.
 #[tokio::test]
 async fn ec_154_30_tool_foreign_workspace_without_claim_forbidden() {
-    let state = auth_enabled_mcp_state();
+    let state = auth_enabled_mcp_state().await;
     let resource = "http://127.0.0.1:8080/mcp";
-    let claims = Claims::new(Uuid::new_v4(), Role::User, 3600)
-        .with_audience(vec![resource.to_string()])
-        .with_scope("edgequake:read edgequake:query".to_string());
+    let claims = Claims::new(
+        edgequake_api::middleware::default_user_uuid(),
+        Role::User,
+        3600,
+    )
+    .with_audience(vec![resource.to_string()])
+    .with_scope("edgequake:read edgequake:query".to_string());
     // No workspace_id claim.
     let token = state
         .auth
@@ -185,8 +189,15 @@ async fn ec_154_07_non_member_mcp_forbidden_with_pg() {
     state.auth.config.api_keys = vec!["master-mcp-test-key".to_string()];
     state.security.strict_tenant_bind = true;
     state.security.kv_identity_mirror = false;
-    state.initialize_defaults().await.expect("defaults");
-
+    // Provision authority rows before scoped identity helpers validate ownership.
+    // The fixture pool is administrative; request RLS remains enabled below.
+    common::provider_access::http_harness::seed_scope(
+        &pool,
+        edgequake_api::middleware::default_tenant_uuid(),
+        edgequake_api::middleware::default_workspace_uuid(),
+        "mcp-default",
+    )
+    .await;
     // Ensure default tenant/workspace exist; do NOT add membership for this user.
     edgequake_api::services::identity_storage::ensure_default_tenant_workspace(
         &pool,
@@ -194,8 +205,9 @@ async fn ec_154_07_non_member_mcp_forbidden_with_pg() {
     )
     .await
     .expect("default tenant/workspace");
+    state.initialize_defaults().await.expect("defaults");
 
-    let user_id = Uuid::new_v4();
+    let user_id = edgequake_api::middleware::default_user_uuid();
     let tenant_id = edgequake_api::middleware::default_tenant_uuid();
     let foreign_ws = Uuid::new_v4();
     let resource = "http://127.0.0.1:8080/mcp";

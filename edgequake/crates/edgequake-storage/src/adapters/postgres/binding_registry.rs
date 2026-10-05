@@ -8,6 +8,20 @@ use edgequake_storage_contracts::{
 use sqlx::PgPool;
 use uuid::Uuid;
 
+/// Defaults fill unconfigured roles only. Existing external or disabled bindings
+/// must never be replaced by P0 during bootstrap or ingestion.
+pub(super) const INSERT_DEFAULT_BINDING: &str = r#"
+    INSERT INTO public.data_bindings (
+        binding_id, tenant_id, workspace_id, role, provider, config_ref,
+        layout, physical_index, model_descriptor, generation, state
+    ) SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    WHERE NOT EXISTS (
+        SELECT 1 FROM public.data_bindings
+        WHERE tenant_id = $2 AND workspace_id = $3 AND role = $4
+    )
+    ON CONFLICT DO NOTHING
+"#;
+
 #[derive(Debug, sqlx::FromRow)]
 struct BindingRow {
     binding_id: Uuid,
@@ -103,33 +117,46 @@ impl PgBindingRegistry {
         &self,
         descriptor: &DataBindingDescriptor,
     ) -> AccessResult<DataBindingDescriptor> {
-        sqlx::query(
-            r#"
-            INSERT INTO public.data_bindings (
-                binding_id, tenant_id, workspace_id, role, provider, config_ref,
-                layout, physical_index, model_descriptor, generation, state
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (binding_id) DO NOTHING
-            "#,
+        let mut tx = super::rls::begin_tenant_transaction(&self.pool, &descriptor.scope)
+            .await
+            .map_err(|e| AccessError::Unavailable(format!("begin binding transaction: {e}")))?;
+        sqlx::query(INSERT_DEFAULT_BINDING)
+            .bind(descriptor.binding_id)
+            .bind(descriptor.scope.tenant().into_uuid())
+            .bind(descriptor.scope.workspace().into_uuid())
+            .bind(descriptor.role.as_str())
+            .bind(&descriptor.provider)
+            .bind(&descriptor.config_ref)
+            .bind(&descriptor.layout)
+            .bind(&descriptor.physical_index)
+            .bind(descriptor.model_descriptor.as_deref())
+            .bind(
+                i64::try_from(descriptor.generation).map_err(|_| {
+                    AccessError::InvalidInput("binding generation exceeds i64".into())
+                })?,
+            )
+            .bind(descriptor.state.as_str())
+            .execute(&mut *tx)
+            .await
+            .map_err(|error| AccessError::Unavailable(format!("upsert data binding: {error}")))?;
+        let row = sqlx::query_as::<_, BindingRow>(
+            "SELECT binding_id, tenant_id, workspace_id, role, provider, config_ref, \
+             layout, physical_index, model_descriptor, generation, state \
+             FROM public.data_bindings \
+             WHERE tenant_id = $1 AND workspace_id = $2 AND role = $3 \
+             ORDER BY (state = 'active') DESC, (state = 'draining') DESC, generation DESC, binding_id \
+             LIMIT 1",
         )
-        .bind(descriptor.binding_id)
         .bind(descriptor.scope.tenant().into_uuid())
         .bind(descriptor.scope.workspace().into_uuid())
         .bind(descriptor.role.as_str())
-        .bind(&descriptor.provider)
-        .bind(&descriptor.config_ref)
-        .bind(&descriptor.layout)
-        .bind(&descriptor.physical_index)
-        .bind(descriptor.model_descriptor.as_deref())
-        .bind(
-            i64::try_from(descriptor.generation)
-                .map_err(|_| AccessError::InvalidInput("binding generation exceeds i64".into()))?,
-        )
-        .bind(descriptor.state.as_str())
-        .execute(&self.pool)
+        .fetch_one(&mut *tx)
         .await
-        .map_err(|error| AccessError::Unavailable(format!("upsert data binding: {error}")))?;
-        Ok(descriptor.clone())
+        .map_err(|error| AccessError::Unavailable(format!("load configured binding: {error}")))?;
+        tx.commit()
+            .await
+            .map_err(|e| AccessError::Unavailable(format!("commit binding transaction: {e}")))?;
+        row.into_descriptor()
     }
 }
 
@@ -170,6 +197,9 @@ impl BindingRegistry for PgBindingRegistry {
     }
 
     async fn list_active(&self, scope: &AccessScope) -> AccessResult<Vec<DataBindingDescriptor>> {
+        let mut tx = super::rls::begin_tenant_transaction(&self.pool, scope)
+            .await
+            .map_err(|e| AccessError::Unavailable(format!("begin binding read: {e}")))?;
         let rows = sqlx::query_as::<_, BindingRow>(
             r#"
             SELECT binding_id, tenant_id, workspace_id, role, provider, config_ref,
@@ -181,9 +211,12 @@ impl BindingRegistry for PgBindingRegistry {
         )
         .bind(scope.tenant().into_uuid())
         .bind(scope.workspace().into_uuid())
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await
         .map_err(|error| AccessError::Unavailable(format!("list active bindings: {error}")))?;
+        tx.commit()
+            .await
+            .map_err(|e| AccessError::Unavailable(format!("commit binding read: {e}")))?;
         rows.into_iter().map(BindingRow::into_descriptor).collect()
     }
 }

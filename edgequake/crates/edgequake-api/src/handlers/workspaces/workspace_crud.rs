@@ -43,9 +43,17 @@ use edgequake_pdf::PdfParserBackend;
 pub async fn create_workspace(
     State(state): State<AppState>,
     Path(tenant_id): Path<Uuid>,
+    auth: crate::handlers::auth::ApiAuthenticated,
     Json(request): Json<CreateWorkspaceApiRequest>,
 ) -> Result<(StatusCode, Json<WorkspaceResponse>), ApiError> {
     use edgequake_core::CreateWorkspaceRequest;
+    super::tenant_access::require_tenant_access(
+        &state,
+        auth.context(),
+        tenant_id,
+        super::tenant_access::TenantAccess::Manage,
+    )
+    .await?;
 
     // SPEC-160: coded 400 before any state is touched.
     request.extraction.validate()?;
@@ -216,24 +224,31 @@ pub async fn list_workspaces(
     State(state): State<AppState>,
     Path(tenant_id): Path<Uuid>,
     Query(params): Query<ListWorkspacesParams>,
+    auth: crate::handlers::auth::ApiAuthenticated,
 ) -> Result<Json<WorkspaceListResponse>, ApiError> {
-    crate::read_path::run_with_read_path_guard(&state.read_path_db, |_| async move {
+    super::tenant_access::require_tenant_access(
+        &state,
+        auth.context(),
+        tenant_id,
+        super::tenant_access::TenantAccess::Read,
+    )
+    .await?;
+    let read_path = state.read_path_db.clone();
+    crate::read_path::run_with_read_path_guard(&read_path, |_| async move {
         let include_stats = params.include_stats;
         let limit = params.limit.min(100);
 
         tracing::debug!(tenant_id = %tenant_id, "Listing workspaces");
 
         // SPEC-140: `total` is COUNT(*), never page length (LAW-140-2).
-        let total = state
-            .workspace_service
-            .count_workspaces(tenant_id)
-            .await
-            .map_err(|e| ApiError::Internal(e.to_string()))?;
-        let workspaces = state
-            .workspace_service
-            .list_workspaces_page(tenant_id, limit, params.offset)
-            .await
-            .map_err(|e| ApiError::Internal(e.to_string()))?;
+        let (total, workspaces) = crate::services::workspace_visibility::visible_workspace_page(
+            &state,
+            Some(auth.context()),
+            tenant_id,
+            limit,
+            params.offset,
+        )
+        .await?;
 
         let tenant = state
             .workspace_service
@@ -319,13 +334,33 @@ pub async fn get_workspace(
 pub async fn get_workspace_by_slug(
     State(state): State<AppState>,
     Path((tenant_id, slug)): Path<(Uuid, String)>,
+    auth: crate::handlers::auth::ApiAuthenticated,
 ) -> Result<Json<WorkspaceResponse>, ApiError> {
+    super::tenant_access::require_tenant_access(
+        &state,
+        &auth.0,
+        tenant_id,
+        super::tenant_access::TenantAccess::Read,
+    )
+    .await?;
     let workspace = state
         .workspace_service
         .get_workspace_by_slug(tenant_id, &slug)
         .await
         .map_err(|e| ApiError::Internal(e.to_string()))?
         .ok_or_else(|| ApiError::NotFound(format!("Workspace with slug '{}' not found", slug)))?;
+
+    if crate::services::request_authorization::binding_required(&state)
+        && auth.0.role != edgequake_auth::Role::Admin
+    {
+        crate::services::request_authorization::membership_role(
+            &state,
+            &auth.0.user_id,
+            Some(&tenant_id.to_string()),
+            Some(&workspace.workspace_id.to_string()),
+        )
+        .await?;
+    }
 
     let response = workspace_to_response_async(&state, &workspace).await;
 
