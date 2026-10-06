@@ -4,6 +4,58 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.32.0] — 2026-10-06
+
+Minor: tenant-scoped data access with PostgreSQL RLS, scoped query
+deadlines, incremental RAG streaming, and retry of PDF convert stalls.
+Schema train moves **166 → 168**. Upgrade:
+[`docs/operations/upgrade-to-0.32.0.md`](docs/operations/upgrade-to-0.32.0.md).
+
+**CD:** GHCR `edgequake`, `edgequake-frontend`, `edgequake-postgres`, and
+`edgequake-keycloak` on tag `v0.32.0`.
+
+**SPEC-001 Acc:** attested from existing
+[`publish/latest`](specs/001-benchmark/e2e/artifacts/publish/latest/)
+(`valid: true`, medical-mid, `2026-08-15T11:02:18Z`) — no fresh n=200 run.
+Query deadlines, graph-read scope, and streaming changed and were **not**
+re-scored. Decision mode remains unscored.
+
+### Added
+
+- Schema train **166 → 168**:
+  - `167_tenant_access_rls.sql` — `edgequake_tenant_access` (`NOLOGIN`,
+    `NOBYPASSRLS`) and `FORCE ROW LEVEL SECURITY` on content tables.
+  - `168_identity_lockout_columns.sql` — `users.failed_login_attempts` and
+    `users.locked_until` (`IF NOT EXISTS`).
+  Both are additive expand-phase migrations. Run `edgequake migrate` before
+  serving this binary.
+
+### Changed
+
+- Scoped DAL transactions use the non-bypass RLS role; REST, MCP, and
+  WebSocket catalogs honor active membership.
+- Graph searches apply workspace/tenant read scope; autocomplete resolves
+  `pg_trgm` in its installed schema.
+- Query paths honor scoped deadlines and stream structured RAG answers
+  incrementally (#423).
+- PDF convert timeouts retry until `max_retries` instead of failing at 1/3
+  (#424).
+- Documents layout: library search and filters stay one instrument row;
+  Classic default keeps idle Runs as a rail; toolbars stay inside cards.
+
+### Fixed
+
+- Anonymous tenant bootstrap and RLS graph lineage timeouts (#422).
+- Demo `/api-explorer` health probe accepts Next HTML (200) after a live
+  0.31.0 install.
+- Homebrew Cargo / first-run frontend install on `make dev`.
+
+### Residuals
+
+- SPEC-001 Acc was not re-run. Query deadlines, graph-read scope, and
+  streaming in this cut are unscored against LightRAG.
+- Decision extraction remains a preview (see 0.31.0).
+
 ## [0.31.0] — 2026-10-04
 
 Minor: **SPEC-160** decision extraction as a **preview**. A second knowledge-graph

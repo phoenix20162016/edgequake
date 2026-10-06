@@ -2,7 +2,7 @@
 title: 'Docker Quickstart'
 ---
 
-> **Product: v0.31.0** · Contract: OpenAPI · Spec ops: [Ingestion cancel & fairness](../ingestion-cancel-and-fairness.md)
+> **Product: v0.32.0** · Contract: OpenAPI · Spec ops: [Ingestion cancel & fairness](../ingestion-cancel-and-fairness.md)
 
 # Docker Quickstart — Full Stack in One Command
 

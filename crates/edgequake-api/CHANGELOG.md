@@ -4,6 +4,13 @@ All notable changes to the EdgeQuake API crate are tracked here. See the root CH
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-06
+
+### Changed
+
+- Workspace catalogs require active membership. Scoped query deadlines and incremental RAG streaming.
+- SPEC-027 source scans follow `request_authorization` and `auth_validation` instead of the old middleware names.
+
 ## [0.31.0] - 2026-10-04
 
 ### Added

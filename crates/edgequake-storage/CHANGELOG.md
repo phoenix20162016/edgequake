@@ -4,6 +4,16 @@ All notable changes to the EdgeQuake Storage crate are tracked here. See the roo
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-06
+
+### Added
+
+- Schema **167** tenant RLS (`edgequake_tenant_access`) and **168** identity lockout columns.
+
+### Changed
+
+- Graph reads enforce tenant/workspace scope; typed ANN plans stay scoped.
+
 ## [0.31.0] - 2026-10-04
 
 ### Added

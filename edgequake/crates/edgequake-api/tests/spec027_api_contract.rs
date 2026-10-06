@@ -648,12 +648,13 @@ fn spec027_auth_extractors_arch_d001() {
         .nth(1)
         .expect("get_me handler");
     assert!(
-        get_me_fn.contains("ApiAuthenticated"),
-        "get_me must use ApiAuthenticated extractor"
+        get_me_fn.contains("auth_validation::decide")
+            && get_me_fn.contains("TokenProfile::WebSession"),
+        "get_me must use auth_validation::decide for the web session"
     );
     assert!(
-        get_me_fn.contains("State<StorageRuntime>"),
-        "get_me must use StorageRuntime ISP"
+        get_me_fn.contains("get_record_by_id"),
+        "get_me must load identity through get_record_by_id"
     );
     assert!(
         !get_me_fn.contains("verify_token"),
@@ -913,9 +914,9 @@ fn spec027_identity_storage_ssot_phase33() {
     let session = read_crate_src("src/services/login_tokens.rs");
     assert!(session.contains("access_token_claims"));
     assert!(read_crate_src("src/handlers/auth/session.rs").contains("login_tokens::"));
-    let middleware = read_crate_src("src/middleware.rs");
-    assert!(middleware.contains("membership_bind_scope"));
-    assert!(middleware.contains("enforce_membership_bind"));
+    let request_auth = read_crate_src("src/services/request_authorization.rs");
+    assert!(request_auth.contains("pub async fn membership_role"));
+    assert!(request_auth.contains("binding_required"));
 }
 
 #[test]
@@ -1007,8 +1008,10 @@ fn spec027_tenant_isolation_ssot_phase35() {
     assert!(security.contains("pg_identity_ssot"));
     assert!(security.contains("EDGEQUAKE_PG_IDENTITY_SSOT"));
     assert!(security.contains("pg_rls_enabled: true"));
-    let middleware = read_crate_src("src/middleware.rs");
-    assert!(middleware.contains("attach_pg_isolation_scope"));
+    let isolation_src = read_crate_src("src/services/tenant_isolation.rs");
+    assert!(isolation_src.contains("pub fn attach_pg_isolation_scope"));
+    let request_auth = read_crate_src("src/services/request_authorization.rs");
+    assert!(request_auth.contains("attach_pg_isolation_scope"));
 }
 
 #[test]

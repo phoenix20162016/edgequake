@@ -4,6 +4,12 @@ All notable changes to the EdgeQuake Pipeline crate are tracked here. See the ro
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-06
+
+### Fixed
+
+- PDF convert timeouts retry until `max_retries` instead of failing at 1/3.
+
 ## [0.31.0] - 2026-10-04
 
 ### Added

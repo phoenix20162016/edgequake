@@ -4,11 +4,11 @@ title: "Release & CD Cycle"
 
 # Release & CD Cycle
 
-> **Product: v0.31.0** · Contract: OpenAPI · Spec ops: [Ingestion cancel & fairness](../ingestion-cancel-and-fairness.md)
+> **Product: v0.32.0** · Contract: OpenAPI · Spec ops: [Ingestion cancel & fairness](../ingestion-cancel-and-fairness.md)
 >
-> Upgrade: [upgrade-to-0.31.0.md](upgrade-to-0.31.0.md) (SPEC-160 preview; schema **166**). Prior: [upgrade-to-0.30.0.md](upgrade-to-0.30.0.md) (SPEC-158; schema **165**), [upgrade-to-0.29.0.md](upgrade-to-0.29.0.md) (SPEC-157/155/156; schema **163**), [upgrade-to-0.28.5.md](upgrade-to-0.28.5.md) (docs/CI honesty; schema **162**).
+> Upgrade: [upgrade-to-0.32.0.md](upgrade-to-0.32.0.md) (tenant RLS; schema **168**). Prior: [upgrade-to-0.31.0.md](upgrade-to-0.31.0.md) (SPEC-160 preview; schema **166**), [upgrade-to-0.30.0.md](upgrade-to-0.30.0.md) (SPEC-158; schema **165**), [upgrade-to-0.29.0.md](upgrade-to-0.29.0.md) (SPEC-157/155/156; schema **163**), [upgrade-to-0.28.5.md](upgrade-to-0.28.5.md) (docs/CI honesty; schema **162**).
 >
-> **SPEC-001 Acc (this cut):** attested existing [`publish/latest`](../../specs/001-benchmark/e2e/artifacts/publish/latest/) (`valid: true`, medical-mid, `2026-08-15T11:02:18Z`) — no fresh n=200 run; **query, default `llm` ingestion, and PDF geometry not re-scored**. Decision mode is unscored.
+> **SPEC-001 Acc (this cut):** attested existing [`publish/latest`](../../specs/001-benchmark/e2e/artifacts/publish/latest/) (`valid: true`, medical-mid, `2026-08-15T11:02:18Z`) — no fresh n=200 run; **query deadlines, graph-read scope, and streaming not re-scored**. Decision mode is unscored.
 >
 > **crates.io deps:** `edgequake-llm` **0.10.9**, `edgequake-pdf2md` **0.9.11**, `edgeparse-core` **0.3.2**, `edgequake-sdk` **0.4.0** (workspace crates remain GHCR-only).
 

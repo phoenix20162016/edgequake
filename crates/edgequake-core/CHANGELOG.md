@@ -4,6 +4,12 @@ All notable changes to the EdgeQuake Core crate are tracked here. See the root C
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-06
+
+### Changed
+
+- Membership and principal validation is centralized for REST, MCP, and WebSocket workspace catalogs.
+
 ## [0.31.0] - 2026-10-04
 
 ### Added

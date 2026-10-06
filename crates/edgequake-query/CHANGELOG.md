@@ -4,9 +4,11 @@ All notable changes to the EdgeQuake Query crate are tracked here. See the root 
 
 ## [Unreleased]
 
-### Added
+## [0.32.0] - 2026-10-06
 
-- CHANGELOG.md for query crate.
+### Changed
+
+- Query paths honor scoped deadlines and stream structured RAG answers incrementally.
 
 ## [0.1.0] - 2026-02-12
 
