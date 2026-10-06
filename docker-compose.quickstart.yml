@@ -99,7 +99,7 @@ services:
       EDGEQUAKE_EMBEDDING_PROVIDER: ${EDGEQUAKE_EMBEDDING_PROVIDER:-}
       # Optional model override — when unset the API picks a sensible default
       # (e.g. text-embedding-3-small for OpenAI, embeddinggemma for Ollama).
-      EDGEQUAKE_EMBEDDING_MODEL:    ${EDGEQUAKE_EMBEDDING_MODEL:-}
+      EDGEQUAKE_EMBEDDING_MODEL:    ${EDGEQUAKE_EMBEDDING_MODEL:-text-embedding-3-small}
       # ── Vision LLM Provider (PDF → Markdown) ────────────────────────────────
       # Used exclusively for rendering PDF pages into Markdown (multimodal LLM).
       # Default: same provider as EDGEQUAKE_LLM_PROVIDER (set by quickstart.sh).

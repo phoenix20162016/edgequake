@@ -47,6 +47,15 @@ pub struct ProviderContext {
 }
 
 impl ProviderContext {
+    /// Compose often sets `EDGEQUAKE_EMBEDDING_MODEL=` (empty). Treat that as unset.
+    pub fn embedding_model_from_env() -> String {
+        std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "text-embedding-3-small".into())
+    }
+
     pub fn validate(&self) -> Result<(), StorageError> {
         if self.namespace.trim().is_empty()
             || self.embedding_model.trim().is_empty()

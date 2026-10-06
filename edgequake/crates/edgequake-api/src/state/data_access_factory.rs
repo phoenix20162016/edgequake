@@ -241,8 +241,7 @@ impl DataAccessFactory {
         let context = ProviderContext {
             namespace: pg_config.namespace.clone(),
             embedding_dimension: embedding_dim,
-            embedding_model: std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-                .unwrap_or_else(|_| "text-embedding-3-small".into()),
+            embedding_model: ProviderContext::embedding_model_from_env(),
             provision_defaults: false,
         };
         let providers = ProviderFactories::postgres(PostgresProviderResources {

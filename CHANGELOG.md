@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Serve no longer treats an empty `EDGEQUAKE_EMBEDDING_MODEL` (Compose `:-`) as a
+  missing provider context. Demo/quickstart default to `text-embedding-3-small`.
+
 ## [0.32.0] — 2026-10-06
 
 Minor: tenant-scoped data access with PostgreSQL RLS, scoped query
