@@ -4,6 +4,20 @@ All notable changes to the EdgeQuake API crate are tracked here. See the root CH
 
 ## [Unreleased]
 
+### Added
+
+- **SPEC-161:** MCP control profile (default), async ingest/upload/delete/task
+  poll, document download blobs, `eq_asset_get` ImageContent, `eq_graph_image`
+  PNG, staging-first `eq_document_get`, `eq/not_ready` for pending markdown.
+  Upload sessions in-process (`McpUploadStore`); PDF via `admit_pdf_bytes`.
+  E2E: `tests/spec161_mcp_control_e2e.rs`.
+
+### Fixed
+
+- Document deletion task enqueue stamps canonical tenant/workspace UUIDs so
+  MCP `eq_task_get` resolves delete tracks without explicit headers.
+- MCP document delete prefers async Deletion enqueue for staging-only shells.
+
 ## [0.32.1] - 2026-10-07
 
 ### Fixed

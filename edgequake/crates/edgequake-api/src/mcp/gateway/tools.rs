@@ -11,6 +11,11 @@ const ALIAS_NOTE: &str =
 
 /// Build tools/list result with caching metadata (SEP-2549).
 pub fn tools_list_result() -> Value {
+    tools_list_for(mcp_profile())
+}
+
+/// Catalog for a given profile. Tests pass the enum. Do not set the env var.
+pub fn tools_list_for(profile: McpProfile) -> Value {
     let mut tools = vec![
         eq_document_list_tool(),
         eq_search_tool(),
@@ -22,16 +27,22 @@ pub fn tools_list_result() -> Value {
         eq_workspace_stats_tool(),
         eq_document_get_tool(),
         eq_entity_get_tool(),
-        // Compatibility aliases (one minor version)
+        eq_task_get_tool(),
+        eq_document_download_tool(),
+        eq_asset_get_tool(),
+        eq_graph_image_tool(),
         edgequake_search_alias(),
         edgequake_fetch_alias(),
         edgequake_retrieve_alias(),
     ];
 
-    if mcp_profile() == McpProfile::Memory {
+    if profile.advertises_writes() {
         tools.extend([
             eq_ingest_tool(),
-            eq_task_get_tool(),
+            eq_upload_begin_tool(),
+            eq_upload_write_tool(),
+            eq_upload_commit_tool(),
+            eq_upload_abort_tool(),
             eq_document_delete_tool(),
             eq_workspace_delete_tool(),
         ]);
@@ -320,7 +331,7 @@ fn eq_entity_get_tool() -> Value {
 fn eq_ingest_tool() -> Value {
     json!({
         "name": "eq_ingest",
-        "description": "Ingest text or upload_ref. Returns document_id + task_id. Poll with eq_task_get.",
+        "description": "Admit text (async). Returns document_id, task_id, status pending. Poll eq_task_get until indexed. Do not wait on this call for processing.",
         "inputSchema": {
             "type": "object",
             "additionalProperties": false,
@@ -344,7 +355,7 @@ fn eq_ingest_tool() -> Value {
 fn eq_task_get_tool() -> Value {
     json!({
         "name": "eq_task_get",
-        "description": "Poll ingest/task status by task_id (track id).",
+        "description": "Poll async ingest or delete by task_id (track id). ready is true only when status is indexed.",
         "inputSchema": {
             "type": "object",
             "additionalProperties": false,
@@ -359,7 +370,7 @@ fn eq_task_get_tool() -> Value {
 fn eq_document_delete_tool() -> Value {
     json!({
         "name": "eq_document_delete",
-        "description": "Delete a document. MUST pass confirm: true.",
+        "description": "Accept async document deletion. MUST pass confirm: true. Returns accepted and task_id. deleted stays false until eq_task_get is indexed.",
         "inputSchema": {
             "type": "object",
             "additionalProperties": false,
@@ -398,6 +409,168 @@ fn eq_workspace_delete_tool() -> Value {
             "readOnlyHint": false,
             "destructiveHint": true,
             "idempotentHint": false,
+            "openWorldHint": false
+        }
+    })
+}
+
+fn eq_document_download_tool() -> Value {
+    json!({
+        "name": "eq_document_download",
+        "description": "Download original or markdown bytes as a blob chunk. Poll ingest until indexed if markdown is not ready.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["document_id", "representation"],
+            "properties": {
+                "document_id": { "type": "string" },
+                "representation": { "enum": ["original", "markdown"] },
+                "offset": { "type": "integer", "minimum": 0, "default": 0 },
+                "max_bytes": { "type": "integer", "minimum": 1 },
+                "workspace_id": { "type": "string", "x-mcp-header": "Workspace-Id" },
+                "budget": { "enum": ["cheap", "standard", "deep"], "default": "standard" }
+            }
+        },
+        "outputSchema": envelope_output(),
+        "annotations": annotations_ro()
+    })
+}
+
+fn eq_asset_get_tool() -> Value {
+    json!({
+        "name": "eq_asset_get",
+        "description": "Return a PNG or JPEG illustration by document_id and asset_id as ImageContent.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["document_id", "asset_id"],
+            "properties": {
+                "document_id": { "type": "string" },
+                "asset_id": { "type": "string" },
+                "workspace_id": { "type": "string", "x-mcp-header": "Workspace-Id" },
+                "budget": { "enum": ["cheap", "standard", "deep"], "default": "standard" }
+            }
+        },
+        "outputSchema": envelope_output(),
+        "annotations": annotations_ro()
+    })
+}
+
+fn eq_graph_image_tool() -> Value {
+    json!({
+        "name": "eq_graph_image",
+        "description": "PNG of the neighborhood centered on entity_id. Same hop clamp as eq_neighborhood.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["entity_id"],
+            "properties": {
+                "entity_id": { "type": "string" },
+                "max_hops": { "type": "integer", "minimum": 1, "maximum": 3, "default": 1 },
+                "include_artifacts": { "type": "boolean", "default": false },
+                "include_weak_edges": { "type": "boolean", "default": false },
+                "budget": { "enum": ["cheap", "standard", "deep"], "default": "standard" },
+                "workspace_id": { "type": "string", "x-mcp-header": "Workspace-Id" }
+            }
+        },
+        "outputSchema": envelope_output(),
+        "annotations": annotations_ro()
+    })
+}
+
+fn eq_upload_begin_tool() -> Value {
+    json!({
+        "name": "eq_upload_begin",
+        "description": "Start an async chunked upload. Returns upload_id. Then eq_upload_write and eq_upload_commit. Commit admits a document and returns pending task_id.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["filename", "byte_length"],
+            "properties": {
+                "filename": { "type": "string" },
+                "media_type": { "type": "string" },
+                "byte_length": { "type": "integer", "minimum": 1 },
+                "sha256": { "type": "string" },
+                "workspace_id": { "type": "string", "x-mcp-header": "Workspace-Id" }
+            }
+        },
+        "outputSchema": envelope_output(),
+        "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+        }
+    })
+}
+
+fn eq_upload_write_tool() -> Value {
+    json!({
+        "name": "eq_upload_write",
+        "description": "Append a contiguous chunk to an upload_id. Does not admit the document.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["upload_id", "offset", "data_base64"],
+            "properties": {
+                "upload_id": { "type": "string" },
+                "offset": { "type": "integer", "minimum": 0 },
+                "data_base64": { "type": "string" },
+                "workspace_id": { "type": "string", "x-mcp-header": "Workspace-Id" }
+            }
+        },
+        "outputSchema": envelope_output(),
+        "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+        }
+    })
+}
+
+fn eq_upload_commit_tool() -> Value {
+    json!({
+        "name": "eq_upload_commit",
+        "description": "Admit the uploaded file asynchronously. Returns document_id, task_id, status pending. Poll eq_task_get until indexed.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["upload_id"],
+            "properties": {
+                "upload_id": { "type": "string" },
+                "title": { "type": "string" },
+                "workspace_id": { "type": "string", "x-mcp-header": "Workspace-Id" }
+            }
+        },
+        "outputSchema": envelope_output(),
+        "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true
+        }
+    })
+}
+
+fn eq_upload_abort_tool() -> Value {
+    json!({
+        "name": "eq_upload_abort",
+        "description": "Drop an in-flight upload handle.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["upload_id"],
+            "properties": {
+                "upload_id": { "type": "string" },
+                "workspace_id": { "type": "string", "x-mcp-header": "Workspace-Id" }
+            }
+        },
+        "outputSchema": envelope_output(),
+        "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
             "openWorldHint": false
         }
     })

@@ -209,6 +209,9 @@ pub struct AppState {
     /// SPEC-094: in-memory async parse jobs + dedicated admission semaphore.
     pub parse_jobs: crate::handlers::parse::ParseJobStore,
 
+    /// SPEC-161: MCP chunked upload handles (TTL temp files; admit stays async).
+    pub mcp_uploads: std::sync::Arc<crate::mcp::project::upload_session::McpUploadStore>,
+
     /// Interactive HTTP read-path DB bulkhead (list/get docs, tenants, workspaces).
     pub read_path_db: Arc<crate::read_path::ReadPathDbPermit>,
 

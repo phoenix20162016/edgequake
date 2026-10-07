@@ -12,6 +12,8 @@ pub enum ErrorCode {
     TruncateInvalid,
     Forbidden,
     ConfirmRequired,
+    NotImplemented,
+    UnsupportedMedia,
 }
 
 impl ErrorCode {
@@ -25,6 +27,8 @@ impl ErrorCode {
             Self::TruncateInvalid => "eq/truncate_invalid",
             Self::Forbidden => "eq/forbidden",
             Self::ConfirmRequired => "eq/confirm_required",
+            Self::NotImplemented => "eq/not_implemented",
+            Self::UnsupportedMedia => "eq/unsupported_media",
         }
     }
 }

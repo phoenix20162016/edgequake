@@ -513,6 +513,32 @@ pub async fn upload_pdf_batch_document(
     }))
 }
 
+/// Admit PDF bytes without multipart. Processing stays async (returns pending task_id).
+pub async fn admit_pdf_bytes(
+    state: &AppState,
+    context: &TenantContext,
+    filename: String,
+    file_data: Vec<u8>,
+) -> ApiResult<PdfUploadResponse> {
+    let extraction_form = ExtractionForm::default();
+    let extraction =
+        AdmittedPdfExtraction::admit(state, context, &extraction_form.finish()?).await?;
+    let options = PdfUploadOptions {
+        enable_vision: true,
+        vision_provider: None,
+        vision_model: None,
+        title: None,
+        metadata: None,
+        track_id: None,
+        force_reindex: false,
+        pdf_parser_backend: None,
+        process_options: None,
+        vision_reasoning_effort: None,
+        vision_extract: Default::default(),
+    };
+    process_pdf_upload_parts(state, context, filename, file_data, options, &extraction).await
+}
+
 async fn process_pdf_upload_parts(
     state: &AppState,
     context: &TenantContext,

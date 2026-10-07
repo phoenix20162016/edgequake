@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edgequake.dev/schemas/eq-mcp-1.0/eq_upload_begin.input.json",
+  "title": "eq_upload_begin input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["filename", "byte_length"],
+  "properties": {
+    "filename": { "type": "string", "minLength": 1 },
+    "media_type": { "type": "string" },
+    "byte_length": { "type": "integer", "minimum": 1 },
+    "sha256": {
+      "type": "string",
+      "description": "Optional hex digest of the full file; verified on commit"
+    },
+    "workspace_id": {
+      "type": "string",
+      "x-mcp-header": "Workspace-Id"
+    }
+  }
+}

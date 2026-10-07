@@ -93,6 +93,7 @@ tokio-util = "0.7"
 async-stream = "0.3"
 # SPEC-083 D-51: stream multipart uploads to disk
 tempfile = "3"
+image = "0.25"
 
 [dev-dependencies]
 edgequake-migrate-manifest = { workspace = true }

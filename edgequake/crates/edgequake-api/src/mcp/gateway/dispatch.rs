@@ -10,18 +10,23 @@ use tracing::{debug, info_span};
 
 use crate::error::{ApiError, ApiResult};
 use crate::handlers::context_types::ContentGranularity;
-use crate::mcp::project::budget::BudgetClass;
+use crate::mcp::project::assets::eq_asset_get;
 use crate::mcp::project::catalog::{
     eq_document_delete, eq_document_get, eq_document_list, eq_workspace_delete, eq_workspace_list,
     eq_workspace_stats,
 };
-use crate::mcp::project::envelope::EnvelopeBuilder;
+use crate::mcp::project::download::eq_document_download;
 use crate::mcp::project::errors::{eq_error, ErrorCode};
 use crate::mcp::project::fetch::eq_fetch;
 use crate::mcp::project::graph::{eq_entity_get, eq_entity_search, eq_neighborhood};
+use crate::mcp::project::graph_image::eq_graph_image;
+use crate::mcp::project::ingest::{eq_ingest, eq_task_get};
 use crate::mcp::project::profile::{instructions_for_profile, mcp_profile};
 use crate::mcp::project::search::eq_search;
 use crate::mcp::project::summary::{call_tool_error_structured, call_tool_result};
+use crate::mcp::project::upload_session::{
+    eq_upload_abort, eq_upload_begin, eq_upload_commit, eq_upload_write,
+};
 use crate::middleware::TenantContext;
 use crate::oauth::types::McpAuthScopes;
 use crate::services::query_context::resolve_query_llm_override;
@@ -254,9 +259,16 @@ async fn execute_tool(
         "eq_entity_get" => eq_entity_get(state, tenant_ctx, &arguments).await,
         "eq_neighborhood" => eq_neighborhood(state, tenant_ctx, &arguments).await,
         "eq_ingest" => eq_ingest(state, tenant_ctx, &arguments).await,
-        "eq_task_get" => eq_task_get(state, &arguments).await,
+        "eq_task_get" => eq_task_get(state, tenant_ctx, &arguments).await,
         "eq_document_delete" => eq_document_delete(state, tenant_ctx, &arguments).await,
         "eq_workspace_delete" => eq_workspace_delete(state, tenant_ctx, &arguments).await,
+        "eq_document_download" => eq_document_download(state, tenant_ctx, &arguments).await,
+        "eq_asset_get" => eq_asset_get(state, tenant_ctx, &arguments).await,
+        "eq_graph_image" => eq_graph_image(state, tenant_ctx, &arguments).await,
+        "eq_upload_begin" => eq_upload_begin(state, tenant_ctx, &arguments).await,
+        "eq_upload_write" => eq_upload_write(state, tenant_ctx, &arguments).await,
+        "eq_upload_commit" => eq_upload_commit(state, tenant_ctx, &arguments).await,
+        "eq_upload_abort" => eq_upload_abort(state, tenant_ctx, &arguments).await,
         other => Err(ApiError::BadRequest(format!("Unknown tool: {other}"))),
     }
 }
@@ -311,51 +323,6 @@ async fn eq_retrieve(
         }
     }
     Ok(fetch)
-}
-
-async fn eq_ingest(state: &AppState, tenant_ctx: &TenantContext, args: &Value) -> ApiResult<Value> {
-    let content = args
-        .get("content")
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty());
-    let upload_ref = args.get("upload_ref").and_then(|v| v.as_str());
-    if content.is_none() && upload_ref.is_none() {
-        return Ok(eq_error(
-            ErrorCode::InvalidId,
-            "content or upload_ref required",
-            None,
-        ));
-    }
-    let title = args
-        .get("title")
-        .and_then(|v| v.as_str())
-        .unwrap_or("mcp-ingest")
-        .to_string();
-
-    // Minimal text ingest via documents upload service path
-    let body = content.unwrap_or("").to_string();
-    let track_id = uuid::Uuid::new_v4().to_string();
-    let _ = (state, tenant_ctx, &body, &title); // wired for future full upload
-
-    Ok(EnvelopeBuilder::new("ingest", BudgetClass::Standard)
-        .insert("document_id", json!(uuid::Uuid::new_v4().to_string()))
-        .insert("task_id", json!(track_id))
-        .insert("status", json!("queued"))
-        .build())
-}
-
-async fn eq_task_get(state: &AppState, args: &Value) -> ApiResult<Value> {
-    let task_id = args
-        .get("task_id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ApiError::BadRequest("task_id required".into()))?;
-
-    // Best-effort: look up progress registry if present
-    let _ = state;
-    Ok(EnvelopeBuilder::new("task_get", BudgetClass::Standard)
-        .insert("task_id", json!(task_id))
-        .insert("status", json!("unknown"))
-        .build())
 }
 
 #[allow(dead_code)]

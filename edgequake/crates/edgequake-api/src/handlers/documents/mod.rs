@@ -60,6 +60,7 @@ pub(crate) mod upload;
 pub use delete::*;
 // Keep utoipa `__path_*` structs visible to `openapi.rs` paths().
 pub use pages_reprocess::*;
+pub(crate) use query::download::load_original_bytes;
 pub use query::*;
 pub use recovery::*;
 pub use storage_helpers::CleanupStats;

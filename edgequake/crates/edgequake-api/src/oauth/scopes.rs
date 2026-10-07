@@ -51,12 +51,25 @@ pub fn required_scope_for_tool(tool_name: &str) -> Option<&'static str> {
         other => other,
     };
     match canonical {
-        "eq_fetch" | "eq_document_list" | "eq_document_get" | "eq_workspace_list"
-        | "eq_workspace_stats" | "eq_entity_get" | "eq_neighborhood" | "eq_task_get" => {
-            Some(MCP_SCOPE_READ)
-        }
+        "eq_fetch"
+        | "eq_document_list"
+        | "eq_document_get"
+        | "eq_workspace_list"
+        | "eq_workspace_stats"
+        | "eq_entity_get"
+        | "eq_neighborhood"
+        | "eq_task_get"
+        | "eq_document_download"
+        | "eq_asset_get"
+        | "eq_graph_image" => Some(MCP_SCOPE_READ),
         "eq_search" | "eq_retrieve" | "eq_entity_search" => Some(MCP_SCOPE_QUERY),
-        "eq_ingest" | "eq_document_delete" | "eq_workspace_delete" => Some(MCP_SCOPE_WRITE),
+        "eq_ingest"
+        | "eq_document_delete"
+        | "eq_workspace_delete"
+        | "eq_upload_begin"
+        | "eq_upload_write"
+        | "eq_upload_commit"
+        | "eq_upload_abort" => Some(MCP_SCOPE_WRITE),
         _ => Some(MCP_SCOPE_READ),
     }
 }

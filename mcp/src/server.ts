@@ -139,6 +139,61 @@ export function createServer(): McpServer {
     "eq_entity_get",
     "Entity details with lineage resource.",
   );
+  registerBridgeTool(
+    server,
+    "eq_task_get",
+    "Poll ingest/upload/delete task until indexed, failed, or cancelled.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_ingest",
+    "Admit text asynchronously. Poll eq_task_get until indexed.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_upload_begin",
+    "Start a chunked upload handle.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_upload_write",
+    "Write the next contiguous chunk.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_upload_commit",
+    "Admit uploaded bytes asynchronously. Poll eq_task_get until indexed.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_upload_abort",
+    "Abort an open upload handle.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_document_delete",
+    "Accept async delete. confirm: true required. deleted stays false until indexed.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_workspace_delete",
+    "Workspace delete is not implemented on MCP.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_document_download",
+    "Download original or markdown as blob chunks.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_asset_get",
+    "Return an illustration as ImageContent.",
+  );
+  registerBridgeTool(
+    server,
+    "eq_graph_image",
+    "PNG neighborhood centered on an entity.",
+  );
 
   return server;
 }

@@ -1,12 +1,13 @@
 # SPEC-152 — EQ-MCP-1.0 New MCP Contract
 
-> **Status:** Implemented (Phases A–D in tree; query profile default)  
+> **Status:** Implemented (Phases A–D in tree; query profile default **until SPEC-161 W1**)  
 > **Date:** 2026-09-29  
 > **Document control:** EQ-MCP-1.0  
+> **Amended by:** [SPEC-161](../161-improve-mcp/) → EQ-MCP-1.1 (control profile default; real ingest/delete; upload/download/asset/graph tools). Schema SSOT in [schemas/](schemas/) updated for 161.  
 > **Protocol:** MCP `2026-07-28` (stateless core, `outputSchema`, `structuredContent`, cursors, annotations, optional Skills/Tasks)  
 > **Applies to:** Remote Streamable HTTP gateway (`POST /mcp`) **and** `@edgequake/mcp-server` (stdio bridge)  
 > **Supersedes (agent surface):** SPEC-028 three-tool MCP exposure as the *agent* contract. REST query-context DTOs remain; MCP projects them.  
-> **Related:** [SPEC-028 MCP suite](../028-edgequake-query-service/mcp/000-index.md), [007 exposure lens](../028-edgequake-query-service/007-mcp-exposure-lens.md), [031 document filter MCP](../031-filter-document/005-mcp-integration.md)
+> **Related:** [SPEC-028 MCP suite](../028-edgequake-query-service/mcp/000-index.md), [007 exposure lens](../028-edgequake-query-service/007-mcp-exposure-lens.md), [031 document filter MCP](../031-filter-document/005-mcp-integration.md), [SPEC-161 improve MCP](../161-improve-mcp/)
 
 ---
 

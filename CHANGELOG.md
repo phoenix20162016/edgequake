@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **SPEC-161 MCP control surface (EQ-MCP-1.1):** Default profile is control
+  (`EDGEQUAKE_MCP_PROFILE=query` for lockdown). Real async `eq_ingest` /
+  `eq_upload_*` / `eq_document_delete` / `eq_task_get` (admit + poll; never
+  block on pipeline). `eq_document_download`, `eq_asset_get` (ImageContent),
+  and `eq_graph_image` (neighborhood PNG). Staging-first document get;
+  markdown download returns `eq/not_ready` until indexed. Stdio bridge
+  forwards new tool names. Spec pack: `specs/161-improve-mcp/`. E2E:
+  `spec161_mcp_control_e2e` (run with `--features postgres`).
+
+### Fixed
+
+- MCP delete tasks use canonical tenant/workspace UUIDs so `eq_task_get` can
+  poll when request headers omit scope (no more nil-UUID stamp).
+- MCP delete of staging-only pending docs always accepts a Deletion task
+  (`accepted` / `deleted: false`) instead of REST sync dismiss.
+
 ## [0.32.1] — 2026-10-07
 
 Patch: typed ANN registry keying and graph seed admit. Schema stays **168**.

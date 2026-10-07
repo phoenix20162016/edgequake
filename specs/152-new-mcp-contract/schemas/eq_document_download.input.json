@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edgequake.dev/schemas/eq-mcp-1.0/eq_document_download.input.json",
+  "title": "eq_document_download input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["document_id", "representation"],
+  "properties": {
+    "document_id": { "type": "string", "minLength": 1 },
+    "representation": {
+      "type": "string",
+      "enum": ["original", "markdown"]
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+    "max_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Decoded max; defaults to EDGEQUAKE_MCP_BLOB_MAX_BYTES"
+    },
+    "workspace_id": {
+      "type": "string",
+      "x-mcp-header": "Workspace-Id"
+    },
+    "budget": {
+      "type": "string",
+      "enum": ["cheap", "standard", "deep"],
+      "default": "standard"
+    }
+  }
+}

@@ -9,7 +9,7 @@ use crate::oauth::scopes::{MCP_SCOPE_QUERY, MCP_SCOPE_READ, MCP_SCOPE_WRITE};
 /// Write is included only when MCP memory profile enables write tools (SPEC-154).
 pub fn mcp_resource_scopes_supported() -> Vec<&'static str> {
     let mut scopes = vec![MCP_SCOPE_READ, MCP_SCOPE_QUERY];
-    if mcp_profile() == McpProfile::Memory {
+    if mcp_profile().advertises_writes() {
         scopes.push(MCP_SCOPE_WRITE);
     }
     scopes

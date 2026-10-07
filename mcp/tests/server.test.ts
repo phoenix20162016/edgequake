@@ -28,6 +28,16 @@ describe("createServer", () => {
       "eq_workspace_stats",
       "eq_document_get",
       "eq_entity_get",
+      "eq_ingest",
+      "eq_task_get",
+      "eq_upload_begin",
+      "eq_upload_write",
+      "eq_upload_commit",
+      "eq_upload_abort",
+      "eq_document_delete",
+      "eq_document_download",
+      "eq_asset_get",
+      "eq_graph_image",
     ]) {
       expect(src).toContain(`"${name}"`);
     }

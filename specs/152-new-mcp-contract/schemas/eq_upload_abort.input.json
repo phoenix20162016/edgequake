@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edgequake.dev/schemas/eq-mcp-1.0/eq_upload_abort.input.json",
+  "title": "eq_upload_abort input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["upload_id"],
+  "properties": {
+    "upload_id": { "type": "string", "minLength": 1 },
+    "workspace_id": {
+      "type": "string",
+      "x-mcp-header": "Workspace-Id"
+    }
+  }
+}

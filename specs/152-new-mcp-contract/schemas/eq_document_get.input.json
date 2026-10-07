@@ -9,12 +9,18 @@
     "document_id": { "type": "string", "minLength": 1 },
     "include": {
       "type": "array",
-      "items": { "enum": ["metadata", "outline", "text"] },
-      "default": ["metadata"]
+      "items": { "enum": ["metadata", "outline", "text", "assets"] },
+      "default": ["metadata"],
+      "description": "assets = metadata only (ids, kind, page, media_type, byte_length); use eq_asset_get for pixels"
     },
     "workspace_id": {
       "type": "string",
       "x-mcp-header": "Workspace-Id"
+    },
+    "budget": {
+      "type": "string",
+      "enum": ["cheap", "standard", "deep"],
+      "default": "standard"
     }
   }
 }

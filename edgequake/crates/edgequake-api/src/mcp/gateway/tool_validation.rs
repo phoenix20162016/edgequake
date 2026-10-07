@@ -31,14 +31,19 @@ pub fn validate_tool_call_with_role(
         other => other,
     };
 
-    // Memory-only tools
     if matches!(
         canonical,
-        "eq_ingest" | "eq_task_get" | "eq_document_delete" | "eq_workspace_delete"
-    ) && mcp_profile() != McpProfile::Memory
+        "eq_ingest"
+            | "eq_upload_begin"
+            | "eq_upload_write"
+            | "eq_upload_commit"
+            | "eq_upload_abort"
+            | "eq_document_delete"
+            | "eq_workspace_delete"
+    ) && !mcp_profile().advertises_writes()
     {
         return Err(GatewayError::Api(ApiError::BadRequest(
-            "tool requires EDGEQUAKE_MCP_PROFILE=memory".into(),
+            "tool requires control profile (unset EDGEQUAKE_MCP_PROFILE or set control)".into(),
         )));
     }
 
@@ -73,7 +78,14 @@ pub fn validate_tool_call_with_role(
         | "eq_ingest"
         | "eq_task_get"
         | "eq_document_delete"
-        | "eq_workspace_delete" => Ok(()),
+        | "eq_workspace_delete"
+        | "eq_document_download"
+        | "eq_asset_get"
+        | "eq_graph_image"
+        | "eq_upload_begin"
+        | "eq_upload_write"
+        | "eq_upload_commit"
+        | "eq_upload_abort" => Ok(()),
         other => Err(GatewayError::Api(ApiError::BadRequest(format!(
             "Unknown tool: {other}"
         )))),

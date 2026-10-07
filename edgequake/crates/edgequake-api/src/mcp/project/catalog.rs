@@ -133,35 +133,51 @@ pub async fn eq_document_get(
         .map(|a| a.iter().filter_map(|x| x.as_str()).collect())
         .unwrap_or_else(|| vec!["metadata"]);
 
-    let params = ListDocumentsRequest {
-        page: 1,
-        page_size: 100,
-        date_from: None,
-        date_to: None,
-        document_pattern: None,
-        status: None,
+    // Admission writes `staging:{id}-metadata` until the worker promotes. Get
+    // must see that pending shell; it must not wait for `{id}-metadata`.
+    let metadata = match crate::services::load_staging_first_metadata(
+        state.storage.kv_storage.as_ref(),
+        document_id,
+    )
+    .await
+    {
+        Ok(Some((_, v))) => v,
+        Ok(None) => {
+            return Ok(eq_error(
+                ErrorCode::NotFound,
+                format!("Document not found: {document_id}"),
+                None,
+            ));
+        }
+        Err(e) => return Err(ApiError::Internal(e)),
     };
-    let storage = StorageRuntime::from_ref(state);
-    let pg = PostgresRuntime::from_ref(state);
-    let budget_cfg = state.resource_budget().clone();
-    let tasks = state.tasks.clone();
-    let read_path = state.read_path_db.clone();
-    let tenant = tenant_ctx.clone();
-    let resp = run_with_read_path_guard(&read_path, |deadline| {
-        crate::handlers::documents::list_documents_for_mcp(
-            storage, pg, budget_cfg, tasks, tenant, params, deadline,
-        )
-    })
-    .await?;
 
-    let doc = resp
-        .documents
-        .iter()
-        .find(|d| d.id == document_id)
-        .ok_or_else(|| ApiError::NotFound(format!("Document not found: {document_id}")))?;
+    if !crate::workspace_scope::metadata_matches_tenant_context(&metadata, tenant_ctx) {
+        return Ok(eq_error(
+            ErrorCode::NotFound,
+            format!("Document not found: {document_id}"),
+            None,
+        ));
+    }
 
+    let status = metadata
+        .get("status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("pending");
+    let ready = status == "indexed" || status == "completed";
     let ws = tenant_ctx.workspace_id.as_deref().unwrap_or("default");
-    let mut projected = project_document(doc);
+    let mut projected = json!({
+        "id": document_id,
+        "title": metadata.get("title").or_else(|| metadata.get("file_name")).cloned().unwrap_or(json!("")),
+        "file_name": metadata.get("file_name"),
+        "status": status,
+        "ready": ready,
+        "created_at": metadata.get("created_at"),
+        "chunk_count": metadata.get("chunk_count").cloned().unwrap_or(json!(0)),
+        "entity_count": metadata.get("entity_count"),
+        "bytes": metadata.get("content_length"),
+        "task_id": metadata.get("task_id").or_else(|| metadata.get("track_id")).cloned(),
+    });
     let mut lineage = Vec::new();
     if include.contains(&"text") {
         let uri = format!("eq://{ws}/documents/{document_id}/text");
@@ -173,11 +189,29 @@ pub async fn eq_document_get(
         projected["outline_resource"] = json!(uri);
         lineage.push(uri);
     }
+    if include.contains(&"assets") {
+        let assets =
+            crate::mcp::project::assets::list_asset_metadata(state, tenant_ctx, document_id)
+                .await
+                .unwrap_or_default();
+        projected["assets"] = json!(assets);
+    }
 
-    Ok(EnvelopeBuilder::new("document_get", budget)
+    let mut env = EnvelopeBuilder::new("document_get", budget)
         .insert("documents", json!([projected]))
-        .insert("lineage_resources", json!(lineage))
-        .build())
+        .insert("status", json!(status))
+        .insert("ready", json!(ready))
+        .insert("lineage_resources", json!(lineage));
+    if !ready {
+        env = env.insert(
+            "poll",
+            json!({
+                "tool": "eq_task_get",
+                "until": ["indexed", "failed", "cancelled"],
+            }),
+        );
+    }
+    Ok(env.build())
 }
 
 pub async fn eq_workspace_list(
@@ -279,17 +313,13 @@ pub async fn eq_workspace_stats(
         .build())
 }
 
-/// Memory-profile deletes with confirm gate.
+/// Async delete: accept a task. `deleted` stays false until eq_task_get reports indexed.
 pub async fn eq_document_delete(
-    _state: &AppState,
-    _tenant_ctx: &TenantContext,
+    state: &AppState,
+    tenant_ctx: &TenantContext,
     args: &Value,
 ) -> ApiResult<Value> {
-    if !args
-        .get("confirm")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-    {
+    if args.get("confirm") != Some(&json!(true)) {
         return Ok(eq_error(
             ErrorCode::ConfirmRequired,
             "confirm: true is required to delete a document",
@@ -300,14 +330,35 @@ pub async fn eq_document_delete(
         .get("document_id")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ApiError::BadRequest("document_id required".into()))?;
-    // Defer to existing delete handler path via service would be ideal;
-    // for L3 surface we return confirm-ok stub that callers wire via REST delete.
-    Ok(
-        EnvelopeBuilder::new("document_delete", BudgetClass::Standard)
-            .insert("deleted", json!(true))
-            .insert("document_id", json!(document_id))
-            .build(),
+
+    match crate::handlers::documents::enqueue_document_deletion_with_mode(
+        state,
+        tenant_ctx,
+        document_id.to_string(),
+        true,
     )
+    .await
+    {
+        Ok((_status, resp)) => Ok(
+            EnvelopeBuilder::new("document_delete", BudgetClass::Standard)
+                .insert("document_id", json!(resp.document_id))
+                .insert("deleted", json!(resp.deleted))
+                .insert("accepted", json!(resp.accepted))
+                .insert("status", json!("accepted"))
+                .insert("task_id", json!(resp.track_id))
+                .insert("ready", json!(false))
+                .insert(
+                    "poll",
+                    json!({
+                        "tool": "eq_task_get",
+                        "until": ["indexed", "failed", "cancelled"],
+                    }),
+                )
+                .build(),
+        ),
+        Err(ApiError::NotFound(msg)) => Ok(eq_error(ErrorCode::NotFound, msg, None)),
+        Err(e) => Err(e),
+    }
 }
 
 pub async fn eq_workspace_delete(
@@ -315,25 +366,16 @@ pub async fn eq_workspace_delete(
     _tenant_ctx: &TenantContext,
     args: &Value,
 ) -> ApiResult<Value> {
-    if !args
-        .get("confirm")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-    {
+    if args.get("confirm") != Some(&json!(true)) {
         return Ok(eq_error(
             ErrorCode::ConfirmRequired,
             "confirm: true is required to delete a workspace",
             None,
         ));
     }
-    let workspace_id = args
-        .get("workspace_id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ApiError::BadRequest("workspace_id required".into()))?;
-    Ok(
-        EnvelopeBuilder::new("workspace_delete", BudgetClass::Standard)
-            .insert("deleted", json!(true))
-            .insert("workspace_id", json!(workspace_id))
-            .build(),
-    )
+    Ok(eq_error(
+        ErrorCode::NotImplemented,
+        "workspace delete is not available on MCP",
+        None,
+    ))
 }

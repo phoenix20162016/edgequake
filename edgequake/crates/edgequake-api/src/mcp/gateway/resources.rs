@@ -1,5 +1,6 @@
-//! MCP resources/list + resources/read for eq:// URIs (SPEC-152).
+//! MCP resources/list + resources/read for eq:// URIs (SPEC-152 / SPEC-161).
 
+use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::{json, Value};
 
 use crate::error::ApiError;
@@ -35,8 +36,14 @@ pub fn resources_list(tenant_ctx: &TenantContext) -> Value {
             {
                 "uriTemplate": "eq://{workspace}/documents/{doc_id}/text",
                 "name": "document-text",
-                "description": "Document text resource",
+                "description": "Document markdown (available after processing is indexed)",
                 "mimeType": "text/plain"
+            },
+            {
+                "uriTemplate": "eq://{workspace}/documents/{doc_id}/original",
+                "name": "document-original",
+                "description": "Original upload bytes",
+                "mimeType": "application/octet-stream"
             },
             {
                 "uriTemplate": "eq://{workspace}/chunks/{chunk_id}",
@@ -73,7 +80,6 @@ pub async fn resources_read(
         )));
     }
 
-    // Retrieval hydrate under standard budget
     if let Some(ret_id) = uri
         .rsplit('/')
         .next()
@@ -100,6 +106,41 @@ pub async fn resources_read(
         }
     }
 
+    if let Some(doc_id) = document_id_from_uri(uri, "/text") {
+        return match crate::mcp::project::download::read_text_resource(ctx.state, doc_id).await {
+            Ok(text) => Ok(json!({
+                "contents": [{
+                    "uri": uri,
+                    "mimeType": "text/markdown",
+                    "text": text
+                }]
+            })),
+            Err(ApiError::NotFound(_)) => Err(GatewayError::Api(ApiError::NotFound(
+                "markdown is not ready; poll eq_task_get until indexed".into(),
+            ))),
+            Err(e) => Err(GatewayError::Api(e)),
+        };
+    }
+
+    if let Some(doc_id) = document_id_from_uri(uri, "/original") {
+        return match crate::mcp::project::download::read_original_resource(
+            ctx.state,
+            ctx.tenant_ctx,
+            doc_id,
+        )
+        .await
+        {
+            Ok((bytes, mime)) => Ok(json!({
+                "contents": [{
+                    "uri": uri,
+                    "mimeType": mime,
+                    "blob": STANDARD.encode(bytes)
+                }]
+            })),
+            Err(e) => Err(GatewayError::Api(e)),
+        };
+    }
+
     Ok(json!({
         "contents": [{
             "uri": uri,
@@ -107,4 +148,12 @@ pub async fn resources_read(
             "text": "{\"ok\":true,\"note\":\"hydrate via eq_document_get / eq_entity_get / eq_fetch\"}"
         }]
     }))
+}
+
+fn document_id_from_uri<'a>(uri: &'a str, suffix: &str) -> Option<&'a str> {
+    let rest = uri.strip_prefix("eq://")?;
+    let path = rest.split_once('/')?.1;
+    let marker = "/documents/";
+    let after = path.split_once(marker)?.1;
+    after.strip_suffix(suffix)
 }

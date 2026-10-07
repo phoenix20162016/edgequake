@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edgequake.dev/schemas/eq-mcp-1.0/eq_asset_get.input.json",
+  "title": "eq_asset_get input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["document_id", "asset_id"],
+  "properties": {
+    "document_id": { "type": "string", "minLength": 1 },
+    "asset_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable asset id (e.g. page-0001-fig-01)"
+    },
+    "workspace_id": {
+      "type": "string",
+      "x-mcp-header": "Workspace-Id"
+    },
+    "budget": {
+      "type": "string",
+      "enum": ["cheap", "standard", "deep"],
+      "default": "standard"
+    }
+  }
+}

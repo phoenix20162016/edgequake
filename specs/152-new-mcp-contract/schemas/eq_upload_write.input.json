@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edgequake.dev/schemas/eq-mcp-1.0/eq_upload_write.input.json",
+  "title": "eq_upload_write input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["upload_id", "offset", "data_base64"],
+  "properties": {
+    "upload_id": { "type": "string", "minLength": 1 },
+    "offset": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Byte offset; must be contiguous with prior writes"
+    },
+    "data_base64": {
+      "type": "string",
+      "description": "Chunk bytes; JSON-RPC body must stay ≤ MCP_MAX_BODY_BYTES"
+    },
+    "workspace_id": {
+      "type": "string",
+      "x-mcp-header": "Workspace-Id"
+    }
+  }
+}

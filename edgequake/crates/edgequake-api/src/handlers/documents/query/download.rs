@@ -55,7 +55,10 @@ fn get_original_storage(
         .ok_or_else(|| ApiError::Internal("Original storage not initialized".into()))
 }
 
-async fn load_document_metadata(state: &AppState, document_id: &str) -> ApiResult<Value> {
+pub(crate) async fn load_document_metadata(
+    state: &AppState,
+    document_id: &str,
+) -> ApiResult<Value> {
     let metadata_key = metadata_key_for_document(document_id);
 
     #[cfg(feature = "postgres")]
@@ -179,6 +182,46 @@ pub async fn download_document_original(
             original.original_data,
         )
             .into_response())
+    }
+
+    #[cfg(not(feature = "postgres"))]
+    Err(ApiError::NotFound("Original file not found".into()))
+}
+
+/// Bytes + MIME for REST and MCP. Does not wait for pipeline completion.
+pub(crate) async fn load_original_bytes(
+    state: &AppState,
+    tenant_ctx: &TenantContext,
+    document_id: &str,
+) -> ApiResult<(Vec<u8>, String)> {
+    let workspace_id = Uuid::parse_str(&tenant_ctx.workspace_id_or_default())
+        .map_err(|_| ApiError::BadRequest("Invalid workspace id".into()))?;
+    let metadata = load_document_metadata(state, document_id).await?;
+
+    if let Some(pdf_id) = metadata_pdf_id(&metadata) {
+        let pdf_storage = get_pdf_storage(state)?;
+        let pdf = pdf_storage
+            .get_pdf(&pdf_id)
+            .await
+            .map_err(|e| ApiError::Internal(format!("Failed to get PDF: {e}")))?
+            .ok_or_else(|| ApiError::NotFound("PDF not found".into()))?;
+        if pdf.workspace_id != workspace_id {
+            return Err(ApiError::forbidden());
+        }
+        return Ok((pdf.pdf_data, pdf.content_type));
+    }
+
+    #[cfg(feature = "postgres")]
+    {
+        let document_uuid = Uuid::parse_str(document_id)
+            .map_err(|_| ApiError::BadRequest("Invalid document id".into()))?;
+        let original_storage = get_original_storage(state)?;
+        let original = original_storage
+            .get_original(&workspace_id, &document_uuid)
+            .await
+            .map_err(ApiError::from)?
+            .ok_or_else(|| ApiError::NotFound("Original file not found".into()))?;
+        return Ok((original.original_data, original.content_type));
     }
 
     #[cfg(not(feature = "postgres"))]

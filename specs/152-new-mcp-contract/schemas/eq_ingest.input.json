@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://edgequake.dev/schemas/eq-mcp-1.0/eq_ingest.input.json",
   "title": "eq_ingest input",
+  "description": "SPEC-161: real admit. Provide exactly one of content, content_base64(+filename), or upload_ref.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -9,10 +10,22 @@
       "type": "string",
       "description": "Plain text body to ingest"
     },
+    "content_base64": {
+      "type": "string",
+      "description": "Small file bytes (decoded size must fit under MCP body headroom)"
+    },
+    "filename": {
+      "type": "string",
+      "description": "Required with content_base64"
+    },
+    "media_type": {
+      "type": "string",
+      "description": "Optional MIME for content_base64"
+    },
     "title": { "type": "string" },
     "upload_ref": {
       "type": "string",
-      "description": "Reference to a prior upload or local file handle resolved by the host"
+      "description": "Committed upload_id from eq_upload_commit / eq_upload_begin flow"
     },
     "workspace_id": {
       "type": "string",
@@ -21,6 +34,7 @@
   },
   "anyOf": [
     { "required": ["content"] },
+    { "required": ["content_base64", "filename"] },
     { "required": ["upload_ref"] }
   ]
 }

@@ -15,7 +15,15 @@ use super::ids::{
     truncate_chars,
 };
 
-const DEFAULT_NEIGHBOR_CAP: usize = 16;
+pub(crate) const DEFAULT_NEIGHBOR_CAP: usize = 16;
+
+pub(crate) fn clamp_neighborhood_hops(max_hops: u32, budget: BudgetClass) -> u32 {
+    let mut hops = max_hops.clamp(1, 3);
+    if hops == 3 && budget != BudgetClass::Deep {
+        hops = 2;
+    }
+    hops
+}
 
 pub async fn eq_entity_search(
     state: &AppState,
@@ -175,14 +183,10 @@ pub async fn eq_neighborhood(
         .get("entity_id")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ApiError::BadRequest("entity_id required".into()))?;
-    let mut max_hops = args
-        .get("max_hops")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(1)
-        .clamp(1, 3) as u32;
-    if max_hops == 3 && budget != BudgetClass::Deep {
-        max_hops = 2;
-    }
+    let max_hops = clamp_neighborhood_hops(
+        args.get("max_hops").and_then(|v| v.as_u64()).unwrap_or(1) as u32,
+        budget,
+    );
     let include_artifacts = args
         .get("include_artifacts")
         .and_then(|v| v.as_bool())

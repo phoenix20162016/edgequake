@@ -150,6 +150,9 @@ impl AppState {
             graph_materialize,
             pdf_vision,
             parse_jobs: crate::handlers::parse::ParseJobStore::from_env(),
+            mcp_uploads: std::sync::Arc::new(
+                crate::mcp::project::upload_session::McpUploadStore::new(),
+            ),
             read_path_db,
             #[cfg(feature = "postgres")]
             migration_bootstrap: None,
@@ -324,6 +327,9 @@ impl AppState {
             graph_materialize,
             pdf_vision,
             parse_jobs: crate::handlers::parse::ParseJobStore::from_env(),
+            mcp_uploads: std::sync::Arc::new(
+                crate::mcp::project::upload_session::McpUploadStore::new(),
+            ),
             read_path_db,
             #[cfg(feature = "postgres")]
             migration_bootstrap: None,
@@ -503,6 +509,9 @@ impl AppState {
             graph_materialize,
             pdf_vision,
             parse_jobs: crate::handlers::parse::ParseJobStore::from_env(),
+            mcp_uploads: std::sync::Arc::new(
+                crate::mcp::project::upload_session::McpUploadStore::new(),
+            ),
             read_path_db,
             #[cfg(feature = "postgres")]
             migration_bootstrap: None,

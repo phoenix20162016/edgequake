@@ -1859,6 +1859,7 @@ dependencies = [
  "futures",
  "futures-util",
  "hex",
+ "image",
  "jsonwebtoken",
  "lazy_static",
  "md5",

@@ -5,15 +5,55 @@ use serde_json::{json, Value};
 const MAX_SUMMARY_CHARS: usize = 2048;
 const MAX_ITEM_LINES: usize = 8;
 
+const IMAGE_KEY: &str = "_mcp_image";
+
 /// Build CallToolResult with summary text + structuredContent (no JSON clone).
 pub fn call_tool_result(structured: Value) -> Value {
+    call_tool_result_inner(structured)
+}
+
+/// Keep text in content[0]. Put ImageContent in content[1].
+pub fn call_tool_result_with_image(
+    structured: Value,
+    mime_type: &str,
+    png_or_jpeg: &[u8],
+) -> Value {
+    let mut structured = structured;
+    if let Some(obj) = structured.as_object_mut() {
+        obj.insert(
+            IMAGE_KEY.into(),
+            json!({
+                "mimeType": mime_type,
+                "data": base64::Engine::encode(&base64::engine::general_purpose::STANDARD, png_or_jpeg),
+            }),
+        );
+    }
+    call_tool_result_inner(structured)
+}
+
+fn call_tool_result_inner(mut structured: Value) -> Value {
+    let extra = structured
+        .as_object_mut()
+        .and_then(|o| o.remove(crate::mcp::project::blob::EXTRA_CONTENT_KEY));
+    let image = structured.as_object_mut().and_then(|o| o.remove(IMAGE_KEY));
     let is_error = structured
         .get("ok")
         .and_then(|v| v.as_bool())
         .is_some_and(|ok| !ok);
     let text = summarize(&structured);
+    let mut content = vec![json!({ "type": "text", "text": text })];
+    if let Some(img) = image {
+        content.push(json!({
+            "type": "image",
+            "mimeType": img.get("mimeType").and_then(|v| v.as_str()).unwrap_or("image/png"),
+            "data": img.get("data").and_then(|v| v.as_str()).unwrap_or(""),
+        }));
+    }
+    if let Some(Value::Array(blocks)) = extra {
+        content.extend(blocks);
+    }
     let mut result = json!({
-        "content": [{ "type": "text", "text": text }],
+        "content": content,
         "structuredContent": structured
     });
     if is_error {

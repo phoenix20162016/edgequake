@@ -6,6 +6,15 @@ All notable changes to the EdgeQuake specs directory are tracked here. See the r
 
 ### Added
 
+- **SPEC-161 / improve MCP control surface (2026-10-07):** Pack
+  `specs/161-improve-mcp/` (WHY, first principles, surfaces, architecture,
+  52 ECs, eight lenses, implementation plan, e2e matrix, cross-ref). Amends
+  EQ-MCP-1.0 → 1.1: control profile default; async ingest/upload/delete +
+  `eq_task_get`; download; assets; graph PNG. Schema SSOT under
+  `specs/152-new-mcp-contract/schemas/`. Waves W1–W7 implemented in
+  `edgequake-api` + stdio bridge; e2e `spec161_mcp_control_e2e`. Validate:
+  `python3 specs/161-improve-mcp/scripts/validate-cross-ref.py`.
+
 - **SPEC-160 / decision extraction (2026-10-04):** Preview KG mode `decision`.
   Closed questions on Ollama System One (default `tev1:0.8b`). Accept rows enter
   the graph; review rows land in `decision_review` (migration **166**). Chat-LLM

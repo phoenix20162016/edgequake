@@ -238,6 +238,30 @@ async fn delete_staging_shell_sync(
     ))
 }
 
+/// Enqueue async document deletion. Does not wait for the cascade worker.
+///
+/// `prefer_async`: MCP always queues a Deletion task, including staging-only
+/// pending shells, so the client can poll `eq_task_get`. REST keeps the
+/// SPEC-086 sync dismiss for staging-only docs.
+pub async fn enqueue_document_deletion(
+    state: &AppState,
+    tenant_ctx: &TenantContext,
+    document_id: String,
+) -> ApiResult<(StatusCode, DeleteDocumentResponse)> {
+    enqueue_document_deletion_with_mode(state, tenant_ctx, document_id, false).await
+}
+
+pub async fn enqueue_document_deletion_with_mode(
+    state: &AppState,
+    tenant_ctx: &TenantContext,
+    document_id: String,
+    prefer_async: bool,
+) -> ApiResult<(StatusCode, DeleteDocumentResponse)> {
+    let (status, Json(resp)) =
+        delete_document_body(state, tenant_ctx, document_id, prefer_async).await?;
+    Ok((status, resp))
+}
+
 /// Delete a document by ID (async job — 202 Accepted).
 #[utoipa::path(
     delete,
@@ -256,6 +280,16 @@ pub async fn delete_document(
     axum::extract::Path(document_id): axum::extract::Path<String>,
     tenant_ctx: TenantContext,
 ) -> ApiResult<(StatusCode, Json<DeleteDocumentResponse>)> {
+    let (status, resp) = enqueue_document_deletion(&state, &tenant_ctx, document_id).await?;
+    Ok((status, Json(resp)))
+}
+
+async fn delete_document_body(
+    state: &AppState,
+    tenant_ctx: &TenantContext,
+    document_id: String,
+    prefer_async: bool,
+) -> ApiResult<(StatusCode, Json<DeleteDocumentResponse>)> {
     let (actual_key_prefix, metadata_key, has_metadata) =
         resolve_kv_key_prefix(&document_id, &state).await;
     let key_id_mismatch = actual_key_prefix != document_id;
@@ -270,7 +304,7 @@ pub async fn delete_document(
 
     // SPEC-086: orphan/failed staging shells have no graph — sync dismiss.
     // Avoids queueing Deletion behind ingest and leave UI stuck on "Deleting".
-    if has_metadata && metadata_key.starts_with("staging:") {
+    if has_metadata && metadata_key.starts_with("staging:") && !prefer_async {
         let final_also_present = state
             .storage
             .kv_storage
@@ -422,13 +456,16 @@ pub async fn delete_document(
         ));
     }
 
-    let tenant_id_str = tenant_ctx
-        .tenant_id
-        .clone()
-        .unwrap_or_else(|| "default".to_string());
-    let tenant_uuid = Uuid::parse_str(&tenant_id_str).unwrap_or_else(|_| Uuid::nil());
-    let workspace_uuid_for_task =
-        Uuid::parse_str(&workspace_id_for_storage).unwrap_or_else(|_| Uuid::nil());
+    // Match admit / eq_task_get scope: alias "default" → canonical UUIDs.
+    // Bare `Uuid::parse_str("default")` is nil and makes MCP poll return not_found.
+    let tenant_id_str = tenant_ctx.tenant_id_or_default();
+    let tenant_uuid = Uuid::parse_str(&tenant_id_str).unwrap_or_else(|_| {
+        crate::middleware::default_tenant_uuid()
+    });
+    let workspace_uuid_for_task = crate::middleware::resolve_workspace_uuid(Some(
+        workspace_id_for_storage.as_str(),
+    ))
+    .unwrap_or_else(crate::middleware::default_workspace_uuid);
 
     // Placeholder correlation id — overwritten with durable task.track_id below
     // so WS/API/purge keep-self share one SSOT (same pattern as workspace wipe).
