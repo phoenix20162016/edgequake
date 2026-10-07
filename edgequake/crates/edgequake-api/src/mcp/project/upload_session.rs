@@ -35,6 +35,8 @@ enum SessionStatus {
 struct Session {
     tenant_id: Option<String>,
     workspace_id: Option<String>,
+    /// Captured at open for future audit / ownership checks (not read yet).
+    #[allow(dead_code)]
     user_id: Option<String>,
     filename: String,
     media_type: String,

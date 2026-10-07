@@ -2,7 +2,7 @@
 
 use axum::http::HeaderMap;
 
-use crate::mcp::project::profile::{mcp_profile, McpProfile};
+use crate::mcp::project::profile::mcp_profile;
 use crate::oauth::scopes::{MCP_SCOPE_QUERY, MCP_SCOPE_READ, MCP_SCOPE_WRITE};
 
 /// Resource scopes advertised on Protected Resource Metadata and 401 challenges.

@@ -291,7 +291,7 @@ async fn delete_document_body(
     prefer_async: bool,
 ) -> ApiResult<(StatusCode, Json<DeleteDocumentResponse>)> {
     let (actual_key_prefix, metadata_key, has_metadata) =
-        resolve_kv_key_prefix(&document_id, &state).await;
+        resolve_kv_key_prefix(&document_id, state).await;
     let key_id_mismatch = actual_key_prefix != document_id;
 
     if key_id_mismatch {
@@ -314,8 +314,7 @@ async fn delete_document_body(
             .flatten()
             .is_some();
         if !final_also_present {
-            return delete_staging_shell_sync(&state, &document_id, &metadata_key, &tenant_ctx)
-                .await;
+            return delete_staging_shell_sync(state, &document_id, &metadata_key, tenant_ctx).await;
         }
     }
 
@@ -339,7 +338,7 @@ async fn delete_document_body(
 
     #[cfg(feature = "postgres")]
     let relational_scope =
-        relational_document_scope(state.optional_pg_pool(), &document_id, &tenant_ctx).await?;
+        relational_document_scope(state.optional_pg_pool(), &document_id, tenant_ctx).await?;
     #[cfg(not(feature = "postgres"))]
     let relational_scope: Option<crate::document_read_model::RelationalDocumentScope> = None;
 
@@ -353,7 +352,7 @@ async fn delete_document_body(
 
     if kv_present && relational_scope.is_none() && has_metadata {
         if let Ok(Some(metadata)) = state.storage.kv_storage.get_by_id(&metadata_key).await {
-            if !metadata_matches_tenant_context(&metadata, &tenant_ctx) {
+            if !metadata_matches_tenant_context(&metadata, tenant_ctx) {
                 return Err(ApiError::NotFound(format!(
                     "Document {} not found",
                     document_id
@@ -365,7 +364,7 @@ async fn delete_document_body(
     let (workspace_id_for_storage, document_status, content_hash_opt, pdf_id_opt, track_id_opt) =
         if has_metadata {
             if let Ok(Some(metadata)) = state.storage.kv_storage.get_by_id(&metadata_key).await {
-                let tenant_ok = metadata_matches_tenant_context(&metadata, &tenant_ctx);
+                let tenant_ok = metadata_matches_tenant_context(&metadata, tenant_ctx);
                 if tenant_ok || relational_scope.is_some() {
                     let workspace = metadata
                         .get("workspace_id")
@@ -432,7 +431,7 @@ async fn delete_document_body(
 
     let workspace_uuid = Uuid::parse_str(&workspace_id_for_storage).ok();
     if let Some(existing_track) =
-        find_active_deletion_track_id(&state, &document_id, workspace_uuid).await
+        find_active_deletion_track_id(state, &document_id, workspace_uuid).await
     {
         tracing::info!(
             document_id = %document_id,
@@ -459,13 +458,11 @@ async fn delete_document_body(
     // Match admit / eq_task_get scope: alias "default" → canonical UUIDs.
     // Bare `Uuid::parse_str("default")` is nil and makes MCP poll return not_found.
     let tenant_id_str = tenant_ctx.tenant_id_or_default();
-    let tenant_uuid = Uuid::parse_str(&tenant_id_str).unwrap_or_else(|_| {
-        crate::middleware::default_tenant_uuid()
-    });
-    let workspace_uuid_for_task = crate::middleware::resolve_workspace_uuid(Some(
-        workspace_id_for_storage.as_str(),
-    ))
-    .unwrap_or_else(crate::middleware::default_workspace_uuid);
+    let tenant_uuid = Uuid::parse_str(&tenant_id_str)
+        .unwrap_or_else(|_| crate::middleware::default_tenant_uuid());
+    let workspace_uuid_for_task =
+        crate::middleware::resolve_workspace_uuid(Some(workspace_id_for_storage.as_str()))
+            .unwrap_or_else(crate::middleware::default_workspace_uuid);
 
     // Placeholder correlation id — overwritten with durable task.track_id below
     // so WS/API/purge keep-self share one SSOT (same pattern as workspace wipe).
@@ -509,7 +506,7 @@ async fn delete_document_body(
     state.enqueue_task(task).await?;
 
     // SPEC-098 LAW-098-9: dual-write KV + SQL `deleting` (list merge honesty).
-    crate::services::admit_document_deleting(&state, &document_id, &actual_key_prefix).await?;
+    crate::services::admit_document_deleting(state, &document_id, &actual_key_prefix).await?;
 
     state
         .tasks

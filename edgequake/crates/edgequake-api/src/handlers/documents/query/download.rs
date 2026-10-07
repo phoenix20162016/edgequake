@@ -221,7 +221,7 @@ pub(crate) async fn load_original_bytes(
             .await
             .map_err(ApiError::from)?
             .ok_or_else(|| ApiError::NotFound("Original file not found".into()))?;
-        return Ok((original.original_data, original.content_type));
+        Ok((original.original_data, original.content_type))
     }
 
     #[cfg(not(feature = "postgres"))]

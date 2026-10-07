@@ -226,6 +226,7 @@ async fn create_postgres_state(pool: &PgPool) -> (AppState, PostgresConfig) {
         graph_materialize: Arc::new(edgequake_core::GraphMaterializationSemaphore::new(4)),
         pdf_vision: Arc::new(edgequake_core::PdfVisionSemaphore::new(2)),
         parse_jobs: edgequake_api::handlers::parse::ParseJobStore::from_env(),
+        mcp_uploads: Arc::new(edgequake_api::mcp::project::upload_session::McpUploadStore::new()),
         read_path_db: Arc::new(edgequake_api::read_path::ReadPathDbPermit::from_env()),
         postgres_capabilities: None,
         server_config: edgequake_api::server_config_store::ServerConfigStore::new(),

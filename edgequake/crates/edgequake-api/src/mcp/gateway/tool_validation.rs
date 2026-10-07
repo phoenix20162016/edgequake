@@ -4,7 +4,7 @@ use edgequake_auth::Role;
 use serde_json::Value;
 
 use crate::error::ApiError;
-use crate::mcp::project::profile::{mcp_profile, McpProfile};
+use crate::mcp::project::profile::mcp_profile;
 
 use super::json_rpc::GatewayError;
 

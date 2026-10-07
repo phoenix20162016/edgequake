@@ -341,16 +341,15 @@ async fn t161_21_27_delete_async_shape() {
     )
     .await;
     let sc2 = tool_structured(&del2);
-    assert_ne!(sc2.get("deleted"), Some(&json!(true)), "second delete: {sc2}");
+    assert_ne!(
+        sc2.get("deleted"),
+        Some(&json!(true)),
+        "second delete: {sc2}"
+    );
     assert!(sc2["ok"] == true || sc2["error"]["code"] == "eq/not_found");
 
-    let (_, task) = mcp_tools_call(
-        &app,
-        "/mcp",
-        "eq_task_get",
-        json!({"task_id": delete_task}),
-    )
-    .await;
+    let (_, task) =
+        mcp_tools_call(&app, "/mcp", "eq_task_get", json!({"task_id": delete_task})).await;
     let task_sc = tool_structured(&task);
     assert_eq!(task_sc["ok"], true, "eq_task_get delete task: {task_sc}");
     assert!(task_sc["status"].is_string());
@@ -391,7 +390,7 @@ async fn t161_28_29_30_assets() {
 #[cfg(feature = "postgres")]
 #[tokio::test]
 async fn t161_30_31_32_asset_image_and_unsupported() {
-    use edgequake_api::middleware::{default_workspace_uuid, default_tenant_uuid};
+    use edgequake_api::middleware::{default_tenant_uuid, default_workspace_uuid};
     use edgequake_storage::{StoreMmAssetRequest, ASSET_KIND_EMBEDDED_FIGURE};
     use image::{ImageBuffer, Rgb};
     use uuid::Uuid;
@@ -489,7 +488,10 @@ async fn t161_14_expired_upload_id() {
         json!({"filename": "ttl.txt"}),
     )
     .await;
-    let uid = tool_structured(&begin)["upload_id"].as_str().unwrap().to_string();
+    let uid = tool_structured(&begin)["upload_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
     assert!(state.mcp_uploads.mark_expired(&uid).await);
     let (_, write) = mcp_tools_call(
         &app,

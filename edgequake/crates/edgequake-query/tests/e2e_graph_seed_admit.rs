@@ -205,14 +205,14 @@ async fn hollow_ann_skips_popular_and_admits_label() {
             .collect::<Vec<_>>()
     );
     assert!(
-        resp.context
+        !resp
+            .context
             .metadata
-            .get(META_POPULAR_NODE_FALLBACK)
-            .is_none(),
+            .contains_key(META_POPULAR_NODE_FALLBACK),
         "popular telemetry must not fire when labels/seeds can admit; meta={:?}",
         resp.context.metadata
     );
-    assert!(resp.context.metadata.get(META_POPULAR_NODE_ARM).is_none());
+    assert!(!resp.context.metadata.contains_key(META_POPULAR_NODE_ARM));
     assert!(
         !resp.context.entities.iter().any(|e| e
             .name
@@ -271,11 +271,10 @@ async fn global_popular_skipped_when_exact_label_candidates_exist() {
             .any(|e| { e.name.to_ascii_uppercase().contains("ACTION_FUSION") }),
         "global popular hub must not enter when labels exist"
     );
-    assert!(resp
+    assert!(!resp
         .context
         .metadata
-        .get(META_POPULAR_NODE_FALLBACK)
-        .is_none());
+        .contains_key(META_POPULAR_NODE_FALLBACK));
     std::env::remove_var("EDGEQUAKE_POPULAR_NODE_FALLBACK");
 }
 
@@ -326,10 +325,10 @@ async fn popular_skipped_when_exact_label_candidates_exist() {
             .collect::<Vec<_>>()
     );
     assert!(
-        resp.context
+        !resp
+            .context
             .metadata
-            .get(META_POPULAR_NODE_FALLBACK)
-            .is_none(),
+            .contains_key(META_POPULAR_NODE_FALLBACK),
         "popular fallback telemetry must be absent"
     );
     std::env::remove_var("EDGEQUAKE_POPULAR_NODE_FALLBACK");
