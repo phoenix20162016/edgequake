@@ -25,13 +25,21 @@ pub(super) fn make_scope_metadata_filter(
     workspace_id: Option<String>,
     allowed_document_ids: Option<&[String]>,
     vector_type: Option<&str>,
+    embedding_model: Option<&str>,
 ) -> Option<MetadataFilter> {
     let doc_ids = allowed_document_ids
         .filter(|ids| !ids.is_empty())
         .map(|ids| ids.iter().map(String::from).collect::<Vec<_>>());
+    let emb = embedding_model
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
 
-    let has_any =
-        tenant_id.is_some() || workspace_id.is_some() || doc_ids.is_some() || vector_type.is_some();
+    let has_any = tenant_id.is_some()
+        || workspace_id.is_some()
+        || doc_ids.is_some()
+        || vector_type.is_some()
+        || emb.is_some();
 
     if !has_any {
         return None;
@@ -43,5 +51,6 @@ pub(super) fn make_scope_metadata_filter(
         document_ids: doc_ids,
         vector_type: vector_type.map(str::to_string),
         modalities: None,
+        embedding_model: emb,
     })
 }

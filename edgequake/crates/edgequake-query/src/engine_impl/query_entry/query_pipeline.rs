@@ -811,7 +811,7 @@ impl QueryEngine {
             }
         };
 
-        if needs_mode_span {
+        let mut context = if needs_mode_span {
             with_rag_retrieval_span(
                 RagRetrievalAttrs {
                     data_source_id: Some("edgequake"),
@@ -831,13 +831,29 @@ impl QueryEngine {
                         ctx.entities.len(),
                         ctx.chunks.first().map(|c| c.content.as_str()),
                     );
-                    Ok(ctx)
+                    Ok::<QueryContext, crate::error::QueryError>(ctx)
                 },
             )
-            .await
+            .await?
         } else {
-            retrieve.await
-        }
+            retrieve.await?
+        };
+
+        // Ask / exact-name: admit AGE entities when ANN misses (workspace model gap).
+        let seeds = request.seed_entity_ids.as_deref().unwrap_or(&[]);
+        let _ = crate::graph_seed_admit::admit_into_context(
+            self.graph_read(),
+            self.kv_storage.as_deref(),
+            &mut context,
+            seeds,
+            &request.query,
+            keywords,
+            request.tenant_id().as_deref(),
+            request.workspace_id().as_deref(),
+        )
+        .await?;
+
+        Ok(context)
     }
 
     async fn pipeline_finalize(

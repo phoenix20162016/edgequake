@@ -100,12 +100,18 @@ impl DefaultIngestionPersister {
         self
     }
 
-    /// SPEC-149: attach the atomic authority committer.
+    /// SPEC-149: attach the atomic authority committer with an explicit ANN registry key.
+    ///
+    /// Prefer [`Self::with_ingestion_authority`]. The model name must be the
+    /// workspace/lineage embedder — never rely on a silent env default.
     pub fn with_ingestion_committer(
         mut self,
         committer: Option<Arc<dyn IngestionCommitter>>,
+        embedding_model_id: impl Into<String>,
     ) -> Self {
-        self.config = self.config.with_ingestion_committer(committer);
+        self.config = self
+            .config
+            .with_ingestion_committer(committer, embedding_model_id);
         self
     }
 
@@ -377,11 +383,22 @@ impl IngestionPersistConfig {
     pub fn with_ingestion_committer(
         mut self,
         committer: Option<Arc<dyn IngestionCommitter>>,
+        embedding_model_id: impl Into<String>,
     ) -> Self {
         self.ingestion_committer = committer.clone();
         if let (Some(committer), Some(repo)) = (committer, self.relational_chunks.clone()) {
-            let embedding_model_id = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-                .unwrap_or_else(|_| "text-embedding-3-small".into());
+            let model = embedding_model_id.into();
+            let model = model.trim();
+            // Prefer with_ingestion_authority with a resolved lineage key. Empty
+            // is refused (would register embedding_models.name='') — use SSOT.
+            let embedding_model_id = if model.is_empty() {
+                tracing::warn!(
+                    "with_ingestion_committer: empty embedding_model_id; using embedding_model_key_from_env()"
+                );
+                edgequake_storage::embedding_model_key_from_env()
+            } else {
+                model.to_string()
+            };
             self.ingestion_authority = Some(IngestionAuthority::DurableCommitter {
                 committer,
                 relational_chunks: repo,

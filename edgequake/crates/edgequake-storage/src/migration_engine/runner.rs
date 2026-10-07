@@ -193,10 +193,7 @@ fn default_backfill_jobs(
     kv_table: String,
     vectors_table: String,
 ) -> Vec<std::sync::Arc<dyn BackfillJob>> {
-    let model = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "text-embedding-3-small".to_string());
+    let model = crate::embedding_model_key_from_env();
     vec![
         std::sync::Arc::new(super::chunk_text_backfill::ChunkTextBackfillJob::new(
             kv_table,

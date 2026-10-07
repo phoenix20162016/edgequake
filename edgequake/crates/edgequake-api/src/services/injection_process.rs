@@ -134,6 +134,8 @@ pub async fn run_injection_pipeline(
     content: &str,
     workspace_id: &str,
     tenant_id: Option<String>,
+    // Workspace-resolved embedding model for typed ANN registry (lineage).
+    embedding_model: Option<&str>,
 ) -> Result<(u32, Vec<String>), Box<dyn std::error::Error + Send + Sync>> {
     let mut result = pipeline
         .process_with_resilience(doc_id, content, None)
@@ -166,6 +168,7 @@ pub async fn run_injection_pipeline(
             chunk_options: ChunkVectorBuildOptions::STANDARD,
             source_type: Some("injection"),
             source_file_path: Some("injection"),
+            embedding_model,
         },
         None,
     )

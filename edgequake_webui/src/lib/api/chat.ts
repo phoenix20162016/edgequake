@@ -94,6 +94,11 @@ export interface ChatCompletionRequest {
    * @implements SPEC-037 + SPEC-028
    */
   content_granularity?: 'citation' | 'agent' | 'debug';
+  /**
+   * Graph entity ids to admit before ANN (Ask companion seed).
+   * Does not change query mode.
+   */
+  seed_entity_ids?: string[];
 }
 
 /**

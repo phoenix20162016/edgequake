@@ -340,9 +340,9 @@ impl AppState {
         );
 
         // Create default workspace within the tenant
-        // SPEC-032: Uses server defaults for embedding configuration
+        // SPEC-032: fleet ANN registry key (SSOT) — not a hardcoded model name.
         let mut workspace_request = CreateWorkspaceRequest::new("Default Workspace")
-            .with_embedding_model("text-embedding-3-small");
+            .with_embedding_model(edgequake_storage::embedding_model_key_from_env());
         workspace_request.slug = Some("default".to_string());
 
         let workspace = self

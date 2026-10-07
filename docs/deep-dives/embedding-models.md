@@ -511,15 +511,42 @@ Error: Rate limit exceeded
 
 ---
 
+## Typed ANN registry key (ingest = query)
+
+Ingest and typed ANN **must share the same** `embedding_models(name, dimensions)`
+key as the workspace embedder. EdgeQuake never searches another model’s vector
+space when the preferred key misses.
+
+| Concern | Source | Role |
+| ------- | ------ | ---- |
+| Which embedder process loads | `EDGEQUAKE_EMBEDDING_PROVIDER` / provider setup | Runtime client construction — **not** the ANN registry key |
+| ANN / typed write+read registry name | Workspace lineage model, else `embedding_model_key_from_env()` (storage SSOT) | `embedding_models.name` + dimensions; empty Compose `EDGEQUAKE_EMBEDDING_MODEL=` falls through to the product default |
+| Query filter | `QueryEmbeddings.model` → `MetadataFilter.embedding_model` | Preferred-only via `serving_embedding_model_candidates`; miss → empty ANN (then graph label/seed admit) |
+
+**Rules**
+
+1. Stamp every typed upsert with the active embedder / lineage model name.
+2. When `MetadataFilter.embedding_model` (workspace/lineage) is set, typed ANN
+   searches **only** that `embedding_models(name, dimensions)` key. A miss is
+   empty — never fall through into the process env model’s space.
+3. Empty env (`EDGEQUAKE_EMBEDDING_MODEL=` from Compose `:-`) must resolve through
+   the SSOT helper — never treat `Ok("")` as a distinct registry name.
+4. When rows were written under the wrong name, **rename/backfill** the registry
+   and typed tables — see
+   [Embedding registry audit & backfill](/docs/operations/embedding-registry-backfill/).
+
+---
+
 ## Best Practices
 
 1. **Consistency**: Use same embedding model for entire workspace
 2. **Match Dimensions**: Ensure workspace dimension matches model output
-3. **Batch When Possible**: Reduce API calls by batching texts
-4. **Monitor Costs**: Track embedding token usage in cost dashboard
-5. **Consider Local**: Use Ollama for sensitive data or high volume
-6. **Test Before Switching**: Compare quality before changing models
-7. **Index Optimization**: Tune HNSW parameters for your workload
+3. **Same ANN key**: Ingest and query must share `embedding_models(name, dim)`
+4. **Batch When Possible**: Reduce API calls by batching texts
+5. **Monitor Costs**: Track embedding token usage in cost dashboard
+6. **Consider Local**: Use Ollama for sensitive data or high volume
+7. **Test Before Switching**: Compare quality before changing models
+8. **Index Optimization**: Tune HNSW parameters for your workload
 
 ---
 
@@ -528,3 +555,4 @@ Error: Rate limit exceeded
 - [Vector Search](/docs/deep-dives/vector-storage/) - How similarity search works
 - [Configuration Reference](/docs/operations/configuration/) - All embedding settings
 - [Performance Tuning](/docs/operations/performance-tuning/) - Optimization guide
+- [Embedding registry audit & backfill](/docs/operations/embedding-registry-backfill/) - Ops SQL for model-key mismatches

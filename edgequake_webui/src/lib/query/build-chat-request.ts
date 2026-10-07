@@ -28,6 +28,8 @@ export interface BuildChatRequestOptions {
   images?: Array<{ data: string; mime_type: string }>;
   /** Force stream flag (overrides settings.stream when set). */
   stream?: boolean;
+  /** Ask companion entity id(s) for graph-first admission. */
+  seedEntityIds?: string[];
 }
 
 /**
@@ -57,8 +59,19 @@ export function buildDocumentFilter(
 export function buildChatRequest(
   options: BuildChatRequestOptions,
 ): ChatCompletionRequest {
-  const { settings, message, conversationId, language, images, stream } =
-    options;
+  const {
+    settings,
+    message,
+    conversationId,
+    language,
+    images,
+    stream,
+    seedEntityIds,
+  } = options;
+
+  const seeds = seedEntityIds
+    ?.map((id) => id.trim())
+    .filter((id) => id.length > 0);
 
   return {
     conversation_id: conversationId || undefined,
@@ -76,5 +89,6 @@ export function buildChatRequest(
     document_filter: buildDocumentFilter(settings),
     content_granularity: settings.fullChunkContent ? "agent" : "citation",
     images,
+    seed_entity_ids: seeds && seeds.length > 0 ? seeds : undefined,
   };
 }

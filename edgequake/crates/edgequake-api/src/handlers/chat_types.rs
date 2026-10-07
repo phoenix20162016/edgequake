@@ -114,6 +114,11 @@ pub struct ChatCompletionRequest {
     /// @implements SPEC-037 + SPEC-028
     #[serde(default = "default_content_granularity")]
     pub content_granularity: ContentGranularity,
+
+    /// Optional graph entity ids to admit before ANN (Ask companion seed).
+    /// Copied onto the engine [`QueryRequest`]; does not change query mode.
+    #[serde(default)]
+    pub seed_entity_ids: Option<Vec<String>>,
 }
 
 /// Base64-encoded image attachment for vision-capable chat.
@@ -289,6 +294,34 @@ mod tests {
         assert_eq!(req.max_tokens, Some(500));
         assert_eq!(req.temperature, Some(0.7));
         assert_eq!(req.top_k, Some(10));
+    }
+
+    #[test]
+    fn test_chat_request_seed_entity_ids_maps_to_query_request() {
+        let json = r#"{
+            "message": "What is Gemma3-4b?",
+            "mode": "mix",
+            "seed_entity_ids": ["00000000-0000-0000-0000-000000000003::GEMMA3-4B"]
+        }"#;
+        let req: ChatCompletionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            req.seed_entity_ids,
+            Some(vec![
+                "00000000-0000-0000-0000-000000000003::GEMMA3-4B".into()
+            ])
+        );
+        // Same copy path as completion/streaming handlers.
+        let mut engine = edgequake_query::QueryRequest::new(&req.message);
+        if let Some(ref seeds) = req.seed_entity_ids {
+            engine = engine.with_seed_entity_ids(seeds.clone());
+        }
+        assert_eq!(
+            engine.seed_entity_ids,
+            Some(vec![
+                "00000000-0000-0000-0000-000000000003::GEMMA3-4B".into()
+            ])
+        );
+        assert!(engine.mode.is_none(), "seed copy must not force query mode");
     }
 
     #[test]

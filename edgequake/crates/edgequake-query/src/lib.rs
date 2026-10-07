@@ -69,6 +69,7 @@ pub mod fusion;
 pub mod graph_expand;
 pub mod graph_hops;
 pub mod graph_ppr;
+pub mod graph_seed_admit;
 pub mod graph_walk_compress;
 pub mod grounding;
 pub mod helpers;

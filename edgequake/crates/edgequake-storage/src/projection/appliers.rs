@@ -1113,17 +1113,30 @@ impl PgvectorProjectionApplier {
         workspace: Uuid,
         payloads: Vec<EmbeddingPayload>,
     ) -> AccessResult<()> {
-        let mut chunk_by_id: HashMap<Uuid, EmbeddingRow> = HashMap::new();
-        let mut fleet_by_family: HashMap<&'static str, HashMap<String, FleetEmbeddingRow>> =
-            HashMap::new();
+        // Group by registry model name from the payload (`model_id`). Boot-time
+        // indexes are only a fallback for legacy payloads that omit the field —
+        // never stamp every workspace under process env when the payload knows.
+        let mut chunk_by_model: HashMap<String, HashMap<Uuid, EmbeddingRow>> = HashMap::new();
+        let mut fleet_by_model: HashMap<
+            String,
+            HashMap<&'static str, HashMap<String, FleetEmbeddingRow>>,
+        > = HashMap::new();
+        let fallback = crate::embedding_model_key_from_env();
         for payload in payloads {
             payload.validate()?;
+            let model = payload
+                .model_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .unwrap_or(fallback.as_str())
+                .to_string();
             let workspace_id = WorkspaceId::new(workspace);
             match payload.family.as_str() {
                 "chunk" => {
                     // Multi-batch apply merges payloads; chunk upsert uses
                     // ON CONFLICT DO UPDATE and rejects duplicate ids in one statement.
-                    chunk_by_id.insert(
+                    chunk_by_model.entry(model).or_default().insert(
                         payload.subject_id,
                         EmbeddingRow {
                             chunk_id: ChunkId(payload.subject_id),
@@ -1155,16 +1168,21 @@ impl PgvectorProjectionApplier {
                         }
                         FleetEmbeddingKey::Report(id) => id.clone(),
                     };
-                    fleet_by_family.entry(family).or_default().insert(
-                        dedupe_key,
-                        FleetEmbeddingRow {
-                            workspace_id,
-                            dimensions: payload.dimensions,
-                            embedding: payload.embedding,
-                            key,
-                            legacy_vector_id: payload.legacy_vector_id,
-                        },
-                    );
+                    fleet_by_model
+                        .entry(model)
+                        .or_default()
+                        .entry(family)
+                        .or_default()
+                        .insert(
+                            dedupe_key,
+                            FleetEmbeddingRow {
+                                workspace_id,
+                                dimensions: payload.dimensions,
+                                embedding: payload.embedding,
+                                key,
+                                legacy_vector_id: payload.legacy_vector_id,
+                            },
+                        );
                 }
                 family => {
                     return Err(AccessError::CorruptData(format!(
@@ -1174,30 +1192,36 @@ impl PgvectorProjectionApplier {
             }
         }
         let mut wrote = false;
-        if !chunk_by_id.is_empty() {
-            let chunk_rows: Vec<EmbeddingRow> = chunk_by_id.into_values().collect();
-            self.chunk_index
+        for (model, by_id) in chunk_by_model {
+            let chunk_rows: Vec<EmbeddingRow> = by_id.into_values().collect();
+            let index = crate::PgChunkEmbeddingIndex::new(self.pool.clone(), model);
+            index
                 .upsert_batch(ModelId(Uuid::nil()), &chunk_rows)
                 .await
                 .map_err(AccessError::from)?;
             wrote = true;
         }
-        if !fleet_by_family.is_empty() {
-            let fleet = self.fleet.as_ref().ok_or_else(|| {
-                AccessError::UnsupportedCapability("fleet embedding index is not wired".into())
-            })?;
-            for (family, rows_map) in fleet_by_family {
-                let family = match family {
-                    "entity" => EmbeddingFamily::Entity,
-                    "relationship" => EmbeddingFamily::Relationship,
-                    _ => EmbeddingFamily::Report,
-                };
-                let rows: Vec<FleetEmbeddingRow> = rows_map.into_values().collect();
-                fleet
-                    .upsert_batch(family, ModelId(Uuid::nil()), &rows)
-                    .await
-                    .map_err(AccessError::from)?;
-                wrote = true;
+        if !fleet_by_model.is_empty() {
+            if self.fleet.is_none() {
+                return Err(AccessError::UnsupportedCapability(
+                    "fleet embedding index is not wired".into(),
+                ));
+            }
+            for (model, by_family) in fleet_by_model {
+                let fleet = crate::PgFleetEmbeddingIndex::new(self.pool.clone(), model);
+                for (family, rows_map) in by_family {
+                    let family = match family {
+                        "entity" => EmbeddingFamily::Entity,
+                        "relationship" => EmbeddingFamily::Relationship,
+                        _ => EmbeddingFamily::Report,
+                    };
+                    let rows: Vec<FleetEmbeddingRow> = rows_map.into_values().collect();
+                    fleet
+                        .upsert_batch(family, ModelId(Uuid::nil()), &rows)
+                        .await
+                        .map_err(AccessError::from)?;
+                    wrote = true;
+                }
             }
         }
         if wrote {
@@ -1390,6 +1414,9 @@ struct EmbeddingPayload {
     embedding: Vec<f32>,
     #[serde(default)]
     legacy_vector_id: Option<String>,
+    /// `embedding_models.name` registry key (serialized as `model_id` in v1).
+    #[serde(default)]
+    model_id: Option<String>,
 }
 
 impl EmbeddingPayload {
@@ -1482,4 +1509,40 @@ async fn mark_cleanups_applied(pool: &PgPool, marks: &[(Uuid, Uuid)]) -> AccessR
 
 fn database_error(error: sqlx::Error) -> AccessError {
     AccessError::from(crate::StorageError::from(error))
+}
+
+#[cfg(test)]
+mod embedding_payload_tests {
+    use super::EmbeddingPayload;
+    use uuid::Uuid;
+
+    #[test]
+    fn embedding_payload_deserializes_model_id() {
+        let id = Uuid::nil();
+        let raw = serde_json::json!({
+            "schema": "edgequake.embedding.v1",
+            "family": "chunk",
+            "subject_id": id,
+            "model_id": "mistral-embed",
+            "dimensions": 2,
+            "embedding": [0.1, 0.2],
+        });
+        let p: EmbeddingPayload = serde_json::from_value(raw).unwrap();
+        assert_eq!(p.model_id.as_deref(), Some("mistral-embed"));
+        p.validate().unwrap();
+    }
+
+    #[test]
+    fn embedding_payload_allows_missing_model_id() {
+        let id = Uuid::nil();
+        let raw = serde_json::json!({
+            "schema": "edgequake.embedding.v1",
+            "family": "chunk",
+            "subject_id": id,
+            "dimensions": 2,
+            "embedding": [0.1, 0.2],
+        });
+        let p: EmbeddingPayload = serde_json::from_value(raw).unwrap();
+        assert!(p.model_id.is_none());
+    }
 }

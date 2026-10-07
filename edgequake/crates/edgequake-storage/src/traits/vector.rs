@@ -64,6 +64,14 @@ pub struct MetadataFilter {
     ///
     /// Matches JSONB key `modality`. When set, vectors without a matching modality are excluded.
     pub modalities: Option<Vec<String>>,
+    /// Logical embedding model name that produced the query vector (typed ANN registry key).
+    ///
+    /// When set, typed search looks up `embedding_models(name, dimensions)` under this name
+    /// before the process `EDGEQUAKE_EMBEDDING_MODEL` fallback. Workspace overrides
+    /// (e.g. `mistral-embed`) must be passed here — the env default is often
+    /// `text-embedding-3-small` and would miss workspace rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embedding_model: Option<String>,
 }
 
 impl MetadataFilter {
@@ -74,6 +82,7 @@ impl MetadataFilter {
             && self.workspace_id.is_none()
             && self.vector_type.is_none()
             && self.modalities.is_none()
+            && self.embedding_model.is_none()
     }
 
     /// Build a filter from optional tenant and workspace IDs.
@@ -90,6 +99,7 @@ impl MetadataFilter {
             workspace_id,
             vector_type: None,
             modalities: None,
+            embedding_model: None,
         })
     }
 
@@ -108,6 +118,7 @@ impl MetadataFilter {
             workspace_id,
             vector_type: Some(vector_type.into()),
             modalities: None,
+            embedding_model: None,
         })
     }
 
@@ -470,6 +481,7 @@ mod tests {
             workspace_id: Some("ws1".into()),
             vector_type: None,
             modalities: None,
+            embedding_model: None,
         };
         let json = serde_json::to_string(&mf).unwrap();
         let mf2: MetadataFilter = serde_json::from_str(&json).unwrap();

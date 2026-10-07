@@ -89,6 +89,8 @@ pub fn workspace_filter(hot_ws: &str, tenant_id: &str) -> MetadataFilter {
         vector_type: Some("chunk".into()),
         document_ids: None,
         modalities: None,
+        embedding_model: None,
+
     }
 }
 

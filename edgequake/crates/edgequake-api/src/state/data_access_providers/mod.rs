@@ -48,12 +48,11 @@ pub struct ProviderContext {
 
 impl ProviderContext {
     /// Compose often sets `EDGEQUAKE_EMBEDDING_MODEL=` (empty). Treat that as unset.
+    ///
+    /// Delegates to storage SSOT [`edgequake_storage::embedding_model_key_from_env`]
+    /// so provider context and typed ANN registry cannot diverge on empty env.
     pub fn embedding_model_from_env() -> String {
-        std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "text-embedding-3-small".into())
+        edgequake_storage::embedding_model_key_from_env()
     }
 
     pub fn validate(&self) -> Result<(), StorageError> {

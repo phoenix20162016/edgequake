@@ -269,6 +269,12 @@ pub struct QueryEmbeddings {
 
     /// Low-level keywords embedding (for Local mode).
     pub low_level: Vec<f32>,
+
+    /// Logical model name that produced these vectors (typed ANN registry key).
+    ///
+    /// Must match workspace embedding override (e.g. `mistral-embed`), not the
+    /// process `EDGEQUAKE_EMBEDDING_MODEL` default, or typed search misses rows.
+    pub model: String,
 }
 
 impl QueryEmbeddings {
@@ -308,12 +314,15 @@ impl QueryEmbeddings {
         let (high_level_text, low_level_text) = Self::keyword_level_texts(query, keywords);
         let all_equal = high_level_text == query && low_level_text == query;
 
+        let model = embedder.model().to_string();
+
         if all_equal && !query_vec.is_empty() {
             let v = crate::cache::embedding_cache::l2_normalize_vec(query_vec);
             return Ok(Self {
                 query: v.clone(),
                 high_level: v.clone(),
                 low_level: v,
+                model,
             });
         }
 
@@ -331,6 +340,7 @@ impl QueryEmbeddings {
                 query: v.clone(),
                 high_level: v.clone(),
                 low_level: v,
+                model,
             });
         }
 
@@ -370,6 +380,7 @@ impl QueryEmbeddings {
             query: Self::take_level(&known, query),
             high_level: Self::take_level(&known, &high_level_text),
             low_level: Self::take_level(&known, &low_level_text),
+            model,
         })
     }
 
@@ -384,10 +395,16 @@ impl QueryEmbeddings {
 
     /// Simple embedding (same for all levels).
     pub fn uniform(embedding: Vec<f32>) -> Self {
+        Self::uniform_with_model(embedding, String::new())
+    }
+
+    /// Uniform vectors stamped with the logical embedding model name.
+    pub fn uniform_with_model(embedding: Vec<f32>, model: impl Into<String>) -> Self {
         Self {
             query: embedding.clone(),
             high_level: embedding.clone(),
             low_level: embedding,
+            model: model.into(),
         }
     }
 

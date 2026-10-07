@@ -8,6 +8,13 @@ All notable changes to this project will be documented in this file.
 
 - Serve no longer treats an empty `EDGEQUAKE_EMBEDDING_MODEL` (Compose `:-`) as a
   missing provider context. Demo/quickstart default to `text-embedding-3-small`.
+- Typed ANN and graph admit: query prefers the workspace embedding model key
+  with **no** preferred→env fallthrough into another model’s space; empty ANN
+  no longer loses named entities to popular hubs before label/seed admit
+  (local + global Mix arms). Projection upserts honor payload `model_id`
+  (lineage), not boot env. Ask companion `seed_entity_ids` flows through
+  chat → engine. Ops:
+  [embedding registry backfill](docs/operations/embedding-registry-backfill.md).
 
 ## [0.32.0] — 2026-10-06
 

@@ -34,6 +34,7 @@ impl QueryEngine {
             workspace_id,
             allowed_document_ids,
             Some("chunk"),
+            Some(embeddings.model.as_str()).filter(|s| !s.is_empty()),
         );
         let modality_plan =
             crate::modality_retrieve::plan_modality_retrieval(query_text, mf.as_ref());

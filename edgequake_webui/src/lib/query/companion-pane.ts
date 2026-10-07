@@ -50,6 +50,20 @@ export const CLOSED_TARGET: CompanionTarget = Object.freeze({
   entityId: null,
 }) as CompanionTarget;
 
+/**
+ * Ask companion → chat `seed_entity_ids` (mode unchanged).
+ * Pure helper so vitest can cover the graph entity seed without the store.
+ */
+export function seedEntityIdsFromCompanionTarget(
+  target: CompanionTarget,
+): string[] | undefined {
+  if (target.kind === "graph" && target.entityId) {
+    const id = target.entityId.trim();
+    if (id.length > 0) return [id];
+  }
+  return undefined;
+}
+
 /** Graph companion with no answer message and no Ask entity (workspace KG). */
 export const WORKSPACE_GRAPH_TARGET: CompanionTarget = Object.freeze({
   kind: "graph",

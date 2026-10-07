@@ -69,6 +69,8 @@ async fn e2e_spec061_stress_concurrent_filtered_ann() {
         vector_type: Some("chunk".into()),
         document_ids: None,
         modalities: None,
+        embedding_model: None,
+
     };
 
     let mut single = Vec::new();

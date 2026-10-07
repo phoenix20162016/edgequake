@@ -262,10 +262,7 @@ impl VectorStorage for PgVectorStorage {
         let emb_type = self.embedding_pg_type();
         // SPEC-090 F-090-03: resolve content in-app (4th UNNEST) — no correlated KV subquery.
         let join_kv = self.chunk_kv_table_exists_cached().await.unwrap_or(false);
-        let emb_model = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| "unknown".to_string());
+        let emb_model = crate::embedding_model_key_from_env();
         // SPEC-059: xmax=0 means freshly inserted; non-zero means ON CONFLICT update.
         // SPEC-090 F-090-23: stamp embedding identity columns + metadata keys.
         let sql = format!(
@@ -778,8 +775,12 @@ impl VectorStorage for PgVectorStorage {
                 .to_ascii_lowercase();
             if let Some(ws) = mf.workspace_id.as_deref() {
                 let pool = self.pool.get().await?;
-                let model = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-                    .unwrap_or_else(|_| "text-embedding-3-small".to_string());
+                // Preferred filter alone when set — no env fallthrough into
+                // another model's space. Empty preferred → env SSOT key.
+                let model_candidates = crate::serving_embedding_model_candidates(
+                    mf.embedding_model.as_deref(),
+                );
+                let query_dim = query_embedding.len() as i32;
 
                 if vtype == "chunk" || vtype.is_empty() {
                     // Only short-circuit when filter is chunk (or unspecified
@@ -790,30 +791,46 @@ impl VectorStorage for PgVectorStorage {
                             .as_deref()
                             .is_some_and(|t| t.eq_ignore_ascii_case("chunk"))
                     {
-                        let index = super::super::chunk_embedding_index::PgChunkEmbeddingIndex::new(
-                            pool.clone(),
-                            model.clone(),
-                        );
-                        match super::typed_read::try_typed_chunk_query(
-                            &pool,
-                            &index,
-                            query_embedding,
-                            top_k,
-                            ws,
-                            filter_ids,
-                            mf,
-                        )
-                        .await
-                        {
-                            Ok(Some(results)) => return Ok(results),
-                            Ok(None) => {
-                                // Workspace unresolvable — empty under typed (no legacy).
-                                return Ok(Vec::new());
+                        let mut workspace_unresolvable = false;
+                        for model in &model_candidates {
+                            if !super::typed_read::embedding_model_registered(
+                                &pool, model, query_dim,
+                            )
+                            .await?
+                            {
+                                continue;
                             }
-                            Err(e) => {
-                                return Err(e);
+                            let index =
+                                super::super::chunk_embedding_index::PgChunkEmbeddingIndex::new(
+                                    pool.clone(),
+                                    model.clone(),
+                                );
+                            match super::typed_read::try_typed_chunk_query(
+                                &pool,
+                                &index,
+                                query_embedding,
+                                top_k,
+                                ws,
+                                filter_ids,
+                                mf,
+                            )
+                            .await
+                            {
+                                Ok(Some(results)) => return Ok(results),
+                                Ok(None) => {
+                                    workspace_unresolvable = true;
+                                    break;
+                                }
+                                Err(e) => {
+                                    return Err(e);
+                                }
                             }
                         }
+                        if workspace_unresolvable {
+                            return Ok(Vec::new());
+                        }
+                        // No candidate registered at this dim → authoritative empty.
+                        return Ok(Vec::new());
                     }
                 }
 
@@ -827,10 +844,6 @@ impl VectorStorage for PgVectorStorage {
                     } else {
                         EmbeddingFamily::Entity
                     };
-                    let fleet = super::super::fleet_embedding_index::PgFleetEmbeddingIndex::new(
-                        pool.clone(),
-                        model,
-                    );
                     let ws_uuid = match uuid::Uuid::parse_str(ws) {
                         Ok(u) => u,
                         Err(_) => {
@@ -879,19 +892,34 @@ impl VectorStorage for PgVectorStorage {
                         embedding: query_embedding.to_vec(),
                         limit: top_k as u32,
                     };
-                    let scored = fleet.search(family, &req).await?;
-                    let results = scored
-                        .into_iter()
-                        .map(|s| VectorSearchResult {
-                            id: s.legacy_id,
-                            score: s.score,
-                            metadata: serde_json::json!({
-                                "vector_type": vtype,
-                                "workspace_id": ws,
-                            }),
-                        })
-                        .collect();
-                    return Ok(results);
+                    for model in &model_candidates {
+                        if !super::typed_read::embedding_model_registered(
+                            &pool, model, query_dim,
+                        )
+                        .await?
+                        {
+                            continue;
+                        }
+                        let fleet = super::super::fleet_embedding_index::PgFleetEmbeddingIndex::new(
+                            pool.clone(),
+                            model.clone(),
+                        );
+                        let scored = fleet.search(family, &req).await?;
+                        let results = scored
+                            .into_iter()
+                            .map(|s| VectorSearchResult {
+                                id: s.legacy_id,
+                                score: s.score,
+                                metadata: serde_json::json!({
+                                    "vector_type": vtype,
+                                    "workspace_id": ws,
+                                    "embedding_model": model,
+                                }),
+                            })
+                            .collect();
+                        return Ok(results);
+                    }
+                    return Ok(Vec::new());
                 }
             }
             // Typed authority: after typed short-circuits, never SELECT legacy

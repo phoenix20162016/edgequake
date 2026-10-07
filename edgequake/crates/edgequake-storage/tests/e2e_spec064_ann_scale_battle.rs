@@ -109,6 +109,8 @@ fn mf() -> MetadataFilter {
         vector_type: Some("chunk".into()),
         document_ids: None,
         modalities: None,
+        embedding_model: None,
+
     }
 }
 

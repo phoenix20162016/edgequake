@@ -27,6 +27,8 @@ fn bias_skipped_when_workspace_rows_at_or_below_threshold() {
         vector_type: Some("chunk".into()),
         document_ids: None,
         modalities: None,
+        embedding_model: None,
+
     };
     let tiny = PgVectorStorage::wave2_planner_bias_statements(true, true, &mf, Some(500));
     assert!(tiny.is_empty(), "tiny slice must skip bias: {tiny:?}");

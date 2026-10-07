@@ -82,6 +82,8 @@ async fn e2e_filtered_hnsw_meets_topk_under_workspace_filter() {
         vector_type: Some("chunk".to_string()),
         document_ids: None,
         modalities: None,
+        embedding_model: None,
+
     };
 
     // Warm-up (index / caches)

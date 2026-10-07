@@ -221,6 +221,7 @@ impl QueryEngine {
             vector_storage,
             &retrieval_config,
             allowed_document_ids,
+            Some(embeddings.model.as_str()).filter(|s| !s.is_empty()),
             "mix_post_truncate",
         )
         .await?;

@@ -65,4 +65,19 @@ describe("buildChatRequest", () => {
     });
     expect(req.content_granularity).toBe("agent");
   });
+
+  it("vitest_ask_seed_entity_ids — passes companion entity without changing mode", () => {
+    const req = buildChatRequest({
+      settings: base,
+      message:
+        "What is Gemma3-4b (Organization) in this knowledge graph, and how is it related to neighbouring entities?",
+      seedEntityIds: [
+        "00000000-0000-0000-0000-000000000003::GEMMA3-4B",
+      ],
+    });
+    expect(req.mode).toBe("mix");
+    expect(req.seed_entity_ids).toEqual([
+      "00000000-0000-0000-0000-000000000003::GEMMA3-4B",
+    ]);
+  });
 });

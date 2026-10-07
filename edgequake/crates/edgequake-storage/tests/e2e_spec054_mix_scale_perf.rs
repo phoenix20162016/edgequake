@@ -84,6 +84,8 @@ async fn e2e_q1d_mix_filtered_ann_p95_under_500ms_at_50k() {
         vector_type: Some("chunk".to_string()),
         document_ids: None,
         modalities: None,
+        embedding_model: None,
+
     };
     let query = emb(0.0);
 

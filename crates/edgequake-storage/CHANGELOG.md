@@ -4,6 +4,14 @@ All notable changes to the EdgeQuake Storage crate are tracked here. See the roo
 
 ## [Unreleased]
 
+### Fixed
+
+- ANN registry key SSOT: production readers use `embedding_model_key_from_env()`;
+  typed `query_filtered` with a preferred model name searches **only** that
+  registry row (no env fallthrough) and returns empty on miss.
+- Projection upsert honors payload `model_id` (workspace lineage) instead of
+  stamping every row under the boot-time process env model.
+
 ## [0.32.0] - 2026-10-06
 
 ### Added

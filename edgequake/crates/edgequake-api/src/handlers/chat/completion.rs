@@ -165,6 +165,10 @@ pub async fn chat_completion(
         .with_mode(query_mode)
         .with_conversation_history(conversation_history);
 
+    if let Some(ref seeds) = request.seed_entity_ids {
+        engine_request = engine_request.with_seed_entity_ids(seeds.clone());
+    }
+
     // SPEC-004: Thread system prompt extension if provided
     if let Some(ref system_prompt) = request.system_prompt {
         engine_request = engine_request.with_system_prompt(system_prompt);

@@ -40,6 +40,26 @@ fn record_typed_hit() {
     VECTOR_BACKEND_TYPED_HIT_TOTAL.fetch_add(1, Ordering::Relaxed);
 }
 
+/// True when `embedding_models` has a row for `(name, dimensions)`.
+///
+/// Used by typed ANN to skip unregistered model keys at the query dimension
+/// (preferred-only candidate list; no cross-model fallthrough).
+pub(crate) async fn embedding_model_registered(
+    pool: &PgPool,
+    name: &str,
+    dimensions: i32,
+) -> Result<bool, StorageError> {
+    let id: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM embedding_models WHERE name = $1 AND dimensions = $2",
+    )
+    .bind(name)
+    .bind(dimensions)
+    .fetch_optional(pool)
+    .await
+    .map_err(StorageError::from)?;
+    Ok(id.is_some())
+}
+
 /// Resolve the `workspaces.workspace_id` UUID for a metadata workspace key.
 /// Returns `None` when the key is not a resolvable workspace (typed path is
 /// workspace-scoped by construction; absence → caller uses legacy path).
@@ -202,6 +222,7 @@ mod tests {
             workspace_id: Some(workspace.to_string()),
             vector_type: Some("chunk".into()),
             modalities: Some(vec!["table".into()]),
+            embedding_model: None,
         };
 
         let query =

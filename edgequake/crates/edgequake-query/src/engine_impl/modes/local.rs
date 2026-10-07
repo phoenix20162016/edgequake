@@ -39,6 +39,7 @@ impl QueryEngine {
             workspace_id.clone(),
             allowed_document_ids,
             Some("entity"),
+            Some(embeddings.model.as_str()).filter(|s| !s.is_empty()),
         );
 
         let vector_results = vector_storage
@@ -85,7 +86,88 @@ impl QueryEngine {
             .take(self.config.max_entities)
             .collect();
 
-        if entity_ids.is_empty() {
+        if !entity_ids.is_empty() {
+            let graph = self.graph_read();
+            let (nodes_map, degrees) = tokio::join!(
+                graph.get_nodes_batch(&entity_ids),
+                graph.node_degrees_batch(&entity_ids),
+            );
+
+            let nodes_map = nodes_map?;
+            let degrees: HashMap<String, usize> = degrees?.into_iter().collect();
+
+            for id in &entity_ids {
+                if let Some(node) = nodes_map.get(id) {
+                    let degree = degrees.get(id).copied().unwrap_or(0);
+                    let entity_score = entity_scores.get(id).copied().unwrap_or(0.0);
+                    let entity = build_entity_from_node(id, &node.properties, degree, entity_score);
+                    context.add_entity(entity);
+                }
+            }
+
+            // Hydration hole: ANN returned ids that load zero graph nodes.
+            // Fall through to lexical/topic admit — do not treat as a successful
+            // vector hit that skips fallback, and do not use popular hubs.
+            if context.entities.is_empty() {
+                tracing::debug!(
+                    ann_ids = entity_ids.len(),
+                    workspace_id = ?workspace_id,
+                    "local: ANN entity ids hydrated to zero nodes — lexical admit"
+                );
+            } else {
+                if crate::keyword_boost::keyword_lexical_boost_enabled() {
+                    let kw = keywords.all_keywords();
+                    crate::keyword_boost::boost_entities_by_keywords(&mut context.entities, &kw);
+                }
+
+                let edges = crate::graph_expand::expand_neighborhood_edges(
+                    &graph,
+                    &entity_ids,
+                    self.config.graph_depth,
+                    self.config.max_relationships,
+                    self.config.graph_walk,
+                    tenant_id.as_deref(),
+                    workspace_id.as_deref(),
+                )
+                .await?;
+
+                for edge in edges {
+                    let rel =
+                        build_relationship_from_edge(&edge.source, &edge.target, &edge.properties);
+                    context.add_relationship(rel);
+                }
+            }
+        }
+
+        // Topic admit (env-gated) then exact-label graph admit before popular hubs.
+        crate::topic_entity_admit::admit_topic_entities(
+            self.graph_read(),
+            &mut context,
+            query_text,
+            keywords,
+            workspace_id.as_deref(),
+        )
+        .await?;
+
+        let label_candidates =
+            crate::graph_seed_admit::exact_label_candidates(query_text, keywords);
+        if context.entities.is_empty() {
+            let _ = crate::graph_seed_admit::admit_into_context(
+                self.graph_read(),
+                self.kv_storage.as_deref(),
+                &mut context,
+                &[],
+                query_text,
+                keywords,
+                tenant_id.as_deref(),
+                workspace_id.as_deref(),
+            )
+            .await?;
+        }
+
+        // Popular hubs only when ANN empty, no label candidates, and admit found nothing.
+        // Named-entity questions must not get unrelated high-degree nodes.
+        if context.entities.is_empty() && entity_ids.is_empty() && label_candidates.is_empty() {
             if crate::keyword_boost::popular_node_fallback_enabled() {
                 tracing::debug!(
                     workspace_id = ?workspace_id,
@@ -137,64 +219,11 @@ impl QueryEngine {
                     "No entity vectors; popular-node fallback disabled (EDGEQUAKE_POPULAR_NODE_FALLBACK=0)"
                 );
             }
-            // Still try topic admit when VDB empty (exact-name graph hit).
-            crate::topic_entity_admit::admit_topic_entities(
-                self.graph_read(),
-                &mut context,
-                query_text,
-                keywords,
-                workspace_id.as_deref(),
-            )
-            .await?;
-        } else {
-            let graph = self.graph_read();
-            let (nodes_map, degrees) = tokio::join!(
-                graph.get_nodes_batch(&entity_ids),
-                graph.node_degrees_batch(&entity_ids),
+        } else if !label_candidates.is_empty() && context.entities.is_empty() {
+            tracing::debug!(
+                candidates = label_candidates.len(),
+                "skip popular-node fallback: exact label candidates present"
             );
-
-            let nodes_map = nodes_map?;
-            let degrees: HashMap<String, usize> = degrees?.into_iter().collect();
-
-            for id in &entity_ids {
-                if let Some(node) = nodes_map.get(id) {
-                    let degree = degrees.get(id).copied().unwrap_or(0);
-                    let entity_score = entity_scores.get(id).copied().unwrap_or(0.0);
-                    let entity = build_entity_from_node(id, &node.properties, degree, entity_score);
-                    context.add_entity(entity);
-                }
-            }
-            if crate::keyword_boost::keyword_lexical_boost_enabled() {
-                let kw = keywords.all_keywords();
-                crate::keyword_boost::boost_entities_by_keywords(&mut context.entities, &kw);
-            }
-
-            // 038 SELECT: Exploratory exact-name topic entities → Mix chunk pool
-            crate::topic_entity_admit::admit_topic_entities(
-                self.graph_read(),
-                &mut context,
-                query_text,
-                keywords,
-                workspace_id.as_deref(),
-            )
-            .await?;
-
-            let edges = crate::graph_expand::expand_neighborhood_edges(
-                &graph,
-                &entity_ids,
-                self.config.graph_depth,
-                self.config.max_relationships,
-                self.config.graph_walk,
-                tenant_id.as_deref(),
-                workspace_id.as_deref(),
-            )
-            .await?;
-
-            for edge in edges {
-                let rel =
-                    build_relationship_from_edge(&edge.source, &edge.target, &edge.properties);
-                context.add_relationship(rel);
-            }
         }
 
         // Chunk fetch SSOT uses vector_type=chunk (not the entity ANN `mf` above).
@@ -210,6 +239,7 @@ impl QueryEngine {
                 vector_storage,
                 &retrieval_config,
                 allowed_document_ids,
+                Some(embeddings.model.as_str()).filter(|s| !s.is_empty()),
                 "local",
             )
             .await?;

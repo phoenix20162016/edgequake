@@ -441,10 +441,7 @@ async fn vector_verify_chunk(pool: &PgPool) -> Option<VerifySummary> {
     let tables = crate::migration_engine::coverage::list_vector_tables(pool)
         .await
         .ok()?;
-    let model = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "text-embedding-3-small".to_string());
+    let model = crate::embedding_model_key_from_env();
     if tables.is_empty() {
         return Some(VerifySummary {
             expected: 0,
@@ -478,10 +475,7 @@ async fn vector_verify_fleet(pool: &PgPool) -> Option<VerifySummary> {
     let tables = crate::migration_engine::coverage::list_vector_tables(pool)
         .await
         .ok()?;
-    let model = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "text-embedding-3-small".to_string());
+    let model = crate::embedding_model_key_from_env();
     if tables.is_empty() {
         return Some(VerifySummary {
             expected: 0,

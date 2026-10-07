@@ -100,6 +100,8 @@ async fn e2e_spec060_fts_p95_and_gin_explain() {
         vector_type: Some("chunk".to_string()),
         document_ids: None,
         modalities: None,
+        embedding_model: None,
+
     };
 
     let _ = vectors

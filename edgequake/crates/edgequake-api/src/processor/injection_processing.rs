@@ -106,6 +106,7 @@ impl DocumentTaskProcessor {
             &data.content,
             &data.workspace_id,
             data.data_tenant_id.clone(),
+            Some(lineage.embedding_model.as_str()),
         )
         .await
         {

@@ -134,8 +134,9 @@ pub mod vector_id;
 pub(crate) mod test_env_lock;
 
 pub use vector_backend::{
-    legacy_vector_writes_stopped, vector_backend_from_env, vector_backend_reads_typed,
-    VectorBackend, VECTOR_BACKEND_ENV,
+    embedding_model_key_from_env, legacy_vector_writes_stopped, serving_embedding_model_candidates,
+    vector_backend_from_env, vector_backend_reads_typed, VectorBackend, DEFAULT_EMBEDDING_MODEL_KEY,
+    EMBEDDING_MODEL_ENV, VECTOR_BACKEND_ENV,
 };
 
 pub use dataop::{all_ref_ids, is_valid_ref_id, sql_comment};

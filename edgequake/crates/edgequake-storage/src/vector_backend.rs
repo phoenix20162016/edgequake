@@ -39,6 +39,37 @@ pub fn vector_backend_reads_typed(mode: VectorBackend) -> bool {
     matches!(mode, VectorBackend::TypedEmbeddings)
 }
 
+/// Env key for the process-default embedding model name (typed ANN registry).
+pub const EMBEDDING_MODEL_ENV: &str = "EDGEQUAKE_EMBEDDING_MODEL";
+
+/// Default registry name when env is unset or empty (Compose `:-`).
+pub const DEFAULT_EMBEDDING_MODEL_KEY: &str = "text-embedding-3-small";
+
+/// Resolve the process-default embedding model key for typed ANN.
+///
+/// Compose often sets `EDGEQUAKE_EMBEDDING_MODEL=` (empty). Treat that as unset
+/// so we do not look up `embedding_models.name = ''`.
+pub fn embedding_model_key_from_env() -> String {
+    std::env::var(EMBEDDING_MODEL_ENV)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_EMBEDDING_MODEL_KEY.to_string())
+}
+
+/// Ordered typed-ANN registry name candidates for a query/ingest vector.
+///
+/// When a workspace/lineage model is set, **only** that name is searched — a
+/// miss must not fall through into another model's vector space (e.g. env
+/// `text-embedding-3-small` while the embedder is `mistral-embed`). When
+/// preferred is absent/empty, use [`embedding_model_key_from_env`].
+pub fn serving_embedding_model_candidates(preferred: Option<&str>) -> Vec<String> {
+    if let Some(p) = preferred.map(str::trim).filter(|s| !s.is_empty()) {
+        return vec![p.to_string()];
+    }
+    vec![embedding_model_key_from_env()]
+}
+
 /// SPEC-091: when typed is authority, legacy `eq_*_vectors` **serving writes**
 /// (INSERT / UPSERT / CREATE) must no-op.
 ///
@@ -111,5 +142,40 @@ mod tests {
         std::env::set_var(VECTOR_BACKEND_ENV, "not-a-backend");
         assert_eq!(vector_backend_from_env(), VectorBackend::TypedEmbeddings);
         std::env::remove_var(VECTOR_BACKEND_ENV);
+    }
+
+    #[test]
+    fn embedding_model_key_empty_env_is_default() {
+        let _g = test_env_lock();
+        std::env::remove_var(EMBEDDING_MODEL_ENV);
+        assert_eq!(embedding_model_key_from_env(), DEFAULT_EMBEDDING_MODEL_KEY);
+        std::env::set_var(EMBEDDING_MODEL_ENV, "");
+        assert_eq!(embedding_model_key_from_env(), DEFAULT_EMBEDDING_MODEL_KEY);
+        std::env::set_var(EMBEDDING_MODEL_ENV, "  mistral-embed  ");
+        assert_eq!(embedding_model_key_from_env(), "mistral-embed");
+        std::env::remove_var(EMBEDDING_MODEL_ENV);
+    }
+
+    #[test]
+    fn serving_candidates_preferred_only_no_env_fallthrough() {
+        let _g = test_env_lock();
+        std::env::set_var(EMBEDDING_MODEL_ENV, "text-embedding-3-small");
+        assert_eq!(
+            serving_embedding_model_candidates(Some("mistral-embed")),
+            vec!["mistral-embed".to_string()]
+        );
+        assert_eq!(
+            serving_embedding_model_candidates(Some("text-embedding-3-small")),
+            vec!["text-embedding-3-small".to_string()]
+        );
+        assert_eq!(
+            serving_embedding_model_candidates(None),
+            vec!["text-embedding-3-small".to_string()]
+        );
+        assert_eq!(
+            serving_embedding_model_candidates(Some("")),
+            vec!["text-embedding-3-small".to_string()]
+        );
+        std::env::remove_var(EMBEDDING_MODEL_ENV);
     }
 }

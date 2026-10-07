@@ -119,6 +119,12 @@ pub struct QueryRequest {
     /// included in the SPEC-103 answer-cache hash.
     #[serde(default)]
     pub reasoning_effort: Option<String>,
+
+    /// Graph entity ids to admit before ANN (Ask companion / exact-name seeds).
+    ///
+    /// Resolved via [`EntityId::exact_lookup_candidates`]. Does not change query mode.
+    #[serde(default)]
+    pub seed_entity_ids: Option<Vec<String>>,
 }
 
 /// A single message in conversation history.
@@ -154,7 +160,23 @@ impl QueryRequest {
             ll_keywords: None,
             response_type: None,
             reasoning_effort: None,
+            seed_entity_ids: None,
         }
+    }
+
+    /// Stamp Ask / companion entity ids for graph-first admission.
+    pub fn with_seed_entity_ids(mut self, ids: Vec<String>) -> Self {
+        let cleaned: Vec<String> = ids
+            .into_iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        self.seed_entity_ids = if cleaned.is_empty() {
+            None
+        } else {
+            Some(cleaned)
+        };
+        self
     }
 
     /// 083: LightRAG-shaped keyword override — skip KEYWORD LLM when either list is non-empty.

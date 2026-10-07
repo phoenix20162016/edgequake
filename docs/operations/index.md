@@ -22,6 +22,7 @@ EdgeQuake now documents and follows a few simple operational invariants:
 - **[Docker Quickstart](/docs/operations/docker-quickstart/)** — Full stack from GHCR images (no local build).
 - **[Deployment](/docs/operations/deployment/)** — Docker, Kubernetes, GCP Option A, and bare-metal.
 - **[Configuration](/docs/operations/configuration/)** — Environment variables and runtime settings.
+- **[Embedding registry audit & backfill](/docs/operations/embedding-registry-backfill/)** — List `embedding_models` and fix ANN name mismatches (no silent cross-model search).
 - **[Decision extraction](/docs/concepts/decision-extraction/)** — Preview local KG mode, env vars, and migration 166 (SPEC-160).
 - **[Monitoring](/docs/operations/monitoring/)** — Health checks, metrics, and observability.
 - **[Langfuse 3.1.x](/docs/operations/langfuse-3.1/)** — Wire EdgeQuake to self-hosted Langfuse 3.1 (ingestion fallback).

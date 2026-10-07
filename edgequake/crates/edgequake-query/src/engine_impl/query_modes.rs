@@ -179,6 +179,7 @@ mod tests {
             query: vec![1.0, 0.0, 0.0, 0.0],
             high_level: vec![1.0, 0.0, 0.0, 0.0],
             low_level: vec![1.0, 0.0, 0.0, 0.0],
+            model: String::new(),
         };
 
         let ctx = engine
@@ -221,6 +222,7 @@ mod tests {
             query: vec![1.0, 0.0, 0.0, 0.0],
             high_level: vec![1.0, 0.0, 0.0, 0.0],
             low_level: vec![1.0, 0.0, 0.0, 0.0],
+            model: String::new(),
         };
 
         let ctx = engine
@@ -266,6 +268,7 @@ mod tests {
             query: vec![1.0, 0.0, 0.0, 0.0],
             high_level: vec![1.0, 0.0, 0.0, 0.0],
             low_level: vec![1.0, 0.0, 0.0, 0.0],
+            model: String::new(),
         };
 
         let ctx = engine
@@ -313,6 +316,7 @@ mod tests {
             query: vec![1.0, 0.0, 0.0, 0.0],
             high_level: vec![1.0, 0.0, 0.0, 0.0],
             low_level: vec![1.0, 0.0, 0.0, 0.0],
+            model: String::new(),
         };
 
         let ctx = engine
@@ -346,6 +350,7 @@ mod tests {
             query: vec![0.9, 0.1, 0.0, 0.0],
             high_level: vec![0.9, 0.1, 0.0, 0.0],
             low_level: vec![0.9, 0.1, 0.0, 0.0],
+            model: String::new(),
         };
 
         let default_ctx = engine

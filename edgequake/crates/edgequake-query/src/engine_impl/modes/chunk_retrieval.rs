@@ -34,8 +34,15 @@ pub(super) fn chunk_fetch_metadata_filter(
     tenant_id: Option<String>,
     workspace_id: Option<String>,
     allowed_document_ids: Option<&[String]>,
+    embedding_model: Option<&str>,
 ) -> Option<MetadataFilter> {
-    super::make_scope_metadata_filter(tenant_id, workspace_id, allowed_document_ids, Some("chunk"))
+    super::make_scope_metadata_filter(
+        tenant_id,
+        workspace_id,
+        allowed_document_ids,
+        Some("chunk"),
+        embedding_model,
+    )
 }
 
 #[allow(clippy::too_many_arguments)] // retrieval pipeline mirrors QueryEngine workspace arity
@@ -49,6 +56,7 @@ pub(super) async fn append_score_ranked_chunks(
     vector_storage: &Arc<dyn VectorStorage>,
     retrieval_config: &QueryEngineConfig,
     allowed_document_ids: Option<&[String]>,
+    embedding_model: Option<&str>,
     log_label: &str,
 ) -> Result<(
     Vec<RetrievedChunk>,
@@ -59,6 +67,7 @@ pub(super) async fn append_score_ranked_chunks(
         tenant_id.clone(),
         workspace_id.clone(),
         allowed_document_ids,
+        embedding_model,
     );
     let mf_chunk = mf_chunk_owned.as_ref();
 
@@ -259,11 +268,13 @@ mod tests {
             Some("t1".into()),
             Some("ws1".into()),
             Some(&["doc-a".to_string(), "doc-b".to_string()]),
+            Some("mistral-embed"),
         )
         .expect("filter must be Some when type=chunk is set");
         assert_eq!(mf.vector_type.as_deref(), Some("chunk"));
         assert_eq!(mf.tenant_id.as_deref(), Some("t1"));
         assert_eq!(mf.workspace_id.as_deref(), Some("ws1"));
+        assert_eq!(mf.embedding_model.as_deref(), Some("mistral-embed"));
         assert_eq!(
             mf.document_ids.as_deref(),
             Some(["doc-a".to_string(), "doc-b".to_string()].as_slice())
@@ -272,7 +283,8 @@ mod tests {
 
     #[test]
     fn chunk_fetch_filter_never_entity_or_relationship() {
-        let mf = chunk_fetch_metadata_filter(None, None, None).expect("type alone yields Some");
+        let mf =
+            chunk_fetch_metadata_filter(None, None, None, None).expect("type alone yields Some");
         assert_eq!(mf.vector_type.as_deref(), Some("chunk"));
         assert_ne!(mf.vector_type.as_deref(), Some("entity"));
         assert_ne!(mf.vector_type.as_deref(), Some("relationship"));

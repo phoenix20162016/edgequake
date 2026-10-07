@@ -14,6 +14,7 @@ import { parseCOTStreaming } from "@/lib/query/parse-cot-streaming";
 import { deleteMessage } from "@/lib/api/conversations";
 import { conversationKeys } from "@/lib/api/query-keys";
 import { buildChatRequest } from "@/lib/query/build-chat-request";
+import { seedEntityIdsFromCompanionTarget } from "@/lib/query/companion-pane";
 import {
   errorMessageOf,
   handleConversationRecovery,
@@ -36,12 +37,18 @@ import {
 import { buildQueryContextFromRetrieval } from "@/lib/utils/source-mapper";
 import { generateUUID } from "@/lib/utils/uuid";
 import { useAnswerGraphStore } from "@/stores/use-answer-graph-store";
+import { useCompanionPaneStore } from "@/stores/use-companion-pane-store";
 import type { useQueryUIStore } from "@/stores/use-query-ui-store";
 import type { useSettingsStore } from "@/stores/use-settings-store";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+
+/** Companion Ask entity id for seed_entity_ids (mode unchanged). */
+function companionSeedEntityIds(): string[] | undefined {
+  return seedEntityIdsFromCompanionTarget(useCompanionPaneStore.getState().target);
+}
 
 type QuerySettings = ReturnType<typeof useSettingsStore.getState>["querySettings"];
 type QueryUIStore = ReturnType<typeof useQueryUIStore.getState>;
@@ -190,6 +197,7 @@ export function useQueryStreamSession({
           language: i18n.language,
           images: payloadImages,
           stream: true,
+          seedEntityIds: companionSeedEntityIds(),
         });
 
         for await (const chunk of chatCompletionStream(request)) {
@@ -458,6 +466,7 @@ export function useQueryStreamSession({
             language: i18n.language,
             images: payloadImages,
             stream: false,
+            seedEntityIds: companionSeedEntityIds(),
           }),
         );
 

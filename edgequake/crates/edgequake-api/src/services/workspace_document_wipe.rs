@@ -87,8 +87,7 @@ async fn clear_vectors_fail_closed(state: &AppState, workspace_uuid: Uuid) -> Ap
     #[cfg(feature = "postgres")]
     if edgequake_storage::legacy_vector_writes_stopped() {
         if let Some(ref pool) = state.pg_pool {
-            let model = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-                .unwrap_or_else(|_| "text-embedding-3-small".to_string());
+            let model = edgequake_storage::embedding_model_key_from_env();
             let chunk_index = edgequake_storage::PgChunkEmbeddingIndex::new(pool.clone(), &model);
             let fleet = edgequake_storage::PgFleetEmbeddingIndex::new(pool.clone(), &model);
             let ws = edgequake_storage::traits::domain::WorkspaceId::new(workspace_uuid);

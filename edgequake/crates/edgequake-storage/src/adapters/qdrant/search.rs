@@ -336,6 +336,8 @@ mod tests {
             workspace_id: Some("workspace-a".into()),
             vector_type: Some("chunk".into()),
             modalities: Some(vec!["table".into()]),
+            embedding_model: None,
+
         })
         .unwrap();
         let conditions = must(&compiled);

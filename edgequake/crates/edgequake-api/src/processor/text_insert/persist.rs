@@ -353,6 +353,7 @@ impl DocumentTaskProcessor {
                     &result,
                     ChunkVectorBuildOptions::STANDARD,
                     Some(&data.file_source),
+                    Some(provider_lineage.embedding_model.as_str()),
                 ),
                 merge_progress_cb,
             )

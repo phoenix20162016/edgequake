@@ -4,6 +4,13 @@ All notable changes to the EdgeQuake Query crate are tracked here. See the root 
 
 ## [Unreleased]
 
+### Fixed
+
+- Graph seed admit runs before popular-node fallback in local **and** global
+  modes so hyphenated Ask labels (e.g. Gemma3-4b) win over high-degree hubs when
+  ANN is empty or hollow (Mix merges global entities). `seed_entity_ids` on
+  `QueryRequest` admits companion Ask entities.
+
 ## [0.32.0] - 2026-10-06
 
 ### Changed

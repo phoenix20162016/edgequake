@@ -41,6 +41,7 @@ impl QueryEngine {
             workspace_id.clone(),
             allowed_document_ids,
             Some("relationship"),
+            Some(embeddings.model.as_str()).filter(|s| !s.is_empty()),
         );
 
         let vector_results = vector_storage
@@ -148,7 +149,30 @@ impl QueryEngine {
             }
         }
 
-        if entity_ids.is_empty() {
+        // Exact-label graph admit before popular hubs (same as local): Mix merges
+        // global entities, so popular must not win over hyphenated Ask labels.
+        let label_candidates =
+            crate::graph_seed_admit::exact_label_candidates(query_text, keywords);
+        if entity_ids.is_empty() && context.entities.is_empty() {
+            let _ = crate::graph_seed_admit::admit_into_context(
+                self.graph_read(),
+                self.kv_storage.as_deref(),
+                &mut context,
+                &[],
+                query_text,
+                keywords,
+                tenant_id.as_deref(),
+                workspace_id.as_deref(),
+            )
+            .await?;
+            for e in &context.entities {
+                if !e.name.is_empty() && !entity_ids.contains(&e.name) {
+                    entity_ids.push(e.name.clone());
+                }
+            }
+        }
+
+        if entity_ids.is_empty() && context.entities.is_empty() && label_candidates.is_empty() {
             if crate::keyword_boost::popular_node_fallback_enabled() {
                 tracing::debug!(
                     workspace_id = ?workspace_id,
@@ -201,7 +225,14 @@ impl QueryEngine {
                     "No relationship vectors; popular-node fallback disabled (EDGEQUAKE_POPULAR_NODE_FALLBACK=0)"
                 );
             }
-        } else {
+        } else if !label_candidates.is_empty() && context.entities.is_empty() {
+            tracing::debug!(
+                candidates = label_candidates.len(),
+                "skip popular-node fallback (global): exact label candidates present"
+            );
+        }
+
+        if !entity_ids.is_empty() && context.entities.is_empty() {
             let graph = self.graph_read();
             let (nodes_map, degrees) = tokio::join!(
                 graph.get_nodes_batch(&entity_ids),
@@ -257,6 +288,7 @@ impl QueryEngine {
                 vector_storage,
                 &retrieval_config,
                 allowed_document_ids,
+                Some(embeddings.model.as_str()).filter(|s| !s.is_empty()),
                 "global",
             )
             .await?;

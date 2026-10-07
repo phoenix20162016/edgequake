@@ -233,6 +233,8 @@ async fn e2e_spec090_relaxed_reorder() {
         vector_type: Some("chunk".into()),
         document_ids: None,
         modalities: None,
+        embedding_model: None,
+
     };
     let mut q = emb(1.0);
     q[0] = 1.0;

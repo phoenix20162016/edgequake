@@ -29,10 +29,15 @@ pub struct PersistIngestionParams<'a> {
     /// Optional chunk vector metadata (e.g. `"injection"` for SPEC-0002).
     pub source_type: Option<&'a str>,
     pub source_file_path: Option<&'a str>,
+    /// Workspace-resolved embedding model for typed ANN registry (e.g. `mistral-embed`).
+    pub embedding_model: Option<&'a str>,
 }
 
 impl<'a> PersistIngestionParams<'a> {
     /// Standard document upload/worker params (no source overlay).
+    ///
+    /// `embedding_model` is the workspace/lineage registry key that produced the
+    /// vectors (required for typed ANN; empty/`None` falls back to process env).
     pub fn for_document(
         document_id: &'a str,
         tenant_id: Option<String>,
@@ -40,6 +45,7 @@ impl<'a> PersistIngestionParams<'a> {
         result: &'a ProcessingResult,
         chunk_options: ChunkVectorBuildOptions,
         source_file: Option<&'a str>,
+        embedding_model: Option<&'a str>,
     ) -> Self {
         Self {
             document_id,
@@ -49,7 +55,16 @@ impl<'a> PersistIngestionParams<'a> {
             chunk_options,
             source_type: None,
             source_file_path: source_file,
+            embedding_model: embedding_model
+                .map(str::trim)
+                .filter(|s| !s.is_empty()),
         }
+    }
+
+    /// Stamp the workspace embedding model used to produce chunk/entity vectors.
+    pub fn with_embedding_model(mut self, model: Option<&'a str>) -> Self {
+        self.embedding_model = model.map(str::trim).filter(|s| !s.is_empty());
+        self
     }
 }
 
@@ -99,16 +114,28 @@ pub fn resolve_relational_chunk_repo(
     })
 }
 
+/// Prefer an explicit model (workspace lineage), else process env (empty → default).
+pub fn resolve_embedding_model_key(preferred: Option<&str>) -> String {
+    preferred
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(edgequake_storage::embedding_model_key_from_env)
+}
+
 /// SPEC-091 W3: typed chunk embedding index when Postgres pool is available.
 /// Under `typed_embeddings`, this is write SSOT for chunk vectors (legacy
 /// `eq_*_vectors` upserts are write-stopped at the adapter).
+///
+/// `embedding_model` must be the workspace-resolved model that produced the
+/// vectors (e.g. `mistral-embed`), not a mismatched process env default.
 #[cfg(feature = "postgres")]
 pub fn resolve_typed_embedding_index(
     pool: Option<sqlx::PgPool>,
+    embedding_model: Option<&str>,
 ) -> Option<Arc<dyn edgequake_storage::traits::domain::EmbeddingIndex>> {
     pool.map(|pool| {
-        let model = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-            .unwrap_or_else(|_| "text-embedding-3-small".to_string());
+        let model = resolve_embedding_model_key(embedding_model);
         Arc::new(edgequake_storage::PgChunkEmbeddingIndex::new(pool, model))
             as Arc<dyn edgequake_storage::traits::domain::EmbeddingIndex>
     })
@@ -118,10 +145,10 @@ pub fn resolve_typed_embedding_index(
 #[cfg(feature = "postgres")]
 pub fn resolve_fleet_embedding_index(
     pool: Option<sqlx::PgPool>,
+    embedding_model: Option<&str>,
 ) -> Option<Arc<dyn edgequake_storage::traits::FleetEmbeddingIndex>> {
     pool.map(|pool| {
-        let model = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-            .unwrap_or_else(|_| "text-embedding-3-small".to_string());
+        let model = resolve_embedding_model_key(embedding_model);
         Arc::new(edgequake_storage::PgFleetEmbeddingIndex::new(pool, model))
             as Arc<dyn edgequake_storage::traits::FleetEmbeddingIndex>
     })
@@ -318,15 +345,14 @@ pub async fn persist_with_providers_progress_and_embedder(
     // these hooks are the SSOT (fail-closed when typed).
     #[cfg(feature = "postgres")]
     {
+        let embedding_model_id = resolve_embedding_model_key(params.embedding_model);
         match (ingestion_committer, chunks_for_authority) {
             (Some(committer), Some(repo)) => {
-                let embedding_model_id = std::env::var("EDGEQUAKE_EMBEDDING_MODEL")
-                    .unwrap_or_else(|_| "text-embedding-3-small".into());
                 persister = persister.with_ingestion_authority(
                     edgequake_pipeline::IngestionAuthority::DurableCommitter {
                         committer,
                         relational_chunks: repo,
-                        embedding_model_id,
+                        embedding_model_id: embedding_model_id.clone(),
                     },
                 );
             }
@@ -339,9 +365,15 @@ pub async fn persist_with_providers_progress_and_embedder(
             }
             (None, _) => {}
         }
-        let typed_index = resolve_typed_embedding_index(typed_embedding_pool.clone());
+        let typed_index = resolve_typed_embedding_index(
+            typed_embedding_pool.clone(),
+            Some(embedding_model_id.as_str()),
+        );
         persister = persister.with_typed_embedding_index(typed_index);
-        let fleet_index = resolve_fleet_embedding_index(typed_embedding_pool.clone());
+        let fleet_index = resolve_fleet_embedding_index(
+            typed_embedding_pool.clone(),
+            Some(embedding_model_id.as_str()),
+        );
         persister = persister.with_fleet_embedding_index(fleet_index);
         // SPEC-091 IP2: transactional outbox (LAW-D3) — same pool as typed writers.
         if let Some(pool) = typed_embedding_pool {

@@ -7,6 +7,7 @@ import {
   locationFromChunk,
   locationFromDocumentClick,
   parseLinesParam,
+  seedEntityIdsFromCompanionTarget,
   targetKey,
   type CompanionTarget,
 } from "../companion-pane";
@@ -199,5 +200,38 @@ describe("location builders", () => {
       startLine: 1,
       endLine: 2,
     });
+  });
+});
+
+describe("seedEntityIdsFromCompanionTarget", () => {
+  it("vitest_companion_seed — graph entity becomes seed_entity_ids", () => {
+    expect(
+      seedEntityIdsFromCompanionTarget({
+        kind: "graph",
+        source: null,
+        messageId: null,
+        entityId: "00000000-0000-0000-0000-000000000003::GEMMA3-4B",
+      }),
+    ).toEqual(["00000000-0000-0000-0000-000000000003::GEMMA3-4B"]);
+  });
+
+  it("vitest_companion_seed — closed / pdf / empty entity yield undefined", () => {
+    expect(seedEntityIdsFromCompanionTarget(CLOSED_TARGET)).toBeUndefined();
+    expect(
+      seedEntityIdsFromCompanionTarget({
+        kind: "pdf",
+        source: { documentId: "d", page: 1 },
+        messageId: null,
+        entityId: null,
+      }),
+    ).toBeUndefined();
+    expect(
+      seedEntityIdsFromCompanionTarget({
+        kind: "graph",
+        source: null,
+        messageId: "msg-1",
+        entityId: "   ",
+      }),
+    ).toBeUndefined();
   });
 });
