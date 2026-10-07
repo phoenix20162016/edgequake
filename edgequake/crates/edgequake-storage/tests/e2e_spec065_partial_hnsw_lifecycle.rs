@@ -99,7 +99,6 @@ async fn e2e_spec065_partial_on_via_query_filtered() {
         document_ids: None,
         modalities: None,
         embedding_model: None,
-
     };
     let hits = storage
         .query_filtered(&emb(0.0), 10, None, Some(&mf))

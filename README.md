@@ -5,7 +5,7 @@
 > **High-Performance Graph-RAG Framework in Rust**  
 > Transform documents into intelligent knowledge graphs for superior retrieval and generation
 
-[![Version](https://img.shields.io/badge/version-0.32.0-blue.svg?style=flat)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.32.1-blue.svg?style=flat)](CHANGELOG.md)
 [![Rust](https://img.shields.io/badge/rust-1.95+-orange.svg?style=flat&logo=rust)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat)](LICENSE)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat)](https://github.com/raphaelmansuy/edgequake)
@@ -69,7 +69,17 @@ EDGEQUAKE_LLM_PROVIDER=ollama \
 curl -s http://localhost:8080/health | python3 -m json.tool
 ```
 
-> Pin a version: `EDGEQUAKE_VERSION=0.32.0 sh quickstart.sh`
+> Pin a version: `EDGEQUAKE_VERSION=0.32.1 sh quickstart.sh`
+
+### What's new in 0.32.1
+
+Patch: typed ANN uses the workspace embedding model key with no preferred→env
+fallthrough; graph seed admit runs before popular hubs (local + global Mix);
+Ask companion `seed_entity_ids`; projection upserts honor payload `model_id`.
+Schema stays **168**. SPEC-001 Acc is attested from the existing 2026-08-15
+medical-mid pack; ANN/admit was not re-scored.
+
+Upgrade: **[upgrade-to-0.32.1.md](docs/operations/upgrade-to-0.32.1.md)** · changelog: [CHANGELOG.md](CHANGELOG.md).
 
 ### What's new in 0.32.0
 
@@ -387,10 +397,10 @@ docker compose -f docker-compose.prebuilt.yml up -d
 
 ```bash
 # Pin full stack to this release
-EDGEQUAKE_VERSION=0.32.0 docker compose -f docker-compose.quickstart.yml up -d
+EDGEQUAKE_VERSION=0.32.1 docker compose -f docker-compose.quickstart.yml up -d
 
 # Pin PostgreSQL major (optional; default tag follows EDGEQUAKE_VERSION → PG18)
-EDGEQUAKE_VERSION=0.32.0 EDGEQUAKE_POSTGRES_TAG=0.21.0-pg16 \
+EDGEQUAKE_VERSION=0.32.1 EDGEQUAKE_POSTGRES_TAG=0.21.0-pg16 \
   docker compose -f docker-compose.quickstart.yml up -d
 ```
 

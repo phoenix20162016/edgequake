@@ -55,9 +55,7 @@ impl<'a> PersistIngestionParams<'a> {
             chunk_options,
             source_type: None,
             source_file_path: source_file,
-            embedding_model: embedding_model
-                .map(str::trim)
-                .filter(|s| !s.is_empty()),
+            embedding_model: embedding_model.map(str::trim).filter(|s| !s.is_empty()),
         }
     }
 

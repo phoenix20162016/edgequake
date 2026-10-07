@@ -348,7 +348,6 @@ mod tests {
             document_ids: None,
             modalities: None,
             embedding_model: None,
-
         };
         let stmts = PgVectorStorage::wave2_planner_bias_statements(true, true, &mf, Some(50_000));
         assert!(stmts.iter().any(|s| s == "SET LOCAL enable_seqscan = off"));

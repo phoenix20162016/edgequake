@@ -4,6 +4,8 @@ All notable changes to the EdgeQuake Query crate are tracked here. See the root 
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-10-07
+
 ### Fixed
 
 - Graph seed admit runs before popular-node fallback in local **and** global

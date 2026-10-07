@@ -337,7 +337,6 @@ mod tests {
             vector_type: Some("chunk".into()),
             modalities: Some(vec!["table".into()]),
             embedding_model: None,
-
         })
         .unwrap();
         let conditions = must(&compiled);

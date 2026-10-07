@@ -27,6 +27,7 @@ const MAX_SEED_CHUNKS: usize = 8;
 const MAX_LABEL_CANDIDATES: usize = 8;
 
 /// Admit explicit seed ids and exact label matches into `context`.
+#[allow(clippy::too_many_arguments)] // storage views + seeds + scope; keep call sites flat
 pub async fn admit_into_context(
     graph: GraphReadView<'_>,
     kv: Option<&dyn edgequake_storage::traits::KVStorage>,
@@ -242,11 +243,7 @@ pub fn exact_label_candidates(query_text: &str, keywords: &ExtractedKeywords) ->
         out.push(t.to_string());
     };
 
-    for kw in keywords
-        .low_level
-        .iter()
-        .chain(keywords.high_level.iter())
-    {
+    for kw in keywords.low_level.iter().chain(keywords.high_level.iter()) {
         push(kw, &mut out, &mut seen);
         if out.len() >= MAX_LABEL_CANDIDATES {
             return out;
@@ -290,8 +287,7 @@ async fn materialize_seed_chunks(
     if need.is_empty() {
         return;
     }
-    let Ok(fetched) =
-        edgequake_storage::chunk_content::batch_fetch_chunk_contents(kv, &need).await
+    let Ok(fetched) = edgequake_storage::chunk_content::batch_fetch_chunk_contents(kv, &need).await
     else {
         return;
     };

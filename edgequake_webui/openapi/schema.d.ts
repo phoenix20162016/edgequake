@@ -4423,6 +4423,11 @@ export interface components {
             provider?: string | null;
             /** @description SPEC-109: reasoning effort override (`none`/`minimal`/`low`/…). Auto = omit. */
             reasoning_effort?: string | null;
+            /**
+             * @description Optional graph entity ids to admit before ANN (Ask companion seed).
+             *     Copied onto the engine [`QueryRequest`]; does not change query mode.
+             */
+            seed_entity_ids?: string[] | null;
             /** @description Whether to stream the response. */
             stream?: boolean;
             /**

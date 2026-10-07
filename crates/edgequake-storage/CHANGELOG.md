@@ -4,6 +4,8 @@ All notable changes to the EdgeQuake Storage crate are tracked here. See the roo
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-10-07
+
 ### Fixed
 
 - ANN registry key SSOT: production readers use `embedding_model_key_from_env()`;

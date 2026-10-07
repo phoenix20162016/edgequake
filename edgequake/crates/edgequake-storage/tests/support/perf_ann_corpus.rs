@@ -90,7 +90,6 @@ pub fn workspace_filter(hot_ws: &str, tenant_id: &str) -> MetadataFilter {
         document_ids: None,
         modalities: None,
         embedding_model: None,
-
     }
 }
 

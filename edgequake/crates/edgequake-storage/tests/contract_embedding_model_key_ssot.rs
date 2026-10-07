@@ -27,9 +27,7 @@ fn walk_rs(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
 /// Paths allowed to call `env::var("EDGEQUAKE_EMBEDDING_MODEL")` / `EMBEDDING_MODEL_ENV`.
 fn is_allowlisted(path: &std::path::Path) -> bool {
     let s = path.to_string_lossy().replace('\\', "/");
-    s.ends_with("/vector_backend.rs")
-        || s.contains("/tests/")
-        || s.contains("/bin/")
+    s.ends_with("/vector_backend.rs") || s.contains("/tests/") || s.contains("/bin/")
 }
 
 #[test]

@@ -49,14 +49,13 @@ pub(crate) async fn embedding_model_registered(
     name: &str,
     dimensions: i32,
 ) -> Result<bool, StorageError> {
-    let id: Option<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM embedding_models WHERE name = $1 AND dimensions = $2",
-    )
-    .bind(name)
-    .bind(dimensions)
-    .fetch_optional(pool)
-    .await
-    .map_err(StorageError::from)?;
+    let id: Option<Uuid> =
+        sqlx::query_scalar("SELECT id FROM embedding_models WHERE name = $1 AND dimensions = $2")
+            .bind(name)
+            .bind(dimensions)
+            .fetch_optional(pool)
+            .await
+            .map_err(StorageError::from)?;
     Ok(id.is_some())
 }
 

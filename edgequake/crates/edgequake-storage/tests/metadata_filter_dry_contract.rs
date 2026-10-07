@@ -11,7 +11,6 @@ fn build_sql_emits_condition_per_active_field() {
         vector_type: Some("chunk".into()),
         modalities: None,
         embedding_model: None,
-
     };
 
     let with_ids = mf.build_sql(true, 2);

@@ -9,9 +9,7 @@ use std::sync::Arc;
 
 use edgequake_llm::MockProvider;
 use edgequake_query::retrieval_telemetry::{META_POPULAR_NODE_ARM, META_POPULAR_NODE_FALLBACK};
-use edgequake_query::{
-    QueryEngine, QueryEngineConfig, QueryMode, QueryRequest, RetrievedEntity,
-};
+use edgequake_query::{QueryEngine, QueryEngineConfig, QueryMode, QueryRequest, RetrievedEntity};
 use edgequake_storage::traits::{GraphStorage, VectorStorage};
 use edgequake_storage::{GraphStorageMutateOps, MemoryGraphStorage, MemoryVectorStorage};
 use serde_json::json;
@@ -129,8 +127,7 @@ async fn graph_only_entity_ask_sentence_admits_without_ann() {
 #[tokio::test]
 async fn graph_only_entity_seed_ids_admits_neighbors() {
     let engine = graph_only_engine().await;
-    let mut req = QueryRequest::new(ASK_SENTENCE)
-        .with_seed_entity_ids(vec![ENTITY_ID.into()]);
+    let mut req = QueryRequest::new(ASK_SENTENCE).with_seed_entity_ids(vec![ENTITY_ID.into()]);
     req.mode = Some(QueryMode::Mix);
 
     let resp = engine.query(req).await.expect("query");
@@ -145,14 +142,10 @@ async fn graph_only_entity_seed_ids_admits_neighbors() {
 #[tokio::test]
 async fn graph_only_entity_stream_is_not_apology() {
     let engine = graph_only_engine().await;
-    let mut req = QueryRequest::new(ASK_SENTENCE)
-        .with_seed_entity_ids(vec![ENTITY_ID.into()]);
+    let mut req = QueryRequest::new(ASK_SENTENCE).with_seed_entity_ids(vec![ENTITY_ID.into()]);
     req.mode = Some(QueryMode::Mix);
 
-    let (ctx, _mode, mut stream) = engine
-        .query_stream_with_context(req)
-        .await
-        .expect("stream");
+    let (ctx, _mode, mut stream) = engine.query_stream_with_context(req).await.expect("stream");
     assert!(!ctx.is_empty());
     use futures::StreamExt;
     let mut answer = String::new();
@@ -212,18 +205,20 @@ async fn hollow_ann_skips_popular_and_admits_label() {
             .collect::<Vec<_>>()
     );
     assert!(
-        resp.context.metadata.get(META_POPULAR_NODE_FALLBACK).is_none(),
+        resp.context
+            .metadata
+            .get(META_POPULAR_NODE_FALLBACK)
+            .is_none(),
         "popular telemetry must not fire when labels/seeds can admit; meta={:?}",
         resp.context.metadata
     );
     assert!(resp.context.metadata.get(META_POPULAR_NODE_ARM).is_none());
     assert!(
-        !resp
-            .context
-            .entities
-            .iter()
-            .any(|e| e.name.to_ascii_uppercase().contains("ACTION_FUSION")
-                || e.name.to_ascii_uppercase().contains("GHOST")),
+        !resp.context.entities.iter().any(|e| e
+            .name
+            .to_ascii_uppercase()
+            .contains("ACTION_FUSION")
+            || e.name.to_ascii_uppercase().contains("GHOST")),
         "distractor/hollow must not dominate; entities={:?}",
         resp.context
             .entities
@@ -269,12 +264,18 @@ async fn global_popular_skipped_when_exact_label_candidates_exist() {
             .collect::<Vec<_>>()
     );
     assert!(
-        !resp.context.entities.iter().any(|e| {
-            e.name.to_ascii_uppercase().contains("ACTION_FUSION")
-        }),
+        !resp
+            .context
+            .entities
+            .iter()
+            .any(|e| { e.name.to_ascii_uppercase().contains("ACTION_FUSION") }),
         "global popular hub must not enter when labels exist"
     );
-    assert!(resp.context.metadata.get(META_POPULAR_NODE_FALLBACK).is_none());
+    assert!(resp
+        .context
+        .metadata
+        .get(META_POPULAR_NODE_FALLBACK)
+        .is_none());
     std::env::remove_var("EDGEQUAKE_POPULAR_NODE_FALLBACK");
 }
 
@@ -325,7 +326,10 @@ async fn popular_skipped_when_exact_label_candidates_exist() {
             .collect::<Vec<_>>()
     );
     assert!(
-        resp.context.metadata.get(META_POPULAR_NODE_FALLBACK).is_none(),
+        resp.context
+            .metadata
+            .get(META_POPULAR_NODE_FALLBACK)
+            .is_none(),
         "popular fallback telemetry must be absent"
     );
     std::env::remove_var("EDGEQUAKE_POPULAR_NODE_FALLBACK");

@@ -110,7 +110,6 @@ fn mf() -> MetadataFilter {
         document_ids: None,
         modalities: None,
         embedding_model: None,
-
     }
 }
 

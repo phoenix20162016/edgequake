@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.32.1] — 2026-10-07
+
+Patch: typed ANN registry keying and graph seed admit. Schema stays **168**.
+Upgrade: [`docs/operations/upgrade-to-0.32.1.md`](docs/operations/upgrade-to-0.32.1.md).
+
+**CD:** GHCR `edgequake`, `edgequake-frontend`, `edgequake-postgres`, and
+`edgequake-keycloak` on tag `v0.32.1`.
+
+**SPEC-001 Acc:** attested from existing
+[`publish/latest`](specs/001-benchmark/e2e/artifacts/publish/latest/)
+(`valid: true`, medical-mid, `2026-08-15T11:02:18Z`) — no fresh n=200 run.
+ANN keying and graph admit changed and were **not** re-scored.
+
 ### Fixed
 
 - Serve no longer treats an empty `EDGEQUAKE_EMBEDDING_MODEL` (Compose `:-`) as a

@@ -1062,7 +1062,6 @@ mod tests {
             vector_type: None,
             modalities: None,
             embedding_model: None,
-
         };
         let results = storage
             .query_filtered(&[1.0, 0.0, 0.0], 10, None, Some(&mf))

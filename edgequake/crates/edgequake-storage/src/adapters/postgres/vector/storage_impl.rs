@@ -777,9 +777,8 @@ impl VectorStorage for PgVectorStorage {
                 let pool = self.pool.get().await?;
                 // Preferred filter alone when set — no env fallthrough into
                 // another model's space. Empty preferred → env SSOT key.
-                let model_candidates = crate::serving_embedding_model_candidates(
-                    mf.embedding_model.as_deref(),
-                );
+                let model_candidates =
+                    crate::serving_embedding_model_candidates(mf.embedding_model.as_deref());
                 let query_dim = query_embedding.len() as i32;
 
                 if vtype == "chunk" || vtype.is_empty() {
@@ -893,10 +892,8 @@ impl VectorStorage for PgVectorStorage {
                         limit: top_k as u32,
                     };
                     for model in &model_candidates {
-                        if !super::typed_read::embedding_model_registered(
-                            &pool, model, query_dim,
-                        )
-                        .await?
+                        if !super::typed_read::embedding_model_registered(&pool, model, query_dim)
+                            .await?
                         {
                             continue;
                         }

@@ -83,7 +83,6 @@ async fn e2e_filtered_hnsw_meets_topk_under_workspace_filter() {
         document_ids: None,
         modalities: None,
         embedding_model: None,
-
     };
 
     // Warm-up (index / caches)

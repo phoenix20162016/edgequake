@@ -4,6 +4,15 @@ All notable changes to the EdgeQuake API crate are tracked here. See the root CH
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-10-07
+
+### Fixed
+
+- Default workspace and `ProviderContext` use the SSOT embedding model key from
+  env (not a hardcoded string). Chat accepts `seed_entity_ids` for companion Ask.
+- Empty `EDGEQUAKE_EMBEDDING_MODEL` (Compose `:-`) no longer fails serve as a
+  missing provider context.
+
 ## [0.32.0] - 2026-10-06
 
 ### Changed

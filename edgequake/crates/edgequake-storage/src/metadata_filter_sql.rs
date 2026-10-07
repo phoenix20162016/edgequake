@@ -121,7 +121,6 @@ mod tests {
             vector_type: None,
             modalities: None,
             embedding_model: None,
-
         };
         let sql = mf.build_sql(false, 2);
         assert!(sql.conditions.iter().any(|c| c == "workspace_id = $3"));
@@ -139,7 +138,6 @@ mod tests {
             vector_type: Some("chunk".into()),
             modalities: Some(vec!["chart".into()]),
             embedding_model: None,
-
         };
         let sql = mf.build_sql(true, 2);
         assert_eq!(sql.conditions.len(), 6);
