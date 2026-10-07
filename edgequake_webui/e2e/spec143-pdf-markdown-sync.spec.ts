@@ -21,7 +21,61 @@ const DOC_ID = "dddddddd-0143-0143-0143-dddddddddddd";
 const DOC_NO_MARKERS = "eeeeeeee-0143-0143-0143-eeeeeeeeeeee";
 /** Separate id so React Query cannot reuse a 4-page fixture for the windowed case. */
 const DOC_WINDOWED = "ffffffff-0143-0143-0143-ffffffffffff";
+/** 23-page paint regression (screenshot: toolbar 1/23, placeholder "Page 4"). */
+const DOC_PAINT_23 = "aaaaaaaa-0143-0143-0143-aaaaaaaaaaaa";
 const PAGE_SYNC_MODE_STORAGE_KEY = "eq-page-sync-mode";
+
+/** Sheet N has a visible non-zero react-pdf canvas and no placeholder label. */
+async function assertSheetHasCanvas(
+  viewer: ReturnType<Page["getByTestId"]>,
+  pageNum: number,
+): Promise<void> {
+  const sheet = viewer.locator(
+    `[data-testid="pdf-page-sheet"][data-page="${pageNum}"]`,
+  );
+  await expect(sheet).toBeAttached({ timeout: 30_000 });
+  await expect(sheet.getByTestId("pdf-page-placeholder")).toHaveCount(0);
+  const canvas = sheet.locator(".react-pdf__Page canvas").first();
+  await expect(canvas).toBeVisible({ timeout: 45_000 });
+  await expect
+    .poll(async () => {
+      const box = await canvas.boundingBox();
+      return box != null && box.width > 8 && box.height > 8;
+    }, { timeout: 15_000 })
+    .toBe(true);
+}
+
+/** True when sheet N's box intersects the PDF scrollport. */
+async function sheetIntersectsScrollport(
+  viewer: ReturnType<Page["getByTestId"]>,
+  pageNum: number,
+): Promise<boolean> {
+  return viewer.evaluate((root, n) => {
+    const scroll = root.querySelector(
+      '[data-testid="pdf-scroll-container"]',
+    ) as HTMLElement | null;
+    const sheet = root.querySelector(
+      `[data-testid="pdf-page-sheet"][data-page="${n}"]`,
+    ) as HTMLElement | null;
+    if (!scroll || !sheet) return false;
+    const sr = scroll.getBoundingClientRect();
+    const er = sheet.getBoundingClientRect();
+    return er.bottom > sr.top && er.top < sr.bottom;
+  }, pageNum);
+}
+
+/** Active sheet is painted and owns the scrollport (not a distant placeholder). */
+async function assertActiveSheetPainted(
+  viewer: ReturnType<Page["getByTestId"]>,
+  pageNum: number,
+): Promise<void> {
+  await assertSheetHasCanvas(viewer, pageNum);
+  await expect
+    .poll(async () => sheetIntersectsScrollport(viewer, pageNum), {
+      timeout: 15_000,
+    })
+    .toBe(true);
+}
 
 /** Scroll markdown pane so page N sits at the reading line (gesture + scrollTop). */
 async function scrollMdToPage(
@@ -821,6 +875,74 @@ test.describe("SPEC-143 PDF / Markdown sync", () => {
       timeout: 20_000,
     });
     await assertPanesAligned(page, 22);
+  });
+
+  test("E-143-paint: 23-page stack paints active sheet, not Page-4 placeholder", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mockPdfDocumentStack(page, {
+      docId: DOC_PAINT_23,
+      withMarkers: true,
+      pageCount: 23,
+    });
+
+    await page.goto(`/documents/${DOC_PAINT_23}`, GOTO_OPTS);
+    const viewer = page.getByTestId("side-by-side-viewer");
+    await expect(viewer.getByTestId("pdf-page-indicator")).toHaveAttribute(
+      "data-page",
+      "1",
+      { timeout: 60_000 },
+    );
+    await expect(viewer.getByTestId("pdf-page-indicator")).toContainText(
+      "1 / 23",
+      { timeout: 30_000 },
+    );
+
+    await assertActiveSheetPainted(viewer, 1);
+
+    // Root-cause screenshot: page-4 placeholder must not own the scrollport.
+    const page4Sheet = viewer.locator(
+      '[data-testid="pdf-page-sheet"][data-page="4"]',
+    );
+    await expect(page4Sheet).toBeAttached({ timeout: 15_000 });
+    await expect(page4Sheet.getByTestId("pdf-page-placeholder")).toBeVisible();
+    await expect
+      .poll(async () => sheetIntersectsScrollport(viewer, 4), {
+        timeout: 15_000,
+      })
+      .toBe(false);
+
+    for (const n of [2, 3, 4]) {
+      await viewer.getByTestId("pdf-next-page").click();
+      await expect(viewer.getByTestId("pdf-page-indicator")).toHaveAttribute(
+        "data-page",
+        String(n),
+        { timeout: 20_000 },
+      );
+      await assertActiveSheetPainted(viewer, n);
+    }
+
+    await scrollPdfToSheet(viewer, 8);
+    await expect
+      .poll(
+        async () => {
+          const indicator = await viewer
+            .getByTestId("pdf-page-indicator")
+            .getAttribute("data-page");
+          const intersects = await sheetIntersectsScrollport(viewer, 8);
+          return indicator === "8" || intersects;
+        },
+        { timeout: 45_000 },
+      )
+      .toBe(true);
+    await assertSheetHasCanvas(viewer, 8);
+    await expect
+      .poll(async () => sheetIntersectsScrollport(viewer, 8), {
+        timeout: 15_000,
+      })
+      .toBe(true);
   });
 
   test("E-143-08: no markers disables sync control; PDF still navigable", async ({

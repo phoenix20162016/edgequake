@@ -36,10 +36,11 @@ import {
 } from '@/lib/documents/page-scroll';
 import {
   SPARSE_SHEET_THRESHOLD,
+  collectPaintPages,
   isAuthFailureMessage,
-  pageInRenderWindow,
   placeholderHeightForPage,
   prefixSumStarts,
+  sheetReservedHeight,
   sparseMountedPages,
   sparseSpacerHeights,
 } from '@/lib/documents/pdf-render-window';
@@ -253,6 +254,8 @@ export function PDFViewer({
   const onGestureEndRef = useRef(onGestureEnd);
   onGestureEndRef.current = onGestureEnd;
   const [bottomSpacer, setBottomSpacer] = useState(0);
+  /** Scrollport geometry for paint-window intersection (not toolbar index alone). */
+  const [scrollport, setScrollport] = useState({ scrollTop: 0, clientHeight: 0 });
   /** Bumped when the stack resizes or a user gesture ends, so follow can correct. */
   const [layoutTick, setLayoutTick] = useState(0);
   const alignFrameRef = useRef<number | null>(null);
@@ -331,9 +334,14 @@ export function PDFViewer({
     enabled: Boolean(documentId) && overlayOn && displayPage > 0 && !overlayDisabled,
   });
 
+  const reservedStarts = useMemo(
+    () => prefixSumStarts(numPages, pageHeights, scale),
+    [numPages, pageHeights, scale],
+  );
+
   const collectSheetStarts = useCallback((): Map<number, number> => {
     if (useSparseSheets) {
-      return prefixSumStarts(numPages, pageHeights, scale);
+      return reservedStarts;
     }
     const root = scrollRef.current;
     const map = new Map<number, number>();
@@ -342,7 +350,25 @@ export function PDFViewer({
       map.set(p, offsetTopWithin(root, el));
     });
     return map;
-  }, [useSparseSheets, numPages, pageHeights, scale]);
+  }, [useSparseSheets, reservedStarts]);
+
+  const syncScrollport = useCallback(() => {
+    const root = scrollRef.current;
+    if (!root) return;
+    setScrollport((prev) => {
+      const next = {
+        scrollTop: root.scrollTop,
+        clientHeight: root.clientHeight,
+      };
+      if (
+        prev.scrollTop === next.scrollTop &&
+        prev.clientHeight === next.clientHeight
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, []);
 
   const emitPage = useCallback(
     (page: number) => {
@@ -379,10 +405,12 @@ export function PDFViewer({
   );
 
   // Bottom spacer so every page (including the last) can sit at the reading line.
+  // Also seed scrollport geometry so paint-window math has a viewport before scroll.
   useEffect(() => {
     const root = scrollRef.current;
     if (!root || numPages < 1) return;
     const measure = () => {
+      syncScrollport();
       const lastH = useSparseSheets
         ? placeholderHeightForPage(numPages, pageHeights, scale)
         : sheetRefs.current.get(numPages)?.getBoundingClientRect().height;
@@ -396,7 +424,7 @@ export function PDFViewer({
     const ro = new ResizeObserver(measure);
     ro.observe(root);
     return () => ro.disconnect();
-  }, [numPages, scale, pageBox, useSparseSheets, pageHeights]);
+  }, [numPages, scale, pageBox, useSparseSheets, pageHeights, syncScrollport]);
 
   // Follow controlled page (deeplink / markdown sync).
   // Do not snap back while the user is scrolling this pane — that race
@@ -479,6 +507,7 @@ export function PDFViewer({
     };
 
     const onScroll = () => {
+      syncScrollport();
       if (pdfGestureRef.current) {
         endUserGesture();
       }
@@ -521,7 +550,17 @@ export function PDFViewer({
         gestureEndTimerRef.current = null;
       }
     };
-  }, [numPages, emitPage, scale, collectSheetStarts, isControlled, scheduleAlign, beginUserGesture, endUserGesture]);
+  }, [
+    numPages,
+    emitPage,
+    scale,
+    collectSheetStarts,
+    isControlled,
+    scheduleAlign,
+    beginUserGesture,
+    endUserGesture,
+    syncScrollport,
+  ]);
 
   // Keyboard: PageUp/Down, Arrows — only when PDF pane focused or hovered
   useEffect(() => {
@@ -686,17 +725,66 @@ export function PDFViewer({
   const pageList = useMemo(() => {
     if (numPages < 1) return [];
     if (useSparseSheets) {
-      return sparseMountedPages(displayPage, numPages);
+      return sparseMountedPages(displayPage, numPages, {
+        starts: reservedStarts,
+        heights: pageHeights,
+        scale,
+        scrollTop: scrollport.scrollTop,
+        viewportHeight: scrollport.clientHeight,
+      });
     }
     return Array.from({ length: numPages }, (_, i) => i + 1);
-  }, [numPages, useSparseSheets, displayPage]);
+  }, [
+    numPages,
+    useSparseSheets,
+    displayPage,
+    reservedStarts,
+    pageHeights,
+    scale,
+    scrollport.scrollTop,
+    scrollport.clientHeight,
+  ]);
 
   const sparseSpacers = useMemo(
     () =>
       useSparseSheets
-        ? sparseSpacerHeights(numPages, displayPage, pageHeights, scale)
+        ? sparseSpacerHeights(numPages, displayPage, pageHeights, scale, {
+            scrollTop: scrollport.scrollTop,
+            viewportHeight: scrollport.clientHeight,
+          })
         : { top: 0, bottom: 0 },
-    [useSparseSheets, numPages, displayPage, pageHeights, scale],
+    [
+      useSparseSheets,
+      numPages,
+      displayPage,
+      pageHeights,
+      scale,
+      scrollport.scrollTop,
+      scrollport.clientHeight,
+    ],
+  );
+
+  /** Sheets that must mount a real `<Page>` — SSOT in collectPaintPages. */
+  const paintPages = useMemo(
+    () =>
+      collectPaintPages({
+        displayPage,
+        numPages,
+        starts: reservedStarts,
+        heights: pageHeights,
+        scale,
+        scrollTop: scrollport.scrollTop,
+        viewportHeight: scrollport.clientHeight,
+      }),
+    [
+      numPages,
+      displayPage,
+      reservedStarts,
+      pageHeights,
+      scale,
+      scrollport.scrollTop,
+      scrollport.clientHeight,
+    ],
   );
 
   if (!file) {
@@ -910,8 +998,9 @@ export function PDFViewer({
               />
             ) : null}
             {pageList.map((n) => {
-              const inWindow = pageInRenderWindow(n, displayPage, numPages);
-              const placeholderHeight = placeholderHeightForPage(n, pageHeights, scale);
+              const reservedH = sheetReservedHeight(n, pageHeights, scale);
+              const paint = paintPages.has(n);
+              const sheetWidth = pageBox?.width ?? width ?? 600;
               return (
                 <div
                   key={n}
@@ -922,15 +1011,13 @@ export function PDFViewer({
                   data-testid="pdf-page-sheet"
                   data-page={n}
                   className="relative shadow-md bg-background"
-                  style={
-                    !inWindow
-                      ? { width: pageBox?.width ?? width ?? 600, height: placeholderHeight }
-                      : pageBox && n === displayPage
-                        ? { width: pageBox.width, minHeight: pageBox.height }
-                        : undefined
-                  }
+                  style={{
+                    width: sheetWidth,
+                    minHeight: reservedH,
+                    ...(!paint ? { height: reservedH } : {}),
+                  }}
                 >
-                  {inWindow ? (
+                  {paint ? (
                     <Page
                       pageNumber={n}
                       scale={scale}
@@ -942,22 +1029,39 @@ export function PDFViewer({
                       onLoadError={handlePageError}
                       onRenderError={handlePageError}
                       onRenderSuccess={(page) => {
-                        if (n === displayPage || !pageBox) {
-                          setPageBox({ width: page.width, height: page.height });
-                        }
-                        if (scale > 0) {
-                          const base = page.height / scale;
-                          setPageHeights((prev) => {
-                            if (prev.get(n) === base) return prev;
-                            const next = new Map(prev);
-                            next.set(n, base);
-                            return next;
-                          });
+                        const w = page?.width;
+                        const h = page?.height;
+                        if (
+                          typeof w === 'number' &&
+                          typeof h === 'number' &&
+                          w > 0 &&
+                          h > 0
+                        ) {
+                          if (n === displayPage || !pageBox) {
+                            setPageBox((prev) => {
+                              if (prev?.width === w && prev?.height === h) {
+                                return prev;
+                              }
+                              return { width: w, height: h };
+                            });
+                          }
+                          if (scale > 0) {
+                            const base = h / scale;
+                            setPageHeights((prev) => {
+                              if (prev.get(n) === base) return prev;
+                              const next = new Map(prev);
+                              next.set(n, base);
+                              return next;
+                            });
+                          }
                         }
                         scheduleAlign();
                       }}
                       loading={
-                        <div className="flex items-center justify-center p-8">
+                        <div
+                          className="flex items-center justify-center p-8"
+                          style={{ minHeight: reservedH }}
+                        >
                           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                       }
@@ -965,13 +1069,13 @@ export function PDFViewer({
                   ) : (
                     <div
                       className="flex items-center justify-center bg-muted/40 text-xs tabular-nums text-muted-foreground/70"
-                      style={{ height: placeholderHeight }}
+                      style={{ height: reservedH }}
                       data-testid="pdf-page-placeholder"
                     >
                       {t('documents.viewer.pagePlaceholder', 'Page {{n}}', { n })}
                     </div>
                   )}
-                  {inWindow &&
+                  {paint &&
                   n === displayPage &&
                   overlayOn &&
                   pageBox &&

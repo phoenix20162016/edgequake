@@ -4,11 +4,16 @@ import {
   STACK_GAP_PX,
   WINDOW_RADIUS,
   WINDOW_THRESHOLD,
+  collectPaintPages,
+  defaultScrollportOverscan,
   isAuthFailureMessage,
   medianHeight,
   pageInRenderWindow,
+  pageShouldPaint,
+  pagesIntersectingScrollport,
   placeholderHeightForPage,
   prefixSumStarts,
+  sheetReservedHeight,
   sparseMountedPages,
   sparseSpacerHeights,
 } from "../pdf-render-window";
@@ -30,10 +35,72 @@ describe("pageInRenderWindow", () => {
 });
 
 describe("sparseMountedPages", () => {
-  it("clamps the window at both edges", () => {
+  it("clamps the index window at both edges", () => {
     expect(sparseMountedPages(1, 100)).toEqual([1, 2, 3]);
     expect(sparseMountedPages(100, 100)).toEqual([98, 99, 100]);
     expect(sparseMountedPages(50, 100)).toEqual([48, 49, 50, 51, 52]);
+  });
+
+  it("matches collectPaintPages when scrollport opts are provided", () => {
+    const heights = new Map<number, number>();
+    const starts = prefixSumStarts(100, heights, 1);
+    const scrollTop = starts.get(50)!;
+    const viewportHeight = 700;
+    const args = {
+      displayPage: 50,
+      numPages: 100,
+      starts,
+      heights,
+      scale: 1,
+      scrollTop,
+      viewportHeight,
+    };
+    const mounted = sparseMountedPages(50, 100, {
+      starts,
+      heights,
+      scale: 1,
+      scrollTop,
+      viewportHeight,
+    });
+    expect(mounted).toEqual(
+      Array.from(collectPaintPages(args)).sort((a, b) => a - b),
+    );
+    for (const n of mounted) {
+      expect(pageShouldPaint({ ...args, page: n })).toBe(true);
+    }
+  });
+
+  it("unites index overscan with scrollport at the edges of a 100-page file", () => {
+    const heights = new Map<number, number>();
+    const starts = prefixSumStarts(100, heights, 1);
+    const top = sparseMountedPages(1, 100, {
+      starts,
+      heights,
+      scale: 1,
+      scrollTop: 0,
+      viewportHeight: 700,
+    });
+    expect(top).toContain(1);
+    expect(top).toContain(2);
+    expect(top).toContain(3);
+    const bottomScroll = starts.get(100)!;
+    const bottom = sparseMountedPages(100, 100, {
+      starts,
+      heights,
+      scale: 1,
+      scrollTop: bottomScroll,
+      viewportHeight: 700,
+    });
+    expect(bottom).toContain(98);
+    expect(bottom).toContain(99);
+    expect(bottom).toContain(100);
+  });
+});
+
+describe("defaultScrollportOverscan", () => {
+  it("prefeches one viewport", () => {
+    expect(defaultScrollportOverscan(700)).toBe(700);
+    expect(defaultScrollportOverscan(0)).toBe(0);
   });
 });
 
@@ -60,6 +127,15 @@ describe("placeholderHeightForPage", () => {
   });
 });
 
+describe("sheetReservedHeight", () => {
+  it("matches placeholderHeightForPage", () => {
+    const heights = new Map<number, number>([[1, 900]]);
+    expect(sheetReservedHeight(1, heights, 1.5)).toBe(
+      placeholderHeightForPage(1, heights, 1.5),
+    );
+  });
+});
+
 describe("medianHeight", () => {
   it("averages the middle pair for an even count", () => {
     expect(medianHeight(new Map([[1, 400], [2, 800]]))).toBe(600);
@@ -81,6 +157,104 @@ describe("prefixSumStarts", () => {
     const heights = new Map<number, number>();
     const starts = prefixSumStarts(4, heights, 1);
     expect(starts.get(4)).toBe(3 * (DEFAULT_BASE_PAGE_HEIGHT + STACK_GAP_PX));
+  });
+});
+
+describe("pagesIntersectingScrollport + pageShouldPaint (screenshot geometry)", () => {
+  /**
+   * Bug reproduction: display page 1, sheets 1–3 still at the 200px floor
+   * (pre-canvas / collapsed), sheet 4 at ~800px, viewport ~700px → page 4
+   * intersects the scrollport and must paint (screenshot: "Page 4" label).
+   */
+  it("paints page 4 when collapsed in-window sheets leave it on screen", () => {
+    const heights = new Map<number, number>([
+      [1, 1],
+      [2, 1],
+      [3, 1],
+      [4, 800],
+    ]);
+    const starts = prefixSumStarts(23, heights, 1);
+    // Floor is 200px → page 4 starts at 3*(200+gap) = 648 < 700.
+    expect(starts.get(4)).toBeLessThan(700);
+    const viewportHeight = 700;
+    const intersecting = pagesIntersectingScrollport(
+      starts,
+      heights,
+      1,
+      0,
+      viewportHeight,
+      0,
+    );
+    expect(intersecting).toContain(4);
+    expect(pageInRenderWindow(4, 1, 23)).toBe(false);
+    expect(
+      pageShouldPaint({
+        page: 4,
+        displayPage: 1,
+        numPages: 23,
+        starts,
+        heights,
+        scale: 1,
+        scrollTop: 0,
+        viewportHeight,
+        overscanPx: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps page 4 off-screen once every sheet reserves ~800px", () => {
+    const heights = new Map<number, number>();
+    const starts = prefixSumStarts(23, heights, 1);
+    const viewportHeight = 700;
+    const intersecting = pagesIntersectingScrollport(
+      starts,
+      heights,
+      1,
+      0,
+      viewportHeight,
+      0,
+    );
+    expect(intersecting).toContain(1);
+    expect(intersecting).not.toContain(4);
+    expect(
+      pageShouldPaint({
+        page: 1,
+        displayPage: 1,
+        numPages: 23,
+        starts,
+        heights,
+        scale: 1,
+        scrollTop: 0,
+        viewportHeight,
+      }),
+    ).toBe(true);
+    expect(
+      pageShouldPaint({
+        page: 4,
+        displayPage: 1,
+        numPages: 23,
+        starts,
+        heights,
+        scale: 1,
+        scrollTop: 0,
+        viewportHeight,
+        overscanPx: 0,
+      }),
+    ).toBe(false);
+    // Index overscan still paints pages 1–3.
+    expect(
+      pageShouldPaint({
+        page: 3,
+        displayPage: 1,
+        numPages: 23,
+        starts,
+        heights,
+        scale: 1,
+        scrollTop: 0,
+        viewportHeight,
+        overscanPx: 0,
+      }),
+    ).toBe(true);
   });
 });
 
