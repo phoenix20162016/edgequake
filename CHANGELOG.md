@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.32.2] — 2026-10-07
+
+Patch: PDF viewer paint window, SPEC-161 MCP control surface, clippy/fmt.
+Schema stays **168**. Upgrade:
+[`docs/operations/upgrade-to-0.32.2.md`](docs/operations/upgrade-to-0.32.2.md).
+
+**CD:** GHCR `edgequake`, `edgequake-frontend`, `edgequake-postgres`, and
+`edgequake-keycloak` on tag `v0.32.2`.
+
+**SPEC-001 Acc:** attested from existing
+[`publish/latest`](specs/001-benchmark/e2e/artifacts/publish/latest/)
+(`valid: true`, medical-mid, `2026-08-15T11:02:18Z`) — no fresh n=200 run.
+
 ### Added
 
 - **SPEC-161 MCP control surface (EQ-MCP-1.1):** Default profile is control
@@ -17,10 +30,15 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- PDF viewer on long documents no longer fills the pane with an out-of-window
+  “Page N” placeholder while the toolbar shows page 1 (reserved sheet height
+  + scrollport paint).
 - MCP delete tasks use canonical tenant/workspace UUIDs so `eq_task_get` can
   poll when request headers omit scope (no more nil-UUID stamp).
 - MCP delete of staging-only pending docs always accepts a Deletion task
   (`accepted` / `deleted: false`) instead of REST sync dismiss.
+- Workspace `clippy -D warnings` / rustfmt (unused MCP imports, test
+  `AppState.mcp_uploads`).
 
 ## [0.32.1] — 2026-10-07
 

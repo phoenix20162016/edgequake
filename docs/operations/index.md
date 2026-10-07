@@ -23,6 +23,7 @@ EdgeQuake now documents and follows a few simple operational invariants:
 - **[Deployment](/docs/operations/deployment/)** — Docker, Kubernetes, GCP Option A, and bare-metal.
 - **[Configuration](/docs/operations/configuration/)** — Environment variables and runtime settings.
 - **[Embedding registry audit & backfill](/docs/operations/embedding-registry-backfill/)** — List `embedding_models` and fix ANN name mismatches (no silent cross-model search).
+- **[Upgrade to v0.32.2](/docs/operations/upgrade-to-0.32.2/)** — PDF paint + SPEC-161 MCP (schema **168**).
 - **[Upgrade to v0.32.1](/docs/operations/upgrade-to-0.32.1/)** — Typed ANN keying + graph seed admit (schema **168**).
 - **[Decision extraction](/docs/concepts/decision-extraction/)** — Preview local KG mode, env vars, and migration 166 (SPEC-160).
 - **[Monitoring](/docs/operations/monitoring/)** — Health checks, metrics, and observability.
