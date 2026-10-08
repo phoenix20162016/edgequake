@@ -41,8 +41,8 @@ async fn t1_document_list_tool_exists_and_returns_envelope() {
 
 #[tokio::test]
 async fn t2_document_ids_scopes_search_filter() {
-    // Fixture-free: advertise document_ids on schema + ensure filter rejects cross-doc bleed
-    // by scoping to a nonexistent id (zero hits, never invents other PDFs).
+    // SPEC-162 R7 amends silent ignore: unknown document_ids → eq/not_found.
+    // Still: advertise document_ids; never invent hits from other docs.
     let app = default_mcp_app();
     let response = app
         .clone()
@@ -80,14 +80,18 @@ async fn t2_document_ids_scopes_search_filter() {
     )
     .await;
     let sc = tool_structured(&call);
-    assert_eq!(sc["ok"], true);
-    for hit in sc["hits"].as_array().unwrap_or(&vec![]) {
-        let file = hit["file_name"].as_str().unwrap_or("");
-        assert!(
-            !file.contains("ten_"),
-            "cross-doc bleed into ten_ PDF: {file}"
-        );
-    }
+    assert_eq!(
+        sc["ok"], false,
+        "unknown document_ids must not invent hits: {sc}"
+    );
+    assert_eq!(sc["error"]["code"], "eq/not_found");
+    assert!(
+        sc["error"]["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("doc_sol_pi_fixture_only"),
+        "error names the unknown id: {sc}"
+    );
 }
 
 #[tokio::test]

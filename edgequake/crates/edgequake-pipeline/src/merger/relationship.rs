@@ -150,6 +150,32 @@ impl<G: GraphStorage + ?Sized, V: VectorStorage + ?Sized> super::KnowledgeGraphM
             return Ok(crate::merger::RelationshipSinkReport::default());
         }
 
+        // SPEC-162 R13 / F-162-C: remap endpoints onto fold-equivalent nodes.
+        {
+            let mut remap_keys = endpoint_keys.clone();
+            let mut existing_map = self.graph_storage.get_nodes_batch(&remap_keys).await?;
+            super::key_resolver::resolve_fold_keys(
+                self.graph_storage.as_ref(),
+                ws,
+                &mut remap_keys,
+                &mut existing_map,
+            )
+            .await?;
+            let remap: std::collections::HashMap<String, String> =
+                endpoint_keys.iter().cloned().zip(remap_keys).collect();
+            for (_, sk, tk) in &mut valid {
+                if let Some(n) = remap.get(sk) {
+                    *sk = n.clone();
+                }
+                if let Some(n) = remap.get(tk) {
+                    *tk = n.clone();
+                }
+            }
+            endpoint_keys = remap.values().cloned().collect();
+            endpoint_keys.sort();
+            endpoint_keys.dedup();
+        }
+
         // Domain dedup: one ExtractedRelationship per (source, target, rel_type).
         let valid = dedupe_relationships_by_endpoints(valid);
 

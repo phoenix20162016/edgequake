@@ -1,6 +1,9 @@
-//! Agent-visible id forms (SPEC-152 object model).
+//! Agent-visible id forms (SPEC-152 object model / SPEC-162).
 
 /// Storage / ContextEntity id → agent `ent:{workspace}:{slug}`.
+///
+/// Prefer [`super::entity_ref::agent_id_for_node`] when you have a graph node id
+/// (strips workspace scope before slugifying).
 pub fn agent_entity_id(workspace: &str, name_or_id: &str) -> String {
     let slug = entity_slug(name_or_id);
     let ws = if workspace.is_empty() {
@@ -12,32 +15,30 @@ pub fn agent_entity_id(workspace: &str, name_or_id: &str) -> String {
 }
 
 /// Accept `ent:ws:slug`, `ent:NAME`, bare NAME, or `{ws}::NAME`.
+///
+/// Legacy helper: returns a bare slug for display / tests. Graph tools must use
+/// [`super::entity_ref::resolve_entity_node`] for store lookup (SPEC-162 R2).
 pub fn resolve_entity_lookup(entity_id: &str) -> String {
-    let id = entity_id.trim();
-    if let Some(rest) = id.strip_prefix("ent:") {
-        // ent:ws:slug or ent:NAME
-        if let Some((_, slug)) = rest.split_once(':') {
-            return slug.to_ascii_uppercase().replace(' ', "_");
-        }
-        return rest.to_ascii_uppercase().replace(' ', "_");
-    }
-    if let Some((_, name)) = id.split_once("::") {
-        return name.to_ascii_uppercase().replace(' ', "_");
-    }
-    id.to_ascii_uppercase().replace(' ', "_")
+    entity_slug(entity_id)
 }
 
+/// Bare UPPERCASE slug (preserves `-`; spaces → `_`).
 pub fn entity_slug(name_or_id: &str) -> String {
     let raw = name_or_id
         .strip_prefix("ent:")
         .map(|rest| rest.split_once(':').map(|(_, slug)| slug).unwrap_or(rest))
         .unwrap_or(name_or_id);
-    let raw = raw.rsplit("::").next().unwrap_or(raw);
+    let raw = edgequake_storage::EntityId::bare_name_from_graph_node_id(raw);
     raw.trim()
         .to_ascii_uppercase()
         .chars()
         .map(|c| if c.is_whitespace() { '_' } else { c })
         .collect()
+}
+
+/// Compare-only fold (SPEC-162 R4). Delegates to storage SSOT.
+pub fn fold_slug_key(raw: &str) -> String {
+    edgequake_storage::fold_slug_key(raw)
 }
 
 /// Title Case display from ALL_CAPS slug.
@@ -99,5 +100,18 @@ mod tests {
         assert_eq!(entity_slug("ent:ws:action_fusion"), "ACTION_FUSION");
         assert_eq!(entity_slug("ACTION_FUSION"), "ACTION_FUSION");
         assert_eq!(title_case_label("ACTION_FUSION"), "Action Fusion");
+    }
+
+    #[test]
+    fn hyphenated_name_folds_for_compare() {
+        // SPEC-162 step 1 / R4: hyphen and underscore share one fold key.
+        assert_eq!(fold_slug_key("SELF-ATTENTION"), "SELF_ATTENTION");
+        assert_eq!(fold_slug_key("ent:ws:self-attention"), "SELF_ATTENTION");
+        assert_eq!(
+            fold_slug_key("SELF-ATTENTION"),
+            fold_slug_key("SELF_ATTENTION")
+        );
+        // Storage slug still preserves hyphen.
+        assert_eq!(entity_slug("ent:ws:self-attention"), "SELF-ATTENTION");
     }
 }

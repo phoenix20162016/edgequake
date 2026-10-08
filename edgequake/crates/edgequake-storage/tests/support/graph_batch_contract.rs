@@ -1,6 +1,9 @@
 //! Graph batch upsert contract (SPEC-017 P2).
 //!
 //! Verifies `upsert_nodes_batch` / `upsert_edges_batch` semantic parity across backends.
+//! Helpers are shared across backend e2e binaries; not every binary imports every helper.
+
+#![allow(dead_code)]
 
 use std::collections::HashMap;
 

@@ -107,7 +107,13 @@ pub async fn resources_read(
     }
 
     if let Some(doc_id) = document_id_from_uri(uri, "/text") {
-        return match crate::mcp::project::download::read_text_resource(ctx.state, doc_id).await {
+        return match crate::mcp::project::download::read_text_resource(
+            ctx.state,
+            ctx.tenant_ctx,
+            doc_id,
+        )
+        .await
+        {
             Ok(text) => Ok(json!({
                 "contents": [{
                     "uri": uri,

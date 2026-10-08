@@ -6,7 +6,7 @@
 > **Protocol:** MCP `2026-07-28` (tools, `ImageContent`, blob resources, annotations; Tasks/elicitation deferred)  
 > **Applies to:** Remote Streamable HTTP gateway (`POST /mcp`) **and** `@edgequake/mcp-server` (stdio bridge)  
 > **Inherits:** [SPEC-152](../152-new-mcp-contract/) (EQ-MCP-1.0) · [SPEC-028 MCP suite](../028-edgequake-query-service/mcp/000-index.md) · [SPEC-154](../154-sec-hardening/) (auth / scopes) · [SPEC-050](../050-pipeline-and-delete/) (delete cascade)  
-> **Peers:** [SPEC-160](../160-tev1/) (pack shape) · [SPEC-157](../157-side-by-side-query/) (cross-ref style)
+> **Peers:** [SPEC-160](../160-tev1/) (pack shape) · [SPEC-157](../157-side-by-side-query/) (cross-ref style) · [SPEC-162](../162-improve-mcp/) (agent id resolve / hard filters / paging — EQ-MCP-1.2)
 
 ## What operators and implementers need to know
 

@@ -5,13 +5,12 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::error::{ApiError, ApiResult};
-use crate::handlers::documents::load_original_bytes;
 use crate::middleware::TenantContext;
-use crate::services::document_body_loader::load_document_body;
 use crate::state::AppState;
 
 use super::blob::{blob_max_bytes, EXTRA_CONTENT_KEY};
 use super::budget::BudgetClass;
+use super::doc_text::{load_markdown_for_tenant, load_original_for_tenant};
 use super::envelope::EnvelopeBuilder;
 use super::errors::{eq_error, ErrorCode};
 
@@ -29,15 +28,23 @@ pub async fn eq_document_download(
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-    let max_bytes = args
-        .get("max_bytes")
-        .and_then(|v| v.as_u64())
+
+    let max_bytes_arg = args.get("max_bytes").and_then(|v| v.as_u64());
+    if max_bytes_arg == Some(0) {
+        return Ok(eq_error(
+            ErrorCode::InvalidId,
+            "max_bytes must be >= 1",
+            None,
+        ));
+    }
+    let max_bytes = max_bytes_arg
         .map(|n| n as usize)
         .unwrap_or_else(blob_max_bytes)
-        .min(blob_max_bytes());
+        .min(blob_max_bytes())
+        .max(1);
 
     let (bytes, media_type) = match representation {
-        "original" => match load_original_bytes(state, tenant_ctx, document_id).await {
+        "original" => match load_original_for_tenant(state, tenant_ctx, document_id).await {
             Ok(v) => v,
             Err(ApiError::NotFound(msg)) => {
                 return Ok(eq_error(ErrorCode::NotFound, msg, None));
@@ -51,7 +58,7 @@ pub async fn eq_document_download(
             }
             Err(e) => return Err(e),
         },
-        "markdown" => match load_markdown_bytes(state, document_id).await {
+        "markdown" => match load_markdown_for_tenant(state, tenant_ctx, document_id).await {
             Ok(v) => v,
             Err(ApiError::NotFound(_)) => {
                 return Ok(eq_error(
@@ -81,39 +88,6 @@ pub async fn eq_document_download(
     ))
 }
 
-async fn load_markdown_bytes(state: &AppState, document_id: &str) -> ApiResult<(Vec<u8>, String)> {
-    let metadata = match crate::services::load_staging_first_metadata(
-        state.storage.kv_storage.as_ref(),
-        document_id,
-    )
-    .await
-    {
-        Ok(Some((_, v))) => v,
-        Ok(None) => {
-            return Err(ApiError::NotFound(format!(
-                "Document not found: {document_id}"
-            )));
-        }
-        Err(e) => return Err(ApiError::Internal(e)),
-    };
-    let status = metadata
-        .get("status")
-        .and_then(|v| v.as_str())
-        .unwrap_or("pending");
-    let body = load_document_body(&state.storage, document_id, &metadata).await;
-    match body {
-        Some(b) if !b.markdown.trim().is_empty() => {
-            Ok((b.markdown.into_bytes(), "text/markdown".to_string()))
-        }
-        _ if status == "indexed" || status == "completed" => {
-            Err(ApiError::NotFound("Markdown content not found".into()))
-        }
-        _ => Err(ApiError::NotFound(
-            "markdown is not ready; poll eq_task_get until indexed".into(),
-        )),
-    }
-}
-
 pub fn chunk_blob_envelope(
     document_id: &str,
     representation: &str,
@@ -126,7 +100,7 @@ pub fn chunk_blob_envelope(
     let start = offset.min(total);
     let end = (start + max_bytes).min(total);
     let slice = &bytes[start..end];
-    let next_offset = if end < total { Some(end) } else { None };
+    let next_offset = if end < total { json!(end) } else { Value::Null };
     let sha = hex::encode(Sha256::digest(bytes));
     let blob_b64 = STANDARD.encode(slice);
     let mut env = EnvelopeBuilder::new("document_download", BudgetClass::Standard)
@@ -136,10 +110,12 @@ pub fn chunk_blob_envelope(
         .insert("byte_length", json!(total))
         .insert("offset", json!(start))
         .insert("chunk_length", json!(slice.len()))
+        .insert("next_offset", next_offset)
         .insert("sha256", json!(sha));
-    if let Some(n) = next_offset {
-        env = env.insert("next_offset", json!(n)).truncation(json!({
+    if end < total {
+        env = env.truncation(json!({
             "truncated": true,
+            "next_cursor": format!("bytes:{end}"),
         }));
     }
     let mut built = env.build();
@@ -159,8 +135,12 @@ pub fn chunk_blob_envelope(
     built
 }
 
-pub async fn read_text_resource(state: &AppState, document_id: &str) -> ApiResult<String> {
-    let (bytes, _) = load_markdown_bytes(state, document_id).await?;
+pub async fn read_text_resource(
+    state: &AppState,
+    tenant_ctx: &TenantContext,
+    document_id: &str,
+) -> ApiResult<String> {
+    let (bytes, _) = load_markdown_for_tenant(state, tenant_ctx, document_id).await?;
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
@@ -169,5 +149,5 @@ pub async fn read_original_resource(
     tenant_ctx: &TenantContext,
     document_id: &str,
 ) -> ApiResult<(Vec<u8>, String)> {
-    load_original_bytes(state, tenant_ctx, document_id).await
+    load_original_for_tenant(state, tenant_ctx, document_id).await
 }

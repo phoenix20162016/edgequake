@@ -36,6 +36,7 @@ mod description_merge;
 mod entity;
 mod entity_resolution;
 mod entity_type_vote;
+mod key_resolver;
 pub mod lineage;
 mod merge_limits;
 mod merge_progress;

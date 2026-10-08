@@ -153,6 +153,74 @@ impl EntityId {
         candidates
     }
 
+    /// Separator-swap variants of a bare or scoped storage id for fold lookup.
+    ///
+    /// SPEC-162 R4/R13: compare-only. Does **not** change stored ids.
+    /// Cap defaults to 16; at most 4 separator positions are flipped (`-` ↔ `_`).
+    pub fn separator_variants(storage_or_slug: &str, cap: usize) -> Vec<String> {
+        let cap = cap.max(1);
+        let (prefix, bare) = match storage_or_slug.split_once(Self::WORKSPACE_SCOPE_SEP) {
+            Some((maybe_ws, rest))
+                if !rest.is_empty()
+                    && maybe_ws.len() == 36
+                    && maybe_ws.chars().filter(|c| *c == '-').count() == 4 =>
+            {
+                (Some(maybe_ws), rest)
+            }
+            _ => (None, storage_or_slug),
+        };
+
+        let mut out = Vec::new();
+        let qualify = |bare_variant: String| -> String {
+            match prefix {
+                Some(ws) => format!("{ws}{}{}", Self::WORKSPACE_SCOPE_SEP, bare_variant),
+                None => bare_variant,
+            }
+        };
+        let push_unique = |out: &mut Vec<String>, bare_variant: String, cap: usize| {
+            if out.len() >= cap {
+                return;
+            }
+            let full = qualify(bare_variant);
+            if !out.iter().any(|c| c == &full) {
+                out.push(full);
+            }
+        };
+
+        push_unique(&mut out, bare.to_string(), cap);
+
+        let sep_idxs: Vec<usize> = bare
+            .char_indices()
+            .filter(|(_, c)| *c == '-' || *c == '_')
+            .map(|(i, _)| i)
+            .take(4)
+            .collect();
+        let n = sep_idxs.len();
+        if n == 0 {
+            return out;
+        }
+        let limit = 1usize << n;
+        for mask in 1..limit {
+            if out.len() >= cap {
+                break;
+            }
+            let mut chars: Vec<char> = bare.chars().collect();
+            for (bit, &idx) in sep_idxs.iter().enumerate() {
+                if (mask & (1 << bit)) == 0 {
+                    continue;
+                }
+                let char_i = bare[..idx].chars().count();
+                match chars.get_mut(char_i) {
+                    Some(c) if *c == '-' => *c = '_',
+                    Some(c) if *c == '_' => *c = '-',
+                    _ => {}
+                }
+            }
+            push_unique(&mut out, chars.into_iter().collect(), cap);
+        }
+        out
+    }
+
     /// The prefixed vector storage id (`entity:NAME`), used as the entity
     /// vector id.
     pub fn as_vector_id(&self) -> String {
@@ -198,6 +266,43 @@ impl From<&EntityId> for String {
     fn from(id: &EntityId) -> Self {
         id.0.clone()
     }
+}
+
+/// Fold key for compare / lookup / merge (SPEC-162 R4).
+///
+/// Maps runs of whitespace, `-`, and `_` to a single `_`. Case-insensitive.
+/// Strips agent `ent:ws:` / workspace `ws::` prefixes before folding.
+/// Does **not** replace [`normalize_entity_name`] storage output.
+pub fn fold_slug_key(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let bare = if let Some(rest) = trimmed.strip_prefix("ent:") {
+        rest.split_once(':').map(|(_, slug)| slug).unwrap_or(rest)
+    } else {
+        EntityId::bare_name_from_graph_node_id(trimmed)
+    };
+    let mut out = String::with_capacity(bare.len());
+    let mut prev_sep = false;
+    for c in bare.chars() {
+        let is_sep = c.is_whitespace() || c == '-' || c == '_';
+        if is_sep {
+            if !prev_sep && !out.is_empty() {
+                out.push('_');
+                prev_sep = true;
+            }
+            continue;
+        }
+        prev_sep = false;
+        for u in c.to_uppercase() {
+            out.push(u);
+        }
+    }
+    while out.ends_with('_') {
+        out.pop();
+    }
+    out
 }
 
 /// The single canonical entity-name normalizer.
@@ -559,6 +664,24 @@ mod tests {
     fn hyphens_and_special_chars_preserved() {
         assert_eq!(EntityId::new("New-York").as_str(), "NEW-YORK");
         assert_eq!(EntityId::new("C++").as_str(), "C++");
+    }
+
+    #[test]
+    fn fold_slug_key_maps_hyphen_underscore_space() {
+        // SPEC-162 R4: compare-only fold; storage id stays NEW-YORK.
+        assert_eq!(fold_slug_key("New-York"), "NEW_YORK");
+        assert_eq!(fold_slug_key("NEW_YORK"), "NEW_YORK");
+        assert_eq!(fold_slug_key("new york"), "NEW_YORK");
+        assert_eq!(fold_slug_key("ent:ws:self-attention"), "SELF_ATTENTION");
+        assert_eq!(fold_slug_key("SELF_ATTENTION"), "SELF_ATTENTION");
+        assert_eq!(EntityId::new("New-York").as_str(), "NEW-YORK");
+    }
+
+    #[test]
+    fn separator_variants_swap_hyphen_underscore() {
+        let v = EntityId::separator_variants("SELF-ATTENTION", 16);
+        assert!(v.contains(&"SELF-ATTENTION".to_string()));
+        assert!(v.contains(&"SELF_ATTENTION".to_string()));
     }
 
     #[test]

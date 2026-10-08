@@ -8,11 +8,11 @@ use crate::handlers::context_types::ContextRetrievalResponse;
 use crate::services::query_context::{fetch_context_by_id, FetchContextOptions};
 
 use super::budget::{apply_budget, apply_chunk_cursor, BudgetClass};
+use super::cursor::{Cursor, CursorObject};
+use super::entity_ref::agent_id_for_node;
 use super::envelope::EnvelopeBuilder;
 use super::errors::{eq_error, ErrorCode};
-use super::ids::{
-    agent_entity_id, is_artifact_type, map_entity_type, title_case_label, truncate_chars,
-};
+use super::ids::{is_artifact_type, map_entity_type, title_case_label, truncate_chars};
 use super::scores::scores_from_hits;
 
 pub async fn eq_fetch(args: &Value, workspace: &str) -> ApiResult<Value> {
@@ -44,6 +44,24 @@ pub async fn eq_fetch(args: &Value, workspace: &str) -> ApiResult<Value> {
             .collect()
     });
     let cursor = args.get("cursor").and_then(|v| v.as_str());
+    if let Some(raw) = cursor.filter(|s| !s.is_empty()) {
+        let expected = match view {
+            "chunks" => Some(CursorObject::Chunks),
+            "entities" => Some(CursorObject::Entities),
+            _ => None,
+        };
+        if let Some(exp) = expected {
+            if let Err(err) = Cursor::require_object(Some(raw), exp) {
+                return Ok(err);
+            }
+        } else if Cursor::parse(raw).is_err() {
+            return Ok(eq_error(
+                ErrorCode::InvalidId,
+                format!("invalid cursor: {raw}"),
+                None,
+            ));
+        }
+    }
 
     let resp = match fetch_context_by_id(
         retrieval_id,
@@ -142,7 +160,12 @@ pub fn project_fetch(
             if !include_artifacts && is_artifact_type(&e.entity_type) {
                 continue;
             }
-            let id = agent_entity_id(workspace, &e.name);
+            let storage_id = if !e.graph_node_id.is_empty() {
+                e.graph_node_id.as_str()
+            } else {
+                e.name.as_str()
+            };
+            let id = agent_id_for_node(workspace, storage_id);
             if let Some(filter) = ids {
                 if !filter.is_empty()
                     && !filter
@@ -152,18 +175,26 @@ pub fn project_fetch(
                     continue;
                 }
             }
+            let mut doc_ids = e.source_document_ids.clone();
+            if doc_ids.is_empty() {
+                if let Some(ref lin) = e.lineage {
+                    doc_ids = lin.source_document_ids.clone();
+                    if doc_ids.is_empty() {
+                        if let Some(ref singular) = lin.source_document_id {
+                            doc_ids.push(singular.clone());
+                        }
+                    }
+                }
+            }
             entities.push(json!({
                 "id": id,
-                "name": title_case_label(&e.name),
-                "slug": e.name.to_ascii_uppercase().replace(' ', "_"),
+                "name": title_case_label(edgequake_storage::EntityId::bare_name_from_graph_node_id(storage_id)),
+                "slug": super::ids::resolve_entity_lookup(storage_id),
                 "type": map_entity_type(&e.entity_type),
                 "one_liner": truncate_chars(&e.description, budget.max_one_liner()),
                 "degree": e.degree,
                 "score": e.score,
-                "document_ids": e.lineage.as_ref()
-                    .and_then(|l| l.source_document_id.clone())
-                    .map(|d| vec![d])
-                    .unwrap_or_default(),
+                "document_ids": doc_ids,
             }));
         }
 
@@ -184,8 +215,8 @@ pub fn project_fetch(
             relationships.push(json!({
                 "id": r.id,
                 "type": r.relation_type,
-                "source": agent_entity_id(workspace, src),
-                "target": agent_entity_id(workspace, tgt),
+                "source": agent_id_for_node(workspace, src),
+                "target": agent_id_for_node(workspace, tgt),
                 "score": r.score,
             }));
         }

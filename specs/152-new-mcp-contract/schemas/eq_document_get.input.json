@@ -11,7 +11,20 @@
       "type": "array",
       "items": { "enum": ["metadata", "outline", "text", "assets"] },
       "default": ["metadata"],
-      "description": "assets = metadata only (ids, kind, page, media_type, byte_length); use eq_asset_get for pixels"
+      "description": "text returns text_page (offset/limit/total_chars) plus optional eq:// resource; assets = metadata only"
+    },
+    "text_offset": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "SPEC-162: character offset into document text"
+    },
+    "text_limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32000,
+      "default": 8000,
+      "description": "SPEC-162: max characters in text_page"
     },
     "workspace_id": {
       "type": "string",

@@ -179,10 +179,45 @@ pub async fn eq_document_get(
         "task_id": metadata.get("task_id").or_else(|| metadata.get("track_id")).cloned(),
     });
     let mut lineage = Vec::new();
+    let mut text_page_value: Option<Value> = None;
     if include.contains(&"text") {
         let uri = format!("eq://{ws}/documents/{document_id}/text");
         projected["text_resource"] = json!(uri);
         lineage.push(uri);
+        // SPEC-162 R9: return a text page in the tool result (URI remains).
+        let text_offset = args
+            .get("text_offset")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        let text_limit = args
+            .get("text_limit")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as usize)
+            .unwrap_or(crate::mcp::project::doc_text::DEFAULT_TEXT_LIMIT)
+            .clamp(1, crate::mcp::project::doc_text::MAX_TEXT_LIMIT);
+        match crate::mcp::project::doc_text::load_markdown_for_tenant(
+            state,
+            tenant_ctx,
+            document_id,
+        )
+        .await
+        {
+            Ok((bytes, _)) => {
+                let full = String::from_utf8_lossy(&bytes);
+                text_page_value = Some(crate::mcp::project::doc_text::text_page(
+                    &full,
+                    text_offset,
+                    text_limit,
+                ));
+            }
+            Err(ApiError::NotFound(_)) if !ready => {
+                // Keep metadata; agent polls until indexed.
+            }
+            Err(ApiError::NotFound(msg)) => {
+                return Ok(eq_error(ErrorCode::NotReady, msg, None));
+            }
+            Err(e) => return Err(e),
+        }
     }
     if include.contains(&"outline") {
         let uri = format!("eq://{ws}/documents/{document_id}/outline");
@@ -202,6 +237,9 @@ pub async fn eq_document_get(
         .insert("status", json!(status))
         .insert("ready", json!(ready))
         .insert("lineage_resources", json!(lineage));
+    if let Some(page) = text_page_value {
+        env = env.insert("text_page", page);
+    }
     if !ready {
         env = env.insert(
             "poll",

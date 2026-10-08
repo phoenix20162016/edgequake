@@ -753,10 +753,13 @@ Get an entity's neighborhood with connected entities and relationships.
 
 **Parameters:**
 
-| Name          | Type   | Required | Default | Description                       |
-| ------------- | ------ | -------- | ------- | --------------------------------- |
-| `entity_name` | string | yes      | -       | Entity name to explore            |
-| `max_depth`   | number | no       | `1`     | Maximum relationship hops (1-3)   |
+| Name          | Type   | Required | Default | Description                                      |
+| ------------- | ------ | -------- | ------- | ------------------------------------------------ |
+| `entity_id`   | string | no*      | -       | Agent id `ent:{workspace}:{slug}` (preferred)    |
+| `entity_name` | string | no*      | -       | Legacy bare name; resolved when `entity_id` absent |
+| `max_depth`   | number | no       | `1`     | Maximum relationship hops (1-3)                  |
+
+\* One of `entity_id` or `entity_name` is required.
 
 #### `graph_search_entities`
 

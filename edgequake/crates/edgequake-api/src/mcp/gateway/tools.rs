@@ -288,7 +288,7 @@ fn eq_workspace_stats_tool() -> Value {
 fn eq_document_get_tool() -> Value {
     json!({
         "name": "eq_document_get",
-        "description": "Document metadata by default. include text returns eq:// resource link, not PDF bytes.",
+        "description": "Document metadata by default. include text returns text_page (offset/limit/total_chars) plus optional eq:// resource link.",
         "inputSchema": {
             "type": "object",
             "additionalProperties": false,
@@ -300,6 +300,8 @@ fn eq_document_get_tool() -> Value {
                     "items": { "enum": ["metadata", "outline", "text"] },
                     "default": ["metadata"]
                 },
+                "text_offset": { "type": "integer", "minimum": 0, "default": 0 },
+                "text_limit": { "type": "integer", "minimum": 1, "maximum": 32000, "default": 8000 },
                 "workspace_id": { "type": "string", "x-mcp-header": "Workspace-Id" },
                 "budget": { "enum": ["cheap", "standard", "deep"], "default": "standard" }
             }

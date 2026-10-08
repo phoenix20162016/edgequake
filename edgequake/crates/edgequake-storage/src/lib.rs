@@ -143,7 +143,7 @@ pub use dataop::{all_ref_ids, is_valid_ref_id, sql_comment};
 pub use storage_op_metrics::TimedStorageOp;
 
 // Re-export entity identity (RC-6 / P-G1): single normalization entry point.
-pub use entity_id::{is_opaque_identifier, normalize_entity_name, EntityId};
+pub use entity_id::{fold_slug_key, is_opaque_identifier, normalize_entity_name, EntityId};
 // SPEC-083 X-17: optional fuzzy / blocking resolution (default off).
 pub use entity_fuzzy::{
     blocking_key, entity_fuzzy_enabled, find_best_fuzzy_match, fuzzy_match_threshold,

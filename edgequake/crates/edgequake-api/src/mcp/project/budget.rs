@@ -68,22 +68,57 @@ impl BudgetClass {
 /// Expects `chunks` / `entities` / `relationships` arrays with optional `score`.
 /// Returns `(value, still_over_cap)`.
 pub fn apply_budget(mut envelope: Value, budget: BudgetClass) -> (Value, bool) {
+    // Preserve omit counts already set by the tool (SPEC-162 F-162-B).
+    let prior_omitted_entities = envelope
+        .pointer("/truncation/omitted_entities")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let prior_omitted_chunks = envelope
+        .pointer("/truncation/omitted_chunks")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let prior_omitted_rels = envelope
+        .pointer("/truncation/omitted_relationships")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+
     let omitted_chunks = truncate_scored_array(&mut envelope, "chunks", budget.max_chunks());
     let omitted_entities = truncate_scored_array(&mut envelope, "entities", budget.max_entities());
     let omitted_relationships =
         truncate_scored_array(&mut envelope, "relationships", budget.max_entities());
 
-    let mut truncated = omitted_chunks > 0 || omitted_entities > 0 || omitted_relationships > 0;
+    let total_omitted_chunks = omitted_chunks.max(prior_omitted_chunks);
+    let total_omitted_entities = omitted_entities.max(prior_omitted_entities);
+    let total_omitted_rels = omitted_relationships.max(prior_omitted_rels);
+
+    let mut truncated =
+        total_omitted_chunks > 0 || total_omitted_entities > 0 || total_omitted_rels > 0;
     let mut next_cursor: Option<String> = None;
 
     if truncated {
-        // Cursor = offset into original chunk list after keep.
-        let kept = envelope
-            .get("chunks")
-            .and_then(|v| v.as_array())
-            .map(|a| a.len())
-            .unwrap_or(0);
-        next_cursor = Some(format!("chunks:{kept}"));
+        // SPEC-162 R14: cursor object matches what was omitted.
+        if total_omitted_entities > 0 {
+            let kept = envelope
+                .get("entities")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
+            next_cursor = Some(format!("entities:{kept}"));
+        } else if total_omitted_rels > 0 {
+            let kept = envelope
+                .get("relationships")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
+            next_cursor = Some(format!("relationships:{kept}"));
+        } else if total_omitted_chunks > 0 {
+            let kept = envelope
+                .get("chunks")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
+            next_cursor = Some(format!("chunks:{kept}"));
+        }
     }
 
     // Shrink string fields if still over bytes.
@@ -114,14 +149,14 @@ pub fn apply_budget(mut envelope: Value, budget: BudgetClass) -> (Value, bool) {
         if let Some(c) = next_cursor {
             trunc["next_cursor"] = json!(c);
         }
-        if omitted_chunks > 0 {
-            trunc["omitted_chunks"] = json!(omitted_chunks);
+        if total_omitted_chunks > 0 {
+            trunc["omitted_chunks"] = json!(total_omitted_chunks);
         }
-        if omitted_entities > 0 {
-            trunc["omitted_entities"] = json!(omitted_entities);
+        if total_omitted_entities > 0 {
+            trunc["omitted_entities"] = json!(total_omitted_entities);
         }
-        if omitted_relationships > 0 {
-            trunc["omitted_relationships"] = json!(omitted_relationships);
+        if total_omitted_rels > 0 {
+            trunc["omitted_relationships"] = json!(total_omitted_rels);
         }
         obj.insert("truncation".into(), trunc);
         obj.insert("budget_used".into(), json!(budget.as_str()));

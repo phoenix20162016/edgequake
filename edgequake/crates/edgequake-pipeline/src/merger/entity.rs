@@ -147,7 +147,17 @@ impl<G: GraphStorage + ?Sized, V: VectorStorage + ?Sized> super::KnowledgeGraphM
             }
             // SPEC-032 / B3b: workspace-scoped AGE node_id so Acc WS cannot
             // collide with foreign tenants on bare EntityId.
-            let key = entity_id.graph_node_id_for_workspace(self.workspace_id.as_deref());
+            let mut key = entity_id.graph_node_id_for_workspace(self.workspace_id.as_deref());
+            // SPEC-162 R13: within-batch fold collapse (hyphen ↔ underscore).
+            let fold = edgequake_storage::fold_slug_key(entity_id.as_str());
+            if !fold.is_empty() {
+                if let Some(existing_key) = dedup_keys.iter().find(|k| {
+                    edgequake_storage::fold_slug_key(EntityId::bare_name_from_graph_node_id(k))
+                        == fold
+                }) {
+                    key = existing_key.clone();
+                }
+            }
             if let Some(existing) = dedup_map.get_mut(&key) {
                 // Merge descriptions: keep longer (richer)
                 if entity.description.len() > existing.description.len() {
@@ -218,6 +228,16 @@ impl<G: GraphStorage + ?Sized, V: VectorStorage + ?Sized> super::KnowledgeGraphM
             valid.iter().map(|e| e.source_chunk_ids.clone()).collect();
 
         let mut existing_map = self.graph_storage.get_nodes_batch(&keys).await?;
+
+        // SPEC-162 R13: fold-equivalent resolve before create (hyphen ↔ underscore).
+        super::key_resolver::resolve_fold_keys(
+            self.graph_storage.as_ref(),
+            self.workspace_id.as_deref(),
+            &mut keys,
+            &mut existing_map,
+        )
+        .await?;
+        self.collapse_duplicate_keys(&mut keys, &mut valid);
 
         // X-17: fuzzy resolve against graph for exact misses (bounded sample).
         if edgequake_storage::entity_fuzzy_enabled() {

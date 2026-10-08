@@ -19,10 +19,11 @@ use crate::services::retrieval_id_cache::global_retrieval_cache;
 use crate::state::AppState;
 
 use super::budget::{apply_budget, BudgetClass};
+use super::doc_scope::DocumentScope;
+use super::entity_ref::agent_id_for_node;
 use super::envelope::EnvelopeBuilder;
-use super::ids::{
-    agent_entity_id, is_artifact_type, map_entity_type, title_case_label, truncate_chars,
-};
+use super::errors::{eq_error, ErrorCode};
+use super::ids::{is_artifact_type, map_entity_type, title_case_label, truncate_chars};
 use super::scores::scores_from_hits;
 
 const DEFAULT_HIT_LIMIT: usize = 8;
@@ -53,7 +54,49 @@ pub async fn eq_search(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    let document_filter = build_document_filter(args);
+    // SPEC-162 R7/R8: hard MCP scope (ids ∩ pattern); unknown id → not_found.
+    let scope = DocumentScope::resolve(state, tenant_ctx, args).await?;
+    if let Some(ref s) = scope {
+        if let Some(unknown) = s.unknown_ids.first() {
+            return Ok(eq_error(
+                ErrorCode::NotFound,
+                format!("Document not found: {unknown}"),
+                None,
+            ));
+        }
+        if s.filter_result == Some("no_match") {
+            let expires_at = Utc::now() + ChronoDuration::minutes(15);
+            return Ok(EnvelopeBuilder::new("search", budget)
+                .insert("retrieval_id", json!(null))
+                .insert("expires_at", json!(expires_at.to_rfc3339()))
+                .insert("hits", json!([]))
+                .insert("documents_considered", json!([]))
+                .insert("filter_result", json!("no_match"))
+                .insert(
+                    "message",
+                    json!(s
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| "No document matches the pattern.".into())),
+                )
+                .build());
+        }
+        if s.allowed_ids.is_empty() {
+            let expires_at = Utc::now() + ChronoDuration::minutes(15);
+            return Ok(EnvelopeBuilder::new("search", budget)
+                .insert("retrieval_id", json!(null))
+                .insert("expires_at", json!(expires_at.to_rfc3339()))
+                .insert("hits", json!([]))
+                .insert("documents_considered", json!([]))
+                .insert("filter_result", json!("empty"))
+                .build());
+        }
+    }
+
+    let document_filter = scope.as_ref().map(|s| DocumentFilter {
+        document_ids: Some(s.allowed_ids.clone()),
+        ..Default::default()
+    });
 
     let full_request = ContextRetrievalRequest {
         query: query.clone(),
@@ -75,14 +118,48 @@ pub async fn eq_search(
     let response = retrieve_context(state, tenant_ctx, full_request, llm_override).await?;
     let expires_at = Utc::now() + ChronoDuration::minutes(15);
 
-    Ok(project_search_response(
+    let mut projected = project_search_response(
         &response,
         tenant_ctx.workspace_id.as_deref().unwrap_or("default"),
         budget,
         limit,
         expires_at.to_rfc3339(),
         false,
-    ))
+    );
+
+    if let Some(ref s) = scope {
+        // Defense in depth: drop hits outside allowed ids.
+        if let Some(hits) = projected.get_mut("hits").and_then(|v| v.as_array_mut()) {
+            hits.retain(|h| {
+                let doc = h.get("document_id").and_then(|v| v.as_str()).unwrap_or("");
+                let docs = h
+                    .get("document_ids")
+                    .and_then(|v| v.as_array())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|x| x.as_str())
+                            .any(|d| s.allowed_ids.iter().any(|a| a == d))
+                    })
+                    .unwrap_or(false);
+                s.allowed_ids.iter().any(|a| a == doc) || docs
+            });
+        }
+        let mut considered = s.allowed_ids.clone();
+        considered.sort();
+        if let Some(obj) = projected.as_object_mut() {
+            obj.insert("documents_considered".into(), json!(considered));
+            let hits_empty = obj
+                .get("hits")
+                .and_then(|v| v.as_array())
+                .map(|a| a.is_empty())
+                .unwrap_or(true);
+            if hits_empty {
+                obj.insert("filter_result".into(), json!("empty"));
+            }
+        }
+    }
+
+    Ok(projected)
 }
 
 pub fn project_search_response(
@@ -96,12 +173,13 @@ pub fn project_search_response(
     let mut hits = build_hits(&response.bundle, workspace, limit, include_artifacts);
     let score_type = scores_from_hits(&hits);
     let cross_document = compute_cross_document(&response.bundle);
-    let documents_considered: Vec<String> = response
+    let mut documents_considered: Vec<String> = response
         .bundle
         .documents
         .iter()
         .map(|d| d.document_id.clone())
         .collect();
+    documents_considered.sort();
 
     let (mode_used, mode_reason) = mode_echo(&response.mode_selection);
 
@@ -179,19 +257,33 @@ fn build_hits(
         if !include_artifacts && is_artifact_type(&ent.entity_type) {
             continue;
         }
-        let id = agent_entity_id(workspace, &ent.name);
-        let doc_id = ent
-            .lineage
-            .as_ref()
-            .and_then(|l| l.source_document_id.clone())
-            .unwrap_or_default();
+        // SPEC-162 R3: same field as eq_entity_search (storage / graph_node_id).
+        let storage_id = if !ent.graph_node_id.is_empty() {
+            ent.graph_node_id.as_str()
+        } else {
+            ent.name.as_str()
+        };
+        let id = agent_id_for_node(workspace, storage_id);
+        let mut doc_ids = ent.source_document_ids.clone();
+        if doc_ids.is_empty() {
+            if let Some(ref lin) = ent.lineage {
+                doc_ids = lin.source_document_ids.clone();
+                if doc_ids.is_empty() {
+                    if let Some(ref singular) = lin.source_document_id {
+                        doc_ids.push(singular.clone());
+                    }
+                }
+            }
+        }
+        let doc_id = doc_ids.first().cloned().unwrap_or_default();
         candidates.push((
             ent.score as f64,
             json!({
                 "kind": "entity",
                 "id": id,
                 "document_id": doc_id,
-                "title": title_case_label(&ent.name),
+                "document_ids": doc_ids,
+                "title": title_case_label(edgequake_storage::EntityId::bare_name_from_graph_node_id(storage_id)),
                 "snippet": truncate_chars(&ent.description, SNIPPET_MAX),
                 "score": ent.score,
                 "type": map_entity_type(&ent.entity_type),
