@@ -203,4 +203,16 @@ if [[ "$OPENAPI_VER" != "$API_VER" ]]; then
 fi
 echo "OpenAPI snapshot version parity OK: $OPENAPI_VER"
 
+echo "== Migration checksum immutability =="
+chmod +x "$ROOT/scripts/check_migration_checksums.sh"
+"$ROOT/scripts/check_migration_checksums.sh"
+
+echo "== SPEC-150 epoch coverage (every vX.Y.Z tag) =="
+chmod +x "$ROOT/scripts/check_epoch_coverage.sh"
+"$ROOT/scripts/check_epoch_coverage.sh"
+
+echo "== Schema train parity (docs ↔ highest migration) =="
+chmod +x "$ROOT/scripts/check_schema_train_docs.sh"
+"$ROOT/scripts/check_schema_train_docs.sh"
+
 echo "✓ release gates passed"

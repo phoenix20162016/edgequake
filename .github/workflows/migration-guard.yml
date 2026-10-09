@@ -23,6 +23,9 @@ on:
     paths:
       - "edgequake/migrations/**"
       - "scripts/check_migration_checksums.sh"
+      - "scripts/check_epoch_coverage.sh"
+      - "scripts/check_schema_train_docs.sh"
+      - "scripts/spec150/epochs.toml"
       - "scripts/test_migration_e2e.sh"
       - ".github/workflows/migration-guard.yml"
   pull_request:
@@ -30,6 +33,9 @@ on:
     paths:
       - "edgequake/migrations/**"
       - "scripts/check_migration_checksums.sh"
+      - "scripts/check_epoch_coverage.sh"
+      - "scripts/check_schema_train_docs.sh"
+      - "scripts/spec150/epochs.toml"
       - "scripts/test_migration_e2e.sh"
       - ".github/workflows/migration-guard.yml"
   # Run Layer 1 on every PR to main (checksum check is fast, no DB needed)
@@ -67,6 +73,16 @@ jobs:
         run: |
           chmod +x scripts/check_migration_checksums.sh
           ./scripts/check_migration_checksums.sh --verbose
+
+      - name: Epoch coverage (every published vX.Y.Z)
+        run: |
+          chmod +x scripts/check_epoch_coverage.sh
+          ./scripts/check_epoch_coverage.sh
+
+      - name: Schema train docs parity
+        run: |
+          chmod +x scripts/check_schema_train_docs.sh
+          ./scripts/check_schema_train_docs.sh
 
   # ──────────────────────────────────────────────────────────
   # LAYER 2 + 3: Dynamic E2E migration test (PostgreSQL)

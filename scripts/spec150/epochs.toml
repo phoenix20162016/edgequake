@@ -223,3 +223,68 @@ mode = "image"
 pg_majors = [16,17,18]
 key = true
 replay = true
+# Schema-identical aliases: v0.26.1 … v0.26.10 (max mig 149)
+
+[[epoch]]
+tag = "v0.27.0"
+mode = "image"
+pg_majors = [16,17,18]
+key = true
+replay = true
+# SPEC-149/150 train — max mig 159 (migration_run telemetry)
+
+[[epoch]]
+tag = "v0.28.0"
+mode = "image"
+pg_majors = [16,17,18]
+key = false
+replay = true
+# Schema-identical aliases: v0.28.1 v0.28.2 (max mig 160)
+
+[[epoch]]
+tag = "v0.28.3"
+mode = "image"
+pg_majors = [16,17,18]
+key = false
+replay = true
+# max mig 161
+
+[[epoch]]
+tag = "v0.28.4"
+mode = "image"
+pg_majors = [16,17,18]
+key = false
+replay = true
+# Schema-identical aliases: v0.28.5 (max mig 162)
+
+[[epoch]]
+tag = "v0.29.0"
+mode = "image"
+pg_majors = [16,17,18]
+key = true
+replay = true
+# max mig 163 (SPEC-155 feedback)
+
+[[epoch]]
+tag = "v0.30.0"
+mode = "image"
+pg_majors = [16,17,18]
+key = true
+replay = true
+# max mig 165 (SPEC-158 federation + access JTI)
+
+[[epoch]]
+tag = "v0.31.0"
+mode = "image"
+pg_majors = [16,17,18]
+key = false
+replay = true
+# max mig 166 (SPEC-160 decision)
+
+[[epoch]]
+tag = "v0.32.0"
+mode = "image"
+pg_majors = [16,17,18]
+key = true
+replay = true
+# Schema-identical aliases: v0.32.1 v0.32.2 · HEAD (max mig 168)

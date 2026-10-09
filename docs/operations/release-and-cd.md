@@ -24,6 +24,7 @@ make spec046-acc            # SPEC-046 Hybrid RAG ACC + JSON artifact
 make codegen-openapi-refresh # OpenAPI snapshot + schema.d.ts from ApiDoc
 cd edgequake && cargo test -p edgequake-api --test spec027_api_contract && cd ..
 make release-gates          # fmt + workspace clippy + SPEC-006/018 + WebUI + version/OpenAPI parity
+                            # + migration checksum lock + epoch coverage + schema train parity
 make test-e2e-lint          # Playwright flake anti-patterns
 # SPEC-001 LightRAG Acc (local mandatory — see section below; not in release_gates.sh / CI):
 make bench001-doctor
@@ -31,12 +32,26 @@ make bench                  # or: make bench-warm
 # Optional deeper proofs:
 make spec020-qc-proof-strict # SPEC-020 E2E (migration-038 strict)
 make spec020-qc-proof-full    # SPEC-020 + require Ollama (0 skips)
+make spec150-matrix-quick    # key epochs → HEAD on PG16/17/18 (FORCE_REPLAY)
 make stop
 make spec013-proof-pr
 cd edgequake && cargo clippy -p edgequake-pipeline -p edgequake-core -p edgequake-api --all-targets --features postgres -- -D warnings
 cd ../edgequake_webui && bunx tsc --noEmit -p tsconfig.release.json
 cd .. && make backend-bg frontend-bg && make spec013-proof-ui
 ```
+
+### Does this release change the schema?
+
+Every upgrade guide and CHANGELOG entry must answer:
+
+| Question | Where to record |
+|----------|-----------------|
+| New numbered migration(s)? | Highest `NNN_*.sql`; `manifest.toml` `compat_serve_max` |
+| Epoch coverage? | Add `[[epoch]]` to `scripts/spec150/epochs.toml` if the migration set is new |
+| Operator steps? | Link [upgrading.md](upgrading.md); note if migrate is a no-op |
+| Acc re-score needed? | Honest residual in the cut notes |
+
+`scripts/release_gates.sh` fails if: checksums drift, a published tag lacks an epoch, or docs claim a schema max other than the highest numbered migration.
 
 `make release-gates` uses workspace clippy as SSOT. Set `RELEASE_SKIP_PER_CRATE_CLIPPY=0` locally if you want the slower O(N) per-crate loop. CI always sets `RELEASE_SKIP_LIB_TESTS=1` and `RELEASE_SKIP_PER_CRATE_CLIPPY=1` because `CI.yml` already owns the lib suite.
 

@@ -34,6 +34,20 @@ pub(crate) async fn run_migrate_cli(args: &[String]) -> Result<()> {
         }
     };
 
+    // Environment preflight (read-only) before any schema write.
+    match crate::migrate_preflight::run_preflight(&bundle.admin).await {
+        Ok(report) => {
+            if let Err(e) = crate::migrate_preflight::print_preflight_report(&report) {
+                migrate_console::print_failure_hint(&e);
+                return Err(e);
+            }
+        }
+        Err(e) => {
+            migrate_console::print_failure_hint(&e);
+            return Err(e).context("migrate preflight failed");
+        }
+    }
+
     let pending =
         match edgequake_api::state::migration_bootstrap::list_pending_migrations(&bundle.admin)
             .await

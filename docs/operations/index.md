@@ -3,7 +3,7 @@ title: Operations
 description: Deploy, monitor, and tune EdgeQuake in production.
 ---
 
-> **Product: v0.26.5** · Contract: OpenAPI
+> **Product: v0.32.2** · Schema train **168** · Contract: OpenAPI
 
 Production deployment and operations guides.
 
@@ -16,9 +16,11 @@ EdgeQuake now documents and follows a few simple operational invariants:
 - cancel superseded CI runs on the same branch to reduce stale signal and wasted minutes
 - keep heavyweight coverage and full-E2E flows outside the fastest blocking feedback loop
 - fail closed when an explicit workspace context is invalid or missing
+- **never** rely on API boot to migrate the database — run `edgequake migrate` explicitly
 
 ## Guides
 
+- **[Upgrading (database migrations)](/docs/operations/upgrading/)** — Plain-English upgrade from any published version (canonical).
 - **[Docker Quickstart](/docs/operations/docker-quickstart/)** — Full stack from GHCR images (no local build).
 - **[Deployment](/docs/operations/deployment/)** — Docker, Kubernetes, GCP Option A, and bare-metal.
 - **[Configuration](/docs/operations/configuration/)** — Environment variables and runtime settings.

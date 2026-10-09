@@ -10,6 +10,8 @@ mod migrate_apply;
 #[cfg(feature = "postgres")]
 mod migrate_console;
 #[cfg(feature = "postgres")]
+mod migrate_preflight;
+#[cfg(feature = "postgres")]
 mod schema_gate_wait;
 
 use anyhow::{Context, Result};
@@ -730,6 +732,7 @@ async fn run_migrate_status_cli() -> Result<()> {
 /// SPEC-091 Migration Console (doc 15 §7) — usage for the `migrate` verb family.
 const MIGRATE_USAGE: &str = "usage:
   edgequake migrate [--confirm-drop|--drop-confirm]  apply schema migrations (+ reconcile)
+  edgequake migrate check                       preflight environment (no writes)
   edgequake migrate dry-run                     preview pending + posture (no writes)
   edgequake migrate drain [--timeout <secs>]    foreground data-engine drain (SPEC-150)
   edgequake migrate status                      raw per-job progress ledger
@@ -755,6 +758,7 @@ async fn dispatch_migrate(rest: &[String]) -> Result<()> {
             }
             migrate_apply::run_migrate_cli(rest).await
         }
+        Some("check") | Some("check-only") => migrate_preflight::run_migrate_check_cli().await,
         Some("dry-run") => run_migrate_dry_run_cli().await,
         Some("drain") => migrate_apply::run_migrate_drain(&rest[1..]).await,
         Some("status") => run_migrate_status_cli().await,

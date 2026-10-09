@@ -93,6 +93,10 @@ pub enum MigrateAbortClass {
     LegacyAssert142,
     ChecksumRefuse,
     Lock,
+    ExtensionMissing,
+    DiskFull,
+    DirtyVersion,
+    BinaryOlder,
     Other,
 }
 
@@ -116,9 +120,29 @@ pub fn classify_migrate_abort(msg: &str) -> MigrateAbortClass {
         MigrateAbortClass::LegacyAssert142
     } else if msg.contains("checksum drift") || msg.contains("Refusing silent repair") {
         MigrateAbortClass::ChecksumRefuse
+    } else if msg.contains("PREFLIGHT_BINARY_OLDER") || msg.contains("binary older than database") {
+        MigrateAbortClass::BinaryOlder
+    } else if msg.contains("Dirty")
+        || msg.contains("dirty version")
+        || lower.contains("success = false")
+    {
+        MigrateAbortClass::DirtyVersion
+    } else if lower.contains("extension")
+        && (lower.contains("does not exist")
+            || lower.contains("not available")
+            || lower.contains("missing")
+            || msg.contains("PREFLIGHT_EXTENSION"))
+    {
+        MigrateAbortClass::ExtensionMissing
+    } else if lower.contains("no space left")
+        || lower.contains("disk full")
+        || msg.contains("PREFLIGHT_DISK")
+    {
+        MigrateAbortClass::DiskFull
     } else if lower.contains("pg_locks")
         || lower.contains("40p01")
         || lower.contains("55p03")
+        || lower.contains("migrate_lock_busy")
         || (lower.contains("lock") && lower.contains("tasks"))
     {
         MigrateAbortClass::Lock
@@ -382,10 +406,45 @@ pub fn print_drop_abort_hint(err: &dyn std::fmt::Display) {
         }
         MigrateAbortClass::Lock => {
             eprintln!(
-                "hint: lock / contention — check pg_locks / other backends holding locks on public.tasks"
+                "hint: lock / contention — wait for the other migrate Job, or inspect pg_locks."
+            );
+            eprintln!(
+                "      concurrent migrate exits 75 after EDGEQUAKE_MIGRATE_LOCK_DEADLINE (default 60s)."
             );
         }
-        MigrateAbortClass::Other => {}
+        MigrateAbortClass::ExtensionMissing => {
+            eprintln!("hint: required PostgreSQL extension missing (vector and/or age).");
+            eprintln!("      Use the EdgeQuake postgres image (AGE + pgvector), or:");
+            eprintln!(
+                "      CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS age;"
+            );
+            eprintln!("      See edgequake/docker/extension-pins.sh for supported majors.");
+        }
+        MigrateAbortClass::DiskFull => {
+            eprintln!(
+                "hint: disk appears full — free space on the Postgres data volume, then retry."
+            );
+            eprintln!("      Large AGE/index migrations need headroom proportional to graph size.");
+        }
+        MigrateAbortClass::DirtyVersion => {
+            eprintln!("hint: a previous migrate left a dirty _sqlx_migrations row.");
+            eprintln!("      1) SELECT * FROM public._sqlx_migrations WHERE success = false;");
+            eprintln!("      2) Fix the failed DDL (or confirm it did not partially apply)");
+            eprintln!(
+                "      3) DELETE the dirty row only after that check, then: edgequake migrate"
+            );
+            eprintln!("      See docs/operations/upgrading.md § Recovery.");
+        }
+        MigrateAbortClass::BinaryOlder => {
+            eprintln!("hint: this migrate binary is older than the database schema.");
+            eprintln!("      Upgrade the migrator image/binary to ≥ the API version, then retry.");
+            eprintln!("      Never run an older migrator against a newer ledger.");
+        }
+        MigrateAbortClass::Other => {
+            eprintln!("hint: see docs/operations/upgrading.md (recovery) and:");
+            eprintln!("      edgequake migrate dry-run");
+            eprintln!("      edgequake migrate check");
+        }
     }
 }
 
@@ -416,9 +475,20 @@ pub fn print_summary(pending_before: usize, latest: Option<i64>, applied_count: 
 
 /// Actionable stderr hint when migrate fails.
 pub fn print_failure_hint(err: &dyn std::fmt::Display) {
-    eprintln!("migrate failed: {err}");
-    eprintln!("hint: re-run with RUST_LOG=edgequake.migration=info,edgequake=info");
+    eprintln!();
+    eprintln!("══════════════════════════════════════════════════════════════════");
+    eprintln!(" MIGRATE FAILED");
+    eprintln!("══════════════════════════════════════════════════════════════════");
+    eprintln!(" cause: {err}");
+    eprintln!();
+    eprintln!(" what is safe: the database is left at the last successfully applied");
+    eprintln!("               schema version; re-run `edgequake migrate` after fixing.");
+    eprintln!(" next:         edgequake migrate check   # preflight");
+    eprintln!("               edgequake migrate dry-run  # preview");
+    eprintln!(" logs:         RUST_LOG=edgequake.migration=info,edgequake=info");
+    eprintln!();
     print_wave_d_abort_hint(err);
+    eprintln!("══════════════════════════════════════════════════════════════════");
 }
 
 /// SPEC-091 P4: one status line per migration job (`edgequake migrate status`).
@@ -966,6 +1036,22 @@ mod first_principles_tests {
         assert_eq!(
             classify_migrate_abort("connection refused"),
             MigrateAbortClass::Other
+        );
+        assert_eq!(
+            classify_migrate_abort("PREFLIGHT_EXTENSION: age missing"),
+            MigrateAbortClass::ExtensionMissing
+        );
+        assert_eq!(
+            classify_migrate_abort("PREFLIGHT_DISK: no space left on device"),
+            MigrateAbortClass::DiskFull
+        );
+        assert_eq!(
+            classify_migrate_abort("migration 148 is dirty (success = false)"),
+            MigrateAbortClass::DirtyVersion
+        );
+        assert_eq!(
+            classify_migrate_abort("PREFLIGHT_BINARY_OLDER: binary older than database"),
+            MigrateAbortClass::BinaryOlder
         );
     }
 

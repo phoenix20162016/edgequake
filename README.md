@@ -167,16 +167,18 @@ Upgrade: **[upgrade-to-0.25.0.md](docs/operations/upgrade-to-0.25.0.md)** · cha
 #### Database migration (read this first)
 
 **The API never migrates the database.** Schema changes are an explicit operator step.
+Current schema train: **168** (product pin **v0.32.2**).
 
 | Situation | What to run |
 |-----------|-------------|
 | **Fresh install** | `edgequake migrate` once, then start the API (`make dev` does this for you) |
-| **Upgrade from ≤ v0.22.0** | Backup → `migrate dry-run` → `migrate` → `migrate --confirm-drop` → `migrate` (applies deferred **142**) → start API |
+| **Any upgrade** | Backup → `migrate check` → `migrate dry-run` → `migrate` → (optional) `migrate drain` → `migrate --confirm-drop` when guard GREEN → start API |
 | **Server exits 78** | Schema behind or newer than the binary — run migrate, then restart |
 
 Irreversible drops (**125** KV, **126**/**131** vectors) need `--confirm-drop` and a backup; rollback after that is restore-only. Migration **142** asserts empty leftovers (aborts if rows remain; deferred while residue exists).
 
-Full plain-language guide: **[Migrate to v0.23.0+](docs/operations/migrate-to-0.23.md)** · production soak: [SPEC-091 upgrade runbook](docs/operations/spec091-upgrade-from-v0.22.0.md).
+**Canonical guide:** **[Upgrading EdgeQuake](docs/operations/upgrading.md)** (works from any published version).  
+Legacy cutover notes: [Migrate to v0.23.0+](docs/operations/migrate-to-0.23.md) · [SPEC-091 upgrade runbook](docs/operations/spec091-upgrade-from-v0.22.0.md).
 
 #### Highlights
 

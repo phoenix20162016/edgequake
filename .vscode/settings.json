@@ -64,7 +64,10 @@
   "rust-analyzer.workspace.symbol.search.scope": "workspace",
   "rust-analyzer.diagnostics.disabled": ["unresolved-proc-macro"],
   "rust-analyzer.cargo.loadOutDirsFromCheck": true,
-  "rust-analyzer.checkOnSave.extraArgs": ["--target-dir", "target/ra"],
+  "rust-analyzer.cargo.targetDir": true,
+  "rust-analyzer.cargo.extraEnv": {
+    "CARGO_INCREMENTAL": "0"
+  },
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit"

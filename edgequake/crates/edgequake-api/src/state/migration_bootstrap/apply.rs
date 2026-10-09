@@ -1,12 +1,15 @@
 //! sqlx migration apply + post-hooks (CLI / bootstrap).
 
+use std::time::Instant;
+
 use sqlx::PgPool;
 use tracing::{info, warn};
 
 use super::ledger::{
     boot_gate_pending_message, fetch_applied_versions, include_in_expandable_apply,
-    migrate_cli_mode, pending_ok_to_serve, MIGRATOR,
+    is_irreversible_drop, migrate_cli_mode, pending_ok_to_serve, MIGRATOR,
 };
+use super::progress;
 use super::reconcile;
 use super::repair::repair_known_production_fossils;
 use super::reports::*;
@@ -60,6 +63,84 @@ enum MigrationApplyMode {
     Through(i64),
     /// Apply every pending expandable; omit irreversible drop versions.
     ExpandableOnly,
+}
+
+/// Apply each pending migration with stdout progress + `migration_run_step` telemetry.
+///
+/// Uses a one-migration Migrator per step so operators see `[i/N]` lines without
+/// waiting for the entire train. sqlx locking is disabled — SPEC-150 advisory
+/// lock is already held by the caller.
+async fn apply_pending_sequentially(
+    pool: &PgPool,
+    pending: &[&sqlx::migrate::Migration],
+    run_id: Option<uuid::Uuid>,
+) -> Result<(), sqlx::Error> {
+    let total = pending.len();
+    for (idx, migration) in pending.iter().enumerate() {
+        let n = idx + 1;
+        let desc = migration.description.as_ref();
+        progress::print_step_start(n, total, migration.version, desc);
+        info!(
+            target: "edgequake.migration",
+            step = "apply_start",
+            progress = format!("{n}/{total}"),
+            version = migration.version,
+            description = %desc,
+            "Applying migration"
+        );
+        let started = Instant::now();
+        let one = sqlx::migrate::Migrator {
+            migrations: std::borrow::Cow::Owned(vec![(*migration).clone()]),
+            ignore_missing: true,
+            locking: false,
+            no_tx: MIGRATOR.no_tx,
+        };
+        match one.run(pool).await {
+            Ok(()) => {
+                let elapsed = started.elapsed();
+                progress::print_step_done(n, total, migration.version, desc, elapsed);
+                let _ = runner::record_migration_step(
+                    pool,
+                    run_id,
+                    migration.version,
+                    "expand",
+                    elapsed.as_millis() as i64,
+                    None,
+                    "ok",
+                )
+                .await;
+                info!(
+                    target: "edgequake.migration",
+                    step = "apply_ok",
+                    progress = format!("{n}/{total}"),
+                    version = migration.version,
+                    duration_ms = elapsed.as_millis() as u64,
+                    "Migration applied"
+                );
+            }
+            Err(e) => {
+                let elapsed = started.elapsed();
+                let _ = runner::record_migration_step(
+                    pool,
+                    run_id,
+                    migration.version,
+                    "expand",
+                    elapsed.as_millis() as i64,
+                    Some("migrate"),
+                    "error",
+                )
+                .await;
+                let _ = runner::finish_migration_run(pool, run_id, "error", (n - 1) as i32).await;
+                eprintln!(
+                    "[{n:>3}/{total:>3}] {} {desc} … FAILED after {:.1}s",
+                    migration.version,
+                    elapsed.as_secs_f64()
+                );
+                return Err(e.into());
+            }
+        }
+    }
+    Ok(())
 }
 
 async fn run_postgres_migrations_inner(
@@ -236,83 +317,42 @@ async fn run_postgres_migrations_inner_locked(
             "Schema apply skipped (up to date, serving soft-allow, or empty pending set)"
         );
     } else {
-        match mode {
-            MigrationApplyMode::All => {
-                info!(
-                    target: "edgequake.migration",
-                    step = "sqlx_run",
-                    count = pending.len(),
-                    "Applying sqlx migrations (advisory lock held)"
-                );
-                MIGRATOR.run(pool).await?;
-                info!(
-                    target: "edgequake.migration",
-                    step = "sqlx_complete",
-                    count = pending.len(),
-                    "sqlx migrations applied successfully"
-                );
-            }
-            MigrationApplyMode::Through(cap) => {
-                let filtered: Vec<_> = MIGRATOR
-                    .migrations
-                    .iter()
-                    .filter(|m| m.version <= cap)
-                    .cloned()
-                    .collect();
-                info!(
-                    target: "edgequake.migration",
-                    step = "sqlx_run",
-                    count = pending.len(),
-                    max_version = cap,
-                    "Applying sqlx migrations through max_version (advisory lock held)"
-                );
-                let partial = sqlx::migrate::Migrator {
-                    migrations: std::borrow::Cow::Owned(filtered),
-                    ignore_missing: MIGRATOR.ignore_missing,
-                    locking: MIGRATOR.locking,
-                    no_tx: MIGRATOR.no_tx,
-                };
-                partial.run(pool).await?;
-                info!(
-                    target: "edgequake.migration",
-                    step = "sqlx_complete",
-                    count = pending.len(),
-                    max_version = cap,
-                    "sqlx migrations applied successfully (partial train)"
-                );
-            }
-            MigrationApplyMode::ExpandableOnly => {
-                // Omit irreversible drop versions so expandables that sit *after*
-                // a gated DROP (e.g. 132 behind 131) still apply without confirm.
-                // SPEC-105: omit 142 while durable legacy rows remain (LAW-L5).
-                let filtered: Vec<_> = MIGRATOR
-                    .migrations
-                    .iter()
-                    .filter(|m| include_in_expandable_apply(m.version, defer_legacy_cutover_assert))
-                    .cloned()
-                    .collect();
-                info!(
-                    target: "edgequake.migration",
-                    step = "sqlx_run",
-                    count = pending.len(),
-                    defer_legacy_cutover_assert,
-                    "Applying expandable sqlx migrations (irreversible drops omitted; 142 deferred if residue)"
-                );
-                let partial = sqlx::migrate::Migrator {
-                    migrations: std::borrow::Cow::Owned(filtered),
-                    ignore_missing: true, // applied drop versions may be absent from this filter
-                    locking: MIGRATOR.locking,
-                    no_tx: MIGRATOR.no_tx,
-                };
-                partial.run(pool).await?;
-                info!(
-                    target: "edgequake.migration",
-                    step = "sqlx_complete",
-                    count = pending.len(),
-                    "expandable sqlx migrations applied successfully"
-                );
-            }
-        }
+        let db_schema = applied_before.iter().max().copied();
+        let binary_schema = MIGRATOR
+            .migrations
+            .iter()
+            .map(|m| m.version)
+            .max()
+            .unwrap_or(0);
+        let irreversibles: Vec<i64> = pending
+            .iter()
+            .map(|m| m.version)
+            .filter(|v| is_irreversible_drop(*v))
+            .collect();
+        progress::print_upgrade_path(
+            db_schema,
+            binary_schema,
+            env!("CARGO_PKG_VERSION"),
+            pending.len(),
+            &irreversibles,
+        );
+        info!(
+            target: "edgequake.migration",
+            step = "sqlx_run",
+            count = pending.len(),
+            mode = ?mode,
+            "Applying sqlx migrations one-by-one with progress (advisory lock held)"
+        );
+        // Apply each pending migration individually so operators see progress.
+        // Outer SPEC-150 advisory lock is held; disable sqlx's nested lock.
+        // ignore_missing: already-applied versions are absent from this slice.
+        apply_pending_sequentially(pool, &pending, run_id).await?;
+        info!(
+            target: "edgequake.migration",
+            step = "sqlx_complete",
+            count = pending.len(),
+            "sqlx migrations applied successfully"
+        );
     }
 
     let applied_after = fetch_applied_versions(pool).await?;

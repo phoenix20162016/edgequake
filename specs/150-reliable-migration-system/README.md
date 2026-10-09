@@ -1,7 +1,9 @@
 # SPEC-150 — Reliable Migration System
 
-> **Status:** Implemented (WP-1..WP-10) on HEAD through migration **159**.  
-> **Proof:** `make spec150-matrix PG=all` → **56/56 ok** (2026-09-26).  
+> **Status:** Implemented (WP-1..WP-10) on HEAD through migration **168**.  
+> **Proof:** `make spec150-matrix PG=all` → **56/56 ok** (2026-09-26 through v0.26.0 / schema 159).  
+> **Epochs:** `scripts/spec150/epochs.toml` covers every published `vX.Y.Z` through **v0.32.2** (schema **168**); enforced by `./scripts/check_epoch_coverage.sh`.  
+> **Operator guide:** [`docs/operations/upgrading.md`](../../docs/operations/upgrading.md).  
 > **Squash:** none — `T_fresh` ≈ 1–2s on PG16/17/18 (budget 180s).
 
 ## What operators need to know

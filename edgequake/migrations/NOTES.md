@@ -58,8 +58,10 @@ NNN_descriptive_name.sql
   descriptive_name: snake_case, describes what changed
 ```
 
-Current max: `160_spec151_document_page_states.sql`  
-Next available: `161_*` (converge migrations only if epoch matrix finds schema drift)
+Current max: `168_identity_lockout_columns.sql` (product pin v0.32.2)  
+Next available: `169_*` (converge migrations only if epoch matrix finds schema drift)
+
+Operator guide: [`docs/operations/upgrading.md`](../../docs/operations/upgrading.md).
 
 Manifest SSOT (phases, fossils, irreversible drops): `manifest.toml` (SPEC-150).  
 Checksum lock is **append-only** (`scripts/update_migration_checksums.sh`); includes `support/**`.

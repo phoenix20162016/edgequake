@@ -7,6 +7,7 @@
 mod apply;
 mod helpers;
 mod ledger;
+mod progress;
 mod readiness;
 mod reconcile;
 mod reconcile_state;
@@ -31,6 +32,10 @@ pub use ledger::{
     list_pending_migrations, max_expandable_target, migrate_cli_mode, migration_description,
     pending_expandable_versions, pending_ok_to_serve, pending_only_irreversible_drops,
     schema_drift, warn_if_removed_boot_flag_set, SchemaDrift,
+};
+pub use progress::{
+    duration_class, format_step_done, format_step_start, format_upgrade_path, is_heavy_step,
+    print_step_done, print_step_start, print_upgrade_path, release_for_schema,
 };
 pub use readiness::{
     is_ready_for_traffic, readiness_blockers, readiness_operator_action, BOOT_GATE_EXIT_CODE,

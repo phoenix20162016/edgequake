@@ -401,7 +401,8 @@ while read -r tag pg_majors mode; do
   done
 done < <(list_epochs)
 
-if [[ "$QUICK" != "1" ]]; then
+# SKIP_CHAOS=1: epoch-only (useful when looping EPOCH=…); default still runs chaos.
+if [[ "$QUICK" != "1" && "${SKIP_CHAOS:-0}" != "1" ]]; then
   chaos_lock || FAILS=$((FAILS + 1))
 fi
 

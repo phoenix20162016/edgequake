@@ -2758,6 +2758,14 @@ spec150-matrix-quick: ## SPEC-150: key epochs only on all PG majors
 	@chmod +x $(ROOT_DIR)/scripts/spec150_epoch_matrix.sh
 	@QUICK=1 PG=$(or $(PG),all) $(ROOT_DIR)/scripts/spec150_epoch_matrix.sh
 
+spec150-epoch-coverage: ## SPEC-150: every published vX.Y.Z maps to epochs.toml
+	@chmod +x $(ROOT_DIR)/scripts/check_epoch_coverage.sh
+	@$(ROOT_DIR)/scripts/check_epoch_coverage.sh
+
+schema-train-docs: ## Docs advertise the real highest migration number
+	@chmod +x $(ROOT_DIR)/scripts/check_schema_train_docs.sh
+	@$(ROOT_DIR)/scripts/check_schema_train_docs.sh
+
 # SPEC-091 IW0–IW5 local gate (mirrors .github/workflows/spec091-data-layer.yml::spec091-data-layer).
 # Requires DATABASE_URL pointing at a Postgres with pgvector + AGE (make postgres-start).
 # Soft-skips are disabled here (EDGEQUAKE_REQUIRE_POSTGRES_TESTS=1) so a missing DB fails loud.

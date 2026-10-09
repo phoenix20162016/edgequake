@@ -1,9 +1,17 @@
 -- =============================================================================
--- EdgeQuake Production Database Initialization Script
+-- LEGACY / NOT FOR USE — DO NOT MOUNT THIS FILE
 -- =============================================================================
--- Version: 2.0.0 (SOTA)
+-- Stale full-schema bootstrap (predates the sqlx train). It is NOT mounted by
+-- compose/Helm and has drifted from migrations 039+.
+--
+-- Schema SSOT: edgequake/migrations/NNN_*.sql applied by `edgequake migrate`.
+-- Extensions SSOT: edgequake/docker/init-extensions.sql (+ extension-pins.sh).
+-- Operator guide: docs/operations/upgrading.md
+--
+-- Kept only as historical reference. Do not copy into production init.
+-- =============================================================================
+-- Version: 2.0.0 (SOTA) — historical
 -- Created: 2024-12-29
--- Purpose: Complete database setup with multi-tenancy, RLS, and performance optimization
 -- =============================================================================
 
 -- ============================================================================
