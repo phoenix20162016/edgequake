@@ -97,8 +97,15 @@ function RefreshLine({ row }: { row: DeploymentProvider }) {
 function ModelChips({ row }: { row: DeploymentProvider }) {
   const { t } = useTranslation();
   const [all, setAll] = useState(false);
-  const shown = all ? row.models : row.models.slice(0, MODELS_SHOWN);
-  if (row.models.length === 0) {
+  // Registered models are the offer; discovered ones are what the last refresh found and
+  // nobody has confirmed. Showing them together muddled the two, so they are counted apart
+  // and a discovered id carries its own label.
+  const registered = row.models.filter((model) => model.registered !== false);
+  const discovered = row.models.filter((model) => model.registered === false);
+  const [openDiscovered, setOpenDiscovered] = useState(false);
+  const shown = all ? registered : registered.slice(0, MODELS_SHOWN);
+
+  if (registered.length === 0 && discovered.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
         {t("settings.providers.noModelsYet", "No registered models. Refresh to discover them.")}
@@ -106,29 +113,71 @@ function ModelChips({ row }: { row: DeploymentProvider }) {
     );
   }
   return (
-    <ul className="flex flex-wrap gap-1.5" aria-label={t("settings.providers.registered", "Registered models")}>
-      {shown.map((model) => (
-        <li key={model.id}>
-          <Badge variant="outline" className="gap-1.5 font-normal" title={model.id}>
-            <span className="font-mono text-[11px]">{shortModelId(model.id)}</span>
-            {capabilitiesOf(model).map((capability) => (
-              <span key={capability} className="text-[10px] text-muted-foreground">
-                {t(`settings.providers.cap.${capability}`, capability)}
-              </span>
-            ))}
-          </Badge>
-        </li>
-      ))}
-      {row.models.length > MODELS_SHOWN ? (
-        <li>
-          <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setAll((open) => !open)}>
-            {all
-              ? t("settings.providers.showLess", "Show less")
-              : t("settings.providers.showMore", "+{{count}} more", { count: row.models.length - MODELS_SHOWN })}
-          </Button>
-        </li>
+    <div className="space-y-1.5">
+      {registered.length > 0 ? (
+        <ul className="flex flex-wrap gap-1.5" aria-label={t("settings.providers.registered", "Registered models")}>
+          {shown.map((model) => (
+            <li key={model.id}>
+              <Badge variant="outline" className="gap-1.5 font-normal" title={model.id}>
+                <span className="font-mono text-[11px]">{shortModelId(model.id)}</span>
+                {capabilitiesOf(model).map((capability) => (
+                  <span key={capability} className="text-[10px] text-muted-foreground">
+                    {t(`settings.providers.cap.${capability}`, capability)}
+                  </span>
+                ))}
+              </Badge>
+            </li>
+          ))}
+          {registered.length > MODELS_SHOWN ? (
+            <li>
+              <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setAll((open) => !open)}>
+                {all
+                  ? t("settings.providers.showLess", "Show less")
+                  : t("settings.providers.showMore", "+{{count}} more", { count: registered.length - MODELS_SHOWN })}
+              </Button>
+            </li>
+          ) : null}
+        </ul>
       ) : null}
-    </ul>
+      {discovered.length > 0 ? (
+        <div className="space-y-1" data-testid={`discovered-models-${row.slug}`}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs text-muted-foreground"
+            aria-expanded={openDiscovered}
+            data-testid={`discovered-toggle-${row.slug}`}
+            onClick={() => setOpenDiscovered((open) => !open)}
+          >
+            {openDiscovered
+              ? t("settings.providers.hideDiscovered", "Hide found models")
+              : t("settings.providers.showDiscovered", "{{count}} found, not registered", {
+                  count: discovered.length,
+                })}
+          </Button>
+          {openDiscovered ? (
+            <>
+              <ul className="flex flex-wrap gap-1.5" aria-label={t("settings.providers.discovered", "Found but not registered")}>
+                {discovered.map((model) => (
+                  <li key={model.id}>
+                    <Badge variant="secondary" className="gap-1.5 font-normal" title={model.id}>
+                      <span className="font-mono text-[11px]">{shortModelId(model.id)}</span>
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "settings.providers.discoveredHint",
+                  "The provider reports these. Register one to make it usable for a job.",
+                )}
+              </p>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

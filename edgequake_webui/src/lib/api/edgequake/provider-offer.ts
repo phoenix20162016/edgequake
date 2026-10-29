@@ -4,6 +4,8 @@ export interface OfferModel {
   id: string;
   usages: string[];
   embedding_dimension?: number;
+  /** False for a model the provider reported but nobody has registered yet. */
+  registered?: boolean;
 }
 
 export interface DeploymentProvider {

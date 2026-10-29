@@ -88,6 +88,55 @@ pub fn llm_provider_credentials_configured(config: &ModelsConfig, provider_name:
         .unwrap_or_else(|| llm_provider_credentials_configured_by_name(provider_name))
 }
 
+/// The env var name that carries a provider's API key, from `models.toml`.
+///
+/// Returns `None` for a local provider (no key to read) and for a provider the catalog
+/// does not name. Refresh uses this so an env provider is probed with the same secret the
+/// resolver would use — one mapping, no second copy of the table.
+pub fn provider_api_key_env(config: &ModelsConfig, provider_name: &str) -> Option<String> {
+    if matches!(
+        credential_kind_for(provider_name),
+        CredentialKind::LocalNoAuth | CredentialKind::OAuth2Identity | CredentialKind::AwsChain
+    ) {
+        return None;
+    }
+    config
+        .providers
+        .iter()
+        .find(|p| p.name.eq_ignore_ascii_case(provider_name))
+        .and_then(|provider| provider.api_key_env.clone())
+        .map(|env| env.trim().to_string())
+        .filter(|env| !env.is_empty())
+        .or_else(|| fallback_api_key_env(provider_name).map(str::to_string))
+}
+
+/// The env var for a provider the catalog does not name (tests, newer providers).
+fn fallback_api_key_env(provider_name: &str) -> Option<&'static str> {
+    match provider_name.to_ascii_lowercase().as_str() {
+        "openai" => Some("OPENAI_API_KEY"),
+        "mistral" => Some("MISTRAL_API_KEY"),
+        "anthropic" => Some("ANTHROPIC_API_KEY"),
+        "google" | "gemini" => Some("GEMINI_API_KEY"),
+        "nvidia" => Some("NVIDIA_API_KEY"),
+        "cohere" => Some("COHERE_API_KEY"),
+        "jina" => Some("JINA_API_KEY"),
+        "huggingface" | "hf" => Some("HF_TOKEN"),
+        "xai" => Some("XAI_API_KEY"),
+        "openrouter" => Some("OPENROUTER_API_KEY"),
+        "azure" => Some("AZURE_OPENAI_API_KEY"),
+        _ => None,
+    }
+}
+
+/// The provider's API key from the environment, when it has one.
+pub fn provider_env_api_key(config: &ModelsConfig, provider_name: &str) -> Option<String> {
+    let env = provider_api_key_env(config, provider_name)?;
+    std::env::var(&env)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
 /// Fallback when models.toml has no entry (tests, unknown ids).
 pub fn llm_provider_credentials_configured_by_name(provider_name: &str) -> bool {
     match provider_name.to_ascii_lowercase().as_str() {

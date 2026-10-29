@@ -31,7 +31,7 @@ import {
   useTenantOffer,
   useWorkspaceOffer,
 } from "@/hooks/use-provider-offer";
-import type { ProviderOffer } from "@/lib/api/edgequake/provider-offer";
+import type { OfferProvider, ProviderOffer } from "@/lib/api/edgequake/provider-offer";
 import {
   draftFromProviders,
   lead,
@@ -66,6 +66,81 @@ interface GrantEditorProps {
   loadError?: boolean;
   onRetry?: () => void;
   onSave: (body: { offer_mode: "unconstrained" | "constrained"; slugs: string[] }) => Promise<unknown>;
+}
+
+/** How many model chips a collapsed provider row shows. The rest sit behind a count toggle. */
+const CHIPS_COLLAPSED = 6;
+
+/**
+ * One provider row.
+ *
+ * A provider with more models than `CHIPS_COLLAPSED` shows the first few and a `+N` button that
+ * expands to the full list in place — the count is a control, not a dead label, so a user who
+ * wants to see whether a specific model is offered does not have to leave the page.
+ */
+function ProviderRow({
+  row,
+  on,
+  readOnly,
+  canManage,
+  onToggle,
+}: {
+  row: OfferProvider;
+  on: boolean;
+  readOnly: boolean;
+  canManage: boolean;
+  onToggle: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const models = row.models ?? [];
+  const hidden = models.length - CHIPS_COLLAPSED;
+  const shown = expanded ? models : models.slice(0, CHIPS_COLLAPSED);
+
+  return (
+    <li
+      data-testid={`provider-row-${row.slug}`}
+      className="grid grid-cols-1 items-start gap-x-6 gap-y-2 px-3 py-3 lg:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)]"
+    >
+      <label className="flex items-start gap-3">
+        <Checkbox
+          className="mt-0.5"
+          checked={on}
+          disabled={readOnly || !canManage}
+          aria-label={`Offer ${row.display_name}`}
+          data-testid={`provider-toggle-${row.slug}`}
+          onCheckedChange={onToggle}
+        />
+        <span className="min-w-0">
+          <span className="block truncate font-medium">{row.display_name}</span>
+          <span className="text-xs text-muted-foreground">
+            {models.length} {models.length === 1 ? "model" : "models"}
+          </span>
+        </span>
+      </label>
+      {on && models.length > 0 ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          {shown.map((model) => (
+            <Badge key={model.id} variant="outline" className="max-w-full font-normal">
+              <span className="truncate">{model.id}</span>
+            </Badge>
+          ))}
+          {hidden > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground"
+              aria-expanded={expanded}
+              data-testid={`provider-more-${row.slug}`}
+              onClick={() => setExpanded((current) => !current)}
+            >
+              {expanded ? "Show less" : `+${hidden} more`}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
 }
 
 function GrantEditor({ parent, offer, pending, readOnly, loadError, onRetry, onSave }: GrantEditorProps) {
@@ -129,48 +204,27 @@ function GrantEditor({ parent, offer, pending, readOnly, loadError, onRetry, onS
           <p className="text-sm text-muted-foreground" aria-busy="true">Loading providers…</p>
         ) : (saved.providers ?? []).length === 0 ? null : (
           <>
-            <p className="text-sm text-muted-foreground" data-testid="provider-offer-count">
-              {count} of {saved.parent_count} providers
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground" data-testid="provider-offer-count">
+                {count} of {saved.parent_count} providers
+              </p>
+              {count < saved.parent_count ? (
+                <p className="text-xs text-muted-foreground">
+                  Unchecked providers stay hidden from this {parent === "tenant" ? "organization" : "workspace"}.
+                </p>
+              ) : null}
+            </div>
             <ul className="divide-y rounded-lg border">
-              {(saved.providers ?? []).map((row) => {
-                const on = enabled.has(row.slug);
-                return (
-                  <li key={row.slug} className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between" data-testid={`provider-row-${row.slug}`}>
-                    <label className="flex items-start gap-3">
-                      <Checkbox
-                        checked={on}
-                        disabled={readOnly || !saved.can_manage}
-                        aria-label={`Offer ${row.display_name}`}
-                        data-testid={`provider-toggle-${row.slug}`}
-                        onCheckedChange={() =>
-                          setDraft((current) => toggleSlug(current, row.slug, parentSlugs))
-                        }
-                      />
-                      <span>
-                        <span className="block font-medium">{row.display_name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {(row.models ?? []).length} {(row.models ?? []).length === 1 ? "model" : "models"}
-                        </span>
-                      </span>
-                    </label>
-                    {on && (row.models ?? []).length > 0 ? (
-                      <div className="flex flex-wrap gap-1 sm:max-w-md sm:justify-end">
-                        {(row.models ?? []).slice(0, 4).map((model) => (
-                          <Badge key={model.id} variant="outline" className="font-normal">
-                            {model.id}
-                          </Badge>
-                        ))}
-                        {(row.models ?? []).length > 4 ? (
-                          <Badge variant="outline" className="font-normal text-muted-foreground">
-                            +{(row.models ?? []).length - 4}
-                          </Badge>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
+              {(saved.providers ?? []).map((row) => (
+                <ProviderRow
+                  key={row.slug}
+                  row={row}
+                  on={enabled.has(row.slug)}
+                  readOnly={readOnly}
+                  canManage={saved.can_manage}
+                  onToggle={() => setDraft((current) => toggleSlug(current, row.slug, parentSlugs))}
+                />
+              ))}
             </ul>
           </>
         )}

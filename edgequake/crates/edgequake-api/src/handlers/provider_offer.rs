@@ -39,6 +39,10 @@ pub struct OfferModelDto {
     pub usages: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_dimension: Option<i32>,
+    /// False for a model the provider reported but nobody has registered yet. It is visible
+    /// on the card so a fresh pull is not invisible, but it is never eligible for a job.
+    #[serde(default)]
+    pub registered: bool,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -142,7 +146,12 @@ pub async fn get_deployment_providers(
     _admin: ApiRequireAdmin,
 ) -> ApiResult<Json<DeploymentProvidersResponse>> {
     let offered = load_global_offer(&state).await?;
-    let catalog = load_catalog(&state).await;
+    // The registration rows live in `connection_models`, not in `models.toml`. Without this
+    // call the endpoint only ever sees static cards, so a model an admin just registered
+    // stayed invisible and could never be picked for a job.
+    let mut catalog = load_catalog(&state).await;
+    crate::services::model_policy_catalog::append_connection_models(&state, &mut catalog).await?;
+    let catalog = catalog;
     let mut providers = Vec::new();
     let mut seen = HashSet::new();
     for row in env_connections() {
@@ -458,15 +467,15 @@ pub async fn put_connection_models(
     #[cfg(feature = "postgres")]
     {
         let fleet = fleet_slug_exists(&state, &slug).await?;
-        if env_only && !fleet {
-            return Err(ApiError::unprocessable_coded(
-                "provider_not_fleet",
-                "environment providers use the catalog cards",
-            ));
-        }
         let pool = state
             .optional_pg_pool()
             .ok_or_else(|| ApiError::Internal("PostgreSQL is required".into()))?;
+        // An env provider has no `provider_connections` row to hang models on, which used to
+        // make its models impossible to register: refresh found them, then nothing could
+        // confirm them. Give it a row first, seeded from the environment it already runs from.
+        if env_only && !fleet {
+            materialise_env_connection(&state, pool, &slug).await?;
+        }
         let models: Vec<(String, bool, bool, bool, Option<i32>)> = body
             .models
             .into_iter()
@@ -493,6 +502,46 @@ pub async fn put_connection_models(
         let _ = (env_only, body);
         Err(ApiError::Internal("PostgreSQL is required".into()))
     }
+}
+
+/// Persist an env-only provider as a fleet connection so its models can be registered.
+///
+/// The row copies the URL, shape and locality the environment already provides. No secret is
+/// stored: an env provider authenticates from its own env vars, and copying a key into the
+/// database would duplicate a credential that `ConnectionView.auth_scheme == "env"` says the
+/// environment owns.
+#[cfg(feature = "postgres")]
+async fn materialise_env_connection(
+    state: &AppState,
+    pool: &sqlx::PgPool,
+    slug: &str,
+) -> ApiResult<()> {
+    let Some(connection) = env_connections().into_iter().find(|row| row.slug == slug) else {
+        return Err(ApiError::NotFound(format!("provider {slug}")));
+    };
+    sqlx::query(
+        "INSERT INTO provider_connections \
+         (tenant_id, slug, display_name, api_shape, locality, base_url, auth_scheme, \
+          timeout_secs, allow_private_network, last_test_ok) \
+         VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, true) \
+         ON CONFLICT (slug) WHERE tenant_id IS NULL DO NOTHING",
+    )
+    .bind(&connection.slug)
+    .bind(&connection.display_name)
+    .bind(&connection.api_shape)
+    .bind(&connection.locality)
+    .bind(&connection.base_url)
+    .bind(&connection.auth_scheme)
+    .bind(connection.timeout_secs)
+    .bind(connection.allow_private_network)
+    .execute(pool)
+    .await
+    .map_err(|err| ApiError::Internal(err.to_string()))?;
+    tracing::info!(
+        provider = %slug,
+        "Registered env provider as a fleet connection so its models can be confirmed"
+    );
+    Ok(())
 }
 
 fn parse_put(body: &PutOfferRequest, parent: &BTreeSet<String>) -> ApiResult<(bool, Vec<String>)> {
@@ -754,19 +803,46 @@ async fn offer_body(
     })
 }
 
+/// Models shown on a provider card: everything the catalog knows for this slug.
+///
+/// Both registered and merely-discovered ids appear. A discovered id is labelled
+/// `registered: false` by the DTO so the UI can say "found, not registered" rather than
+/// hiding it. Hiding it was the old behaviour, and it made a successful refresh look like
+/// a failure: the model was found, stored, and then filtered out of every surface.
 fn models_for(
     catalog: &[crate::services::model_policy_catalog::CatalogItem],
     slug: &str,
 ) -> Vec<OfferModelDto> {
     catalog
         .iter()
-        .filter(|item| item.entry.provider == slug && item.entry.facts.registered)
+        .filter(|item| item.entry.provider == slug)
         .map(|item| OfferModelDto {
             id: item.entry.model.clone(),
             usages: usage_names(&item.entry.facts),
             embedding_dimension: item.embedding_dimension,
+            registered: item.entry.facts.registered,
         })
         .collect()
+}
+
+/// Whether a model id names an embedding model.
+///
+/// A refresh only has ids to work with (the probe returns names, not capabilities), so the
+/// name is the only signal available. Kept deliberately narrow: a false positive would offer
+/// a chat model as an embedder, which silently breaks retrieval.
+fn is_embedding_model_id(model: &str) -> bool {
+    let id = model.to_ascii_lowercase();
+    const MARKERS: &[&str] = &[
+        "embed",
+        "bge-",
+        "minilm",
+        "all-minilm",
+        "e5-",
+        "gte-",
+        "arctic-embed",
+        "nomic-embed",
+    ];
+    MARKERS.iter().any(|marker| id.contains(marker))
 }
 
 fn usage_names(facts: &edgequake_core::model_policy::ModelFacts) -> Vec<String> {
@@ -867,7 +943,7 @@ pub async fn refresh_deployment_provider(
         .fetch_all(pool)
         .await
         .map_err(|err| ApiError::Internal(err.to_string()))?;
-        let (ok, listed, error) = refresh_listing(pool, &slug).await;
+        let (ok, listed, error) = refresh_listing(&state, pool, &slug).await;
         let plan = crate::services::model_gate::refresh_plan(&previous, &listed, ok);
         if plan.replace {
             let mut tx = pool
@@ -880,12 +956,23 @@ pub async fn refresh_deployment_provider(
                 .await
                 .map_err(|err| ApiError::Internal(err.to_string()))?;
             for model in &listed {
+                // A refreshed id is chat unless its name says it embeds. Guessing `chat = true`
+                // for everything made `nomic-embed-text` look like a chat model, and an
+                // embedding model offered as chat fails at query time.
+                let embedding = is_embedding_model_id(model);
                 sqlx::query(
-                    "INSERT INTO provider_model_cache (provider_slug, model, supports_chat, source) \
-                     VALUES ($1, $2, true, 'refresh')",
+                    "INSERT INTO provider_model_cache \
+                     (provider_slug, model, supports_chat, supports_embedding, embedding_dimension, source) \
+                     VALUES ($1, $2, $3, $4, $5, 'refresh')",
                 )
                 .bind(&slug)
                 .bind(model)
+                .bind(!embedding)
+                .bind(embedding)
+                .bind(embedding.then(|| {
+                    edgequake_core::Workspace::known_embedding_dimension(model)
+                        .map(|value| value as i32)
+                }).flatten())
                 .execute(&mut *tx)
                 .await
                 .map_err(|err| ApiError::Internal(err.to_string()))?;
@@ -947,8 +1034,20 @@ type ConnectionRefreshRow = (
     bool,
 );
 
+/// Resolve how to reach one provider, then ask it for its model list.
+///
+/// A provider can be reached three ways, in this order:
+/// 1. a fleet `provider_connections` row (its own URL, shape and secret);
+/// 2. an env provider (`OLLAMA_HOST`, `OPENAI_API_KEY`, …) whose URL and key come from
+///    the environment — this used to fall through to an empty list, which made a refresh
+///    silently wipe the cache and report success;
+/// 3. neither, which is an honest `error` rather than a false `ok`.
 #[cfg(feature = "postgres")]
-async fn refresh_listing(pool: &sqlx::PgPool, slug: &str) -> (bool, Vec<String>, Option<String>) {
+async fn refresh_listing(
+    state: &AppState,
+    pool: &sqlx::PgPool,
+    slug: &str,
+) -> (bool, Vec<String>, Option<String>) {
     let row: Option<ConnectionRefreshRow> = sqlx::query_as(
         "SELECT api_shape, base_url, secret_ref, api_key_ciphertext, api_key_nonce, key_id, tenant_id, allow_private_network \
          FROM provider_connections WHERE tenant_id IS NULL AND slug = $1",
@@ -958,32 +1057,70 @@ async fn refresh_listing(pool: &sqlx::PgPool, slug: &str) -> (bool, Vec<String>,
     .await
     .ok()
     .flatten();
-    let Some((shape, base_url, secret_ref, cipher, nonce, key_id, tenant_id, allow_private)) = row
-    else {
-        return (true, Vec::new(), None);
+    let request = match row {
+        Some((shape, base_url, secret_ref, cipher, nonce, key_id, tenant_id, allow_private)) => {
+            let api_key = crate::providers::secret_manager::reveal_connection_key(
+                pool, tenant_id, secret_ref, cipher, nonce, key_id,
+            )
+            .await
+            .ok()
+            .flatten();
+            Some(crate::providers::probe::ProbeRequest {
+                shape,
+                base_url: Some(base_url),
+                model: None,
+                embedding_model: None,
+                api_key,
+                auth_scheme: None,
+                allow_private_network: Some(allow_private),
+                expected_dimension: None,
+            })
+        }
+        None => env_refresh_request(state, slug),
     };
-    let api_key = crate::providers::secret_manager::reveal_connection_key(
-        pool, tenant_id, secret_ref, cipher, nonce, key_id,
-    )
-    .await
-    .ok()
-    .flatten();
-    let probe = crate::providers::probe::probe_provider(crate::providers::probe::ProbeRequest {
-        shape,
-        base_url: Some(base_url),
-        model: None,
-        embedding_model: None,
-        api_key,
-        auth_scheme: None,
-        allow_private_network: Some(allow_private),
-        expected_dimension: None,
-    })
-    .await;
-    if probe.ok {
+    let Some(request) = request else {
+        return (
+            false,
+            Vec::new(),
+            Some(format!(
+                "No connection named {slug} on this deployment. Add one, or set its provider env vars."
+            )),
+        );
+    };
+    let probe = crate::providers::probe::probe_provider(request).await;
+    // Refresh only needs a model list. Requiring a chat ping used to discard a good
+    // `/models` response when the first listed id was not chat-capable.
+    if probe.list_ok {
         (true, probe.models, None)
     } else {
         (false, Vec::new(), Some(probe.message))
     }
+}
+
+/// The probe for a provider that exists only in the environment (`env_connections`).
+///
+/// `env_connections` already knows each provider's URL and shape; the key comes from the
+/// same `models.toml` mapping the resolver uses. A local provider (Ollama, LM Studio) needs
+/// no key, so it probes with the URL alone.
+#[cfg(feature = "postgres")]
+fn env_refresh_request(state: &AppState, slug: &str) -> Option<crate::providers::probe::ProbeRequest> {
+    let connection = env_connections()
+        .into_iter()
+        .find(|row| row.slug == slug)?;
+    let api_key = crate::providers::credentials::provider_env_api_key(
+        &state.query.models_config,
+        slug,
+    );
+    Some(crate::providers::probe::ProbeRequest {
+        shape: connection.api_shape,
+        base_url: Some(connection.base_url),
+        model: None,
+        embedding_model: None,
+        api_key,
+        auth_scheme: None,
+        allow_private_network: Some(connection.allow_private_network),
+        expected_dimension: None,
+    })
 }
 
 #[cfg(test)]
@@ -1055,6 +1192,61 @@ mod tests {
         let (constrained, slugs) = parse_put(&body, &parent(&["openai"])).unwrap();
         assert!(!constrained);
         assert!(slugs.is_empty());
+    }
+
+    /// Regression: a refreshed id used to be stored as `supports_chat = true` for everything,
+    /// so `nomic-embed-text` looked like a chat model and an embedding model was offered to
+    /// extraction.
+    #[test]
+    fn embedding_ids_are_not_treated_as_chat_models() {
+        for id in [
+            "nomic-embed-text:latest",
+            "embeddinggemma:latest",
+            "mxbai-embed-large:latest",
+            "all-minilm",
+            "snowflake-arctic-embed:xs",
+            "bge-m3:latest",
+        ] {
+            assert!(is_embedding_model_id(id), "{id} must be an embedding id");
+        }
+        for id in ["lfm3:latest", "gemma4:latest", "qwen3-vl:8b", "gpt-5-nano"] {
+            assert!(!is_embedding_model_id(id), "{id} must be a chat id");
+        }
+    }
+
+    /// Regression: a refresh found models, stored them, and then every surface filtered them
+    /// out because they were not "registered". The card must show what the provider reports.
+    #[test]
+    fn a_provider_card_shows_discovered_models_flagged_as_unregistered() {
+        use crate::services::model_policy_catalog::CatalogItem;
+        use edgequake_core::model_policy::{CatalogEntry, ModelFacts};
+
+        let item = |model: &str, registered: bool| CatalogItem {
+            display_name: model.into(),
+            provider_display_name: "ollama".into(),
+            supports_vision: false,
+            supports_streaming: true,
+            embedding_dimension: None,
+            entry: CatalogEntry {
+                provider: "ollama".into(),
+                model: model.into(),
+                facts: ModelFacts {
+                    chat: true,
+                    vision: false,
+                    embedding: false,
+                    registered,
+                    probe: Some(true),
+                },
+            },
+        };
+        let catalog = vec![item("gemma3:latest", true), item("lfm3:latest", false)];
+
+        let shown = models_for(&catalog, "ollama");
+        assert_eq!(shown.len(), 2, "both ids belong to the card");
+        let lfm = shown.iter().find(|row| row.id == "lfm3:latest").unwrap();
+        assert!(!lfm.registered, "a discovered id must not look registered");
+        let gemma = shown.iter().find(|row| row.id == "gemma3:latest").unwrap();
+        assert!(gemma.registered);
     }
 
     #[test]

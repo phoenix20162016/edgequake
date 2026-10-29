@@ -8,6 +8,8 @@ import {
   searchSections,
   sectionFromPathname,
   sectionHref,
+  sectionWidth,
+  SETTINGS_CONTENT_WIDTH,
   visibleScopes,
 } from "../registry";
 
@@ -129,6 +131,28 @@ describe("settings registry — routes", () => {
       expect(sectionFromPathname(href)?.section).toBe(id);
       expect(sectionFromPathname(sectionHref(id, "acme"))?.section).toBe(id);
     }
+  });
+});
+
+describe("settings content width (SPEC-175 shell width)", () => {
+  it("keeps label-plus-control sections on a readable measure", () => {
+    expect(sectionWidth("appearance")).toBe("form");
+    expect(sectionWidth("graph")).toBe("form");
+    expect(sectionWidth("browser-data")).toBe("form");
+  });
+
+  it("lets matrices, galleries and multi-column forms claim the full column", () => {
+    expect(sectionWidth("models")).toBe("wide");
+    expect(sectionWidth("ingestion")).toBe("wide");
+    expect(sectionWidth("access")).toBe("wide");
+    expect(sectionWidth("org-providers")).toBe("wide");
+    expect(sectionWidth("providers")).toBe("wide");
+    expect(sectionWidth("connections")).toBe("wide");
+    expect(sectionWidth("fleet")).toBe("wide");
+  });
+
+  it("gives a wide section more room than a form section", () => {
+    expect(SETTINGS_CONTENT_WIDTH.wide).toBeGreaterThan(SETTINGS_CONTENT_WIDTH.form);
   });
 });
 

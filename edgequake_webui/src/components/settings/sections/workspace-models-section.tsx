@@ -7,6 +7,7 @@
  */
 
 import { ProviderOfferEditor } from "@/components/settings/providers/provider-offer-editor";
+import { RefreshModelsButton } from "@/components/settings/providers/refresh-models-button";
 import { QueryDefaultsGroup } from "@/components/settings/sections/query-defaults-group";
 import { WorkspaceModelNarrowingCard } from "@/components/settings/models/workspace-model-narrowing-card";
 import { WorkspaceRoleEditor } from "@/components/settings/models/workspace-role-editor";
@@ -24,6 +25,8 @@ export function WorkspaceModelsSection() {
     <SettingsFrame
       title={t("settings.shell.sections.models", "Models")}
       lead={t("settings.shell.models.lead", "The models this workspace uses for each job. Members can read these; editors can change them.")}
+      // The same list the workspace picks from, so the way to pick up new models sits here too.
+      actions={<RefreshModelsButton testId="models-refresh" />}
     >
       <ProviderOfferEditor parent="workspace" workspaceId={workspaceId} readOnly={!canEdit} />
       <WorkspaceRoleEditor readOnly={!canEdit} />

@@ -140,6 +140,11 @@ fn mock_test_cards() -> Vec<CatalogItem> {
 
 /// Models saved on a fleet connection join the catalog under that connection's slug.
 /// A custom provider does not inherit another provider's cards.
+///
+/// A model the provider reports but an admin has not registered joins as **discovered**:
+/// present in the catalog so the UI can show it, but `registered = false` so it is never
+/// eligible for a job until someone confirms it (SPEC-179 LAW-179-6). Without this, a
+/// refresh stored ids that nothing ever read, and a newly pulled model stayed invisible.
 #[cfg(feature = "postgres")]
 pub async fn append_connection_models(
     state: &AppState,
@@ -161,6 +166,85 @@ pub async fn append_connection_models(
     .map_err(|err| crate::error::ApiError::Internal(err.to_string()))?;
     for (slug, model, chat, vision, embedding, dimension) in rows {
         let slug = slug.to_lowercase();
+        let dimension = dimension.filter(|value| *value > 0).or_else(|| {
+            embedding
+                .then(|| edgequake_core::Workspace::known_embedding_dimension(&model))
+                .flatten()
+                .map(|value| value as i32)
+        });
+        // A confirmation must UPGRADE an entry the live discovery already added as
+        // unregistered. Skipping it here was a real bug: `load_catalog` runs live discovery
+        // first, so every refreshed id was already present with `registered = false`, the
+        // registration row was dropped, and confirming a model changed nothing.
+        if let Some(existing) = catalog
+            .iter_mut()
+            .find(|item| item.entry.provider == slug && item.entry.model == model)
+        {
+            existing.entry.facts.registered = true;
+            existing.entry.facts.chat = chat;
+            existing.entry.facts.vision = vision;
+            existing.entry.facts.embedding = embedding;
+            existing.entry.facts.probe = Some(true);
+            existing.supports_vision = vision;
+            existing.supports_streaming = chat;
+            if dimension.is_some() {
+                existing.embedding_dimension = dimension;
+            }
+            continue;
+        }
+        catalog.push(CatalogItem {
+            display_name: model.clone(),
+            provider_display_name: slug.clone(),
+            supports_vision: vision,
+            supports_streaming: chat,
+            embedding_dimension: dimension,
+            entry: CatalogEntry {
+                provider: slug,
+                model,
+                facts: ModelFacts {
+                    chat,
+                    vision,
+                    embedding,
+                    registered: true,
+                    probe: Some(true),
+                },
+            },
+        });
+    }
+    append_discovered_models(state, catalog).await?;
+    Ok(())
+}
+
+/// Models a provider reported on its last refresh that no admin has registered yet.
+///
+/// These join the catalog with `registered = false`. Two consequences, both intended:
+/// 1. `models_for` (the provider card) shows them, so "I pulled a model, why can't I see it"
+///    has an answer on screen.
+/// 2. `eligible_models` still excludes them (EC-175-11), so extraction never silently starts
+///    using a model whose capabilities nobody confirmed.
+///
+/// A row already in the catalog from a static card or a registration keeps its `registered`
+/// flag: the live list cannot downgrade a model an admin already confirmed.
+#[cfg(feature = "postgres")]
+async fn append_discovered_models(
+    state: &AppState,
+    catalog: &mut Vec<CatalogItem>,
+) -> ApiResult<()> {
+    let Some(pool) = state.optional_pg_pool() else {
+        return Ok(());
+    };
+    let rows: Vec<(String, String, bool, bool, bool, Option<i32>)> = sqlx::query_as(
+        "SELECT provider_slug, model, supports_chat, supports_vision, \
+                supports_embedding, embedding_dimension \
+         FROM provider_model_cache \
+         ORDER BY provider_slug, model",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|err| crate::error::ApiError::Internal(err.to_string()))?;
+    for (slug, model, chat, vision, embedding, dimension) in rows {
+        let slug = slug.to_lowercase();
+        // A static card or a registration already speaks for this id.
         if catalog
             .iter()
             .any(|item| item.entry.provider == slug && item.entry.model == model)
@@ -183,10 +267,12 @@ pub async fn append_connection_models(
                 provider: slug,
                 model,
                 facts: ModelFacts {
+                    // The cache stores chat/vision/embedding; a refreshed Ollama tag is chat
+                    // unless it reported the embedding capability.
                     chat,
                     vision,
                     embedding,
-                    registered: true,
+                    registered: false,
                     probe: Some(true),
                 },
             },
