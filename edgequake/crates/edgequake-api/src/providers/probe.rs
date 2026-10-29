@@ -596,8 +596,7 @@ mod tests {
         assert!(
             response.list_ok,
             "list failed: {} kind={:?}",
-            response.message,
-            response.kind
+            response.message, response.kind
         );
         assert!(
             !response.models.is_empty(),
@@ -607,7 +606,11 @@ mod tests {
             response.ok,
             "refresh-shaped probe (no explicit model) must be ok when list works: {response:?}"
         );
-        println!("mistral models: {} (first={:?})", response.models.len(), response.models.first());
+        println!(
+            "mistral models: {} (first={:?})",
+            response.models.len(),
+            response.models.first()
+        );
     }
 
     /// Live check against a running Ollama. Run explicitly:

@@ -10,7 +10,8 @@ test.describe("provider add update refresh @spec177", () => {
   test.beforeEach(({}, info) => info.setTimeout(120_000));
 
   test("organization refresh reloads the model ceiling", async ({ page }) => {
-    await openSettings(page, "super_admin", "/settings/organization/providers");
+    // Refresh is a platform operation (SPEC-179 contract), so only that role sees the control.
+    await openSettings(page, "platform_admin", "/settings/organization/providers");
     let catalogHits = 0;
     const refreshes: string[] = [];
     await page.route("**/api/v1/models/discover/refresh", (route) => {

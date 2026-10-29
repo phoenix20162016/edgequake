@@ -474,7 +474,7 @@ pub async fn put_connection_models(
         // make its models impossible to register: refresh found them, then nothing could
         // confirm them. Give it a row first, seeded from the environment it already runs from.
         if env_only && !fleet {
-            materialise_env_connection(&state, pool, &slug).await?;
+            materialise_env_connection(pool, &slug).await?;
         }
         let models: Vec<(String, bool, bool, bool, Option<i32>)> = body
             .models
@@ -511,11 +511,7 @@ pub async fn put_connection_models(
 /// database would duplicate a credential that `ConnectionView.auth_scheme == "env"` says the
 /// environment owns.
 #[cfg(feature = "postgres")]
-async fn materialise_env_connection(
-    state: &AppState,
-    pool: &sqlx::PgPool,
-    slug: &str,
-) -> ApiResult<()> {
+async fn materialise_env_connection(pool: &sqlx::PgPool, slug: &str) -> ApiResult<()> {
     let Some(connection) = env_connections().into_iter().find(|row| row.slug == slug) else {
         return Err(ApiError::NotFound(format!("provider {slug}")));
     };
@@ -1103,14 +1099,13 @@ async fn refresh_listing(
 /// same `models.toml` mapping the resolver uses. A local provider (Ollama, LM Studio) needs
 /// no key, so it probes with the URL alone.
 #[cfg(feature = "postgres")]
-fn env_refresh_request(state: &AppState, slug: &str) -> Option<crate::providers::probe::ProbeRequest> {
-    let connection = env_connections()
-        .into_iter()
-        .find(|row| row.slug == slug)?;
-    let api_key = crate::providers::credentials::provider_env_api_key(
-        &state.query.models_config,
-        slug,
-    );
+fn env_refresh_request(
+    state: &AppState,
+    slug: &str,
+) -> Option<crate::providers::probe::ProbeRequest> {
+    let connection = env_connections().into_iter().find(|row| row.slug == slug)?;
+    let api_key =
+        crate::providers::credentials::provider_env_api_key(&state.query.models_config, slug);
     Some(crate::providers::probe::ProbeRequest {
         shape: connection.api_shape,
         base_url: Some(connection.base_url),
