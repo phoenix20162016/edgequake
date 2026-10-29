@@ -71,6 +71,15 @@ interface FullLineageEntity {
 interface DocumentHierarchyTreeProps {
   documentId: string;
   documentName?: string;
+  /**
+   * Whether the document is still being processed.
+   *
+   * WHY: the lineage KV record is only written at pipeline finalize, so the
+   * lineage request 404s for the whole ingestion window. When this is true the
+   * tree keeps polling so it populates as soon as the data lands instead of
+   * staying stuck on "Hierarchy data not available".
+   */
+  isDocumentProcessing?: boolean;
   /** Called when a chunk is clicked; provides line range and page for navigation. */
   onChunkSelect?: (chunkId: string, startLine?: number, endLine?: number, page?: number) => void;
   /**
@@ -87,6 +96,7 @@ interface DocumentHierarchyTreeProps {
 export function DocumentHierarchyTree({
   documentId,
   documentName,
+  isDocumentProcessing = false,
   onChunkSelect,
   onChunkResolved,
   selectedChunkId,
@@ -95,7 +105,10 @@ export function DocumentHierarchyTree({
   // persisted KV lineage with actual chunks and entity data.
   // The old useDocumentLineage (/lineage/documents/:id) returned graph-based
   // data without chunk details, causing "0 chunks" display.
-  const { data: fullLineage, isLoading, error } = useDocumentFullLineage(documentId);
+  const { data: fullLineage, isLoading, error } = useDocumentFullLineage(
+    documentId,
+    { isDocumentProcessing },
+  );
 
   // WHY: Transform the raw response into normalized arrays.
   // The full-lineage endpoint returns entities as a dict (keyed by entity_id)
@@ -180,6 +193,17 @@ export function DocumentHierarchyTree({
   }
 
   if (error || !fullLineage) {
+    // WHY distinguish these: lineage is only persisted at pipeline finalize, so
+    // "still processing" is a normal pending state, not a failure. Showing the
+    // same permanent-looking message for both made a healthy ingestion look broken.
+    if (isDocumentProcessing) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground p-2">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Available when processing completes
+        </div>
+      );
+    }
     return (
       <p className="text-xs text-muted-foreground p-2">
         Hierarchy data not available

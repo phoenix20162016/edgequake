@@ -26,6 +26,30 @@ import { useTenantStore } from "@/stores/use-tenant-store";
 import { useQuery } from "@tanstack/react-query";
 
 /**
+ * Recovery policy for document lineage while ingestion is still running.
+ *
+ * WHY: lineage is only persisted at pipeline finalize, so every pre-finalize
+ * request 404s. These constants make "not written yet" recoverable instead of
+ * a permanent error state (see `useDocumentFullLineage`).
+ */
+/** Retries for a 404 (lineage pending) before surfacing the error. */
+const LINEAGE_PENDING_RETRIES = 4;
+/**
+ * Retries for a 404 on a document that already reports a terminal status.
+ *
+ * WHY not zero: `finalize.rs` sets the terminal status *before* writing the
+ * lineage KV record, so a request landing in that window sees "completed" plus
+ * a 404. A couple of retries bridge it. WHY not many: a genuinely missing
+ * lineage record (e.g. a document ingested before lineage persistence existed)
+ * must surface as an error instead of polling forever.
+ */
+const LINEAGE_FINALIZE_RACE_RETRIES = 2;
+/** Base backoff for pending retries (1s, 2s, 4s, 8s). */
+const LINEAGE_PENDING_RETRY_BASE_MS = 1000;
+/** Poll cadence while the document is still processing. */
+const LINEAGE_PENDING_POLL_MS = 5000;
+
+/**
  * Query keys for lineage data.
  */
 export const lineageKeys = {
@@ -64,14 +88,48 @@ export function useDocumentLineage(documentId: string | null) {
 /**
  * Hook to fetch complete document lineage from KV (OODA-07).
  * Returns persisted DocumentLineage + document metadata in single call.
+ *
+ * WHY the retry/refetch policy: the backend only writes the `<id>-lineage` KV
+ * record at pipeline finalize (`processor/text_insert/finalize.rs`), so every
+ * request made while the document is still processing returns 404. The global
+ * retry policy never retries 4xx, which left the "Data Hierarchy" panel stuck
+ * on "Hierarchy data not available" for the whole 5-minute staleTime — even
+ * after the document had completed and the lineage was queryable.
+ *
+ * A 404 here is therefore a *pending* signal, not a permanent failure:
+ *   - retry 404s a few times with backoff to bridge the finalize boundary
+ *   - while the caller reports the document is still processing, keep polling
+ *
  * @implements F5 - Single API call retrieves complete lineage tree
  */
-export function useDocumentFullLineage(documentId: string | null) {
+export function useDocumentFullLineage(
+  documentId: string | null,
+  options: { isDocumentProcessing?: boolean } = {},
+) {
+  const { isDocumentProcessing = false } = options;
   return useQuery({
     queryKey: lineageKeys.documentFullLineage(documentId ?? ""),
     queryFn: () => getDocumentFullLineage(documentId!),
     enabled: !!documentId,
+    // Lineage is immutable once written — no need to refetch a 200.
     staleTime: 5 * 60 * 1000,
+    // Poll only while the lineage is still missing AND the document is active.
+    // WHY depend on the query state: once a 200 lands, polling stops by itself.
+    refetchInterval: (query) => {
+      if (!isDocumentProcessing) return false;
+      return query.state.data ? false : LINEAGE_PENDING_POLL_MS;
+    },
+    retry: (failureCount, error) => {
+      const is404 = (error as { status?: number }).status === 404;
+      if (!is404) return false;
+      // 404 on an active document = lineage not written yet (the common case).
+      if (isDocumentProcessing) return failureCount < LINEAGE_PENDING_RETRIES;
+      // 404 on a terminal document = finalize-race window, or genuinely missing.
+      // Allow only a short bridge so a real gap still surfaces quickly.
+      return failureCount < LINEAGE_FINALIZE_RACE_RETRIES;
+    },
+    retryDelay: (attemptIndex) =>
+      Math.min(LINEAGE_PENDING_RETRY_BASE_MS * 2 ** attemptIndex, 8000),
   });
 }
 
