@@ -1,5 +1,8 @@
 @layer scalar-base, scalar-theme, scalar-config, theme, base, components, utilities;
-@import "tailwindcss";
+/* Scan only `src/` (this file lives in `src/app/`). Broader auto-detection can
+   pick up tokens from on-disk `.next-*` caches and emit broken utilities such as
+   `lg:w-[64!]` → `width: 64!;`, which crashes the PostCSS parse. */
+@import "tailwindcss" source("..");
 @import "tw-animate-css";
 @import "./design-tokens.css";
 

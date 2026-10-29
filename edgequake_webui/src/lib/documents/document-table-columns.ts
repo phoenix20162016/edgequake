@@ -50,14 +50,16 @@ export function documentTableColPercentSum(showCostColumn: boolean): number {
  * Applied to BOTH default and withCost layouts (cost itself hides below lg).
  */
 export const DOCUMENT_TABLE_NARROW_COL_CLASSES = {
-  checkbox: "@max-2xl:w-[4%]! @max-lg:w-[5%]!",
-  title: "@max-2xl:w-[38%]! @max-xl:w-[44%]! @max-lg:w-[52%]!",
-  status: "@max-2xl:w-[22%]! @max-xl:w-[28%]! @max-lg:w-[34%]!",
-  entities: "@max-2xl:w-[12%]! @max-lg:hidden",
+  // Important as a prefix (`!w-[…]`). A trailing `]!` can be scanned as an
+  // arbitrary value that ends with `!`, which emits invalid CSS like `width: 64!;`.
+  checkbox: "@max-2xl:!w-[4%] @max-lg:!w-[5%]",
+  title: "@max-2xl:!w-[38%] @max-xl:!w-[44%] @max-lg:!w-[52%]",
+  status: "@max-2xl:!w-[22%] @max-xl:!w-[28%] @max-lg:!w-[34%]",
+  entities: "@max-2xl:!w-[12%] @max-lg:hidden",
   cost: "@max-lg:hidden",
-  created: "@max-2xl:w-[16%]! @max-xl:hidden",
+  created: "@max-2xl:!w-[16%] @max-xl:hidden",
   updated: "@max-2xl:hidden",
-  actions: "@max-2xl:w-[8%]! @max-lg:w-[9%]!",
+  actions: "@max-2xl:!w-[8%] @max-lg:!w-[9%]",
 } as const;
 
 /** Hide entire column below this container max (match row cells). */
