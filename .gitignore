@@ -91,6 +91,7 @@ venv/
 ENV/
 edgequake_webui/node_modules/
 edgequake_webui/.next/
+edgequake_webui/.next-*/
 edgequake_webui/.turbo/
 edgequake_webui/playwright-report/
 edgequake_webui/test-results/
