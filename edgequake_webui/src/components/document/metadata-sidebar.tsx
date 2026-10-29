@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import type { Document } from '@/types';
 import { Brain, Database, Download, FileText, GitBranch, Network, Settings } from 'lucide-react';
 import { DocumentDownloadMenu } from '@/components/documents/document-download-menu';
+import { isActiveProcessingDocument } from '@/lib/utils/document-status';
 import { CollapsibleSection } from './collapsible-section';
 import { DocumentHierarchyTree } from './document-hierarchy-tree';
 import { EnhancedMetadata } from './enhanced-metadata';
@@ -44,6 +45,13 @@ interface MetadataSidebarProps {
 }
 
 export function MetadataSidebar({ document, onChunkSelect, onChunkResolved, selectedChunkId, className }: MetadataSidebarProps) {
+  // WHY: lineage is written only at pipeline finalize — tell the hierarchy tree
+  // whether to keep polling, so it fills in when ingestion finishes.
+  const isDocumentProcessing = isActiveProcessingDocument({
+    status: document.status,
+    display_status: document.display_status,
+    current_stage: document.current_stage,
+  });
   return (
     <div className={cn('h-full flex flex-col border-l bg-background overflow-hidden', className)}>
       {/* Fixed Stats Header - Always visible, never compressed */}
@@ -93,6 +101,7 @@ export function MetadataSidebar({ document, onChunkSelect, onChunkResolved, sele
             <DocumentHierarchyTree
               documentId={document.id}
               documentName={document.file_name ?? document.title ?? undefined}
+              isDocumentProcessing={isDocumentProcessing}
               onChunkSelect={onChunkSelect}
               onChunkResolved={onChunkResolved}
               selectedChunkId={selectedChunkId}

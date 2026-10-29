@@ -9,6 +9,7 @@ import {
   getDocumentDisplayStatus,
   isProcessingStatus,
   type DocumentStatus,
+  type DocumentStatusInput,
 } from "@/lib/documents/status-domain";
 import type { Document } from "@/types";
 import { formatGraphMergeStageMessage } from "@/lib/pipeline/graph-merge-progress";
@@ -47,10 +48,7 @@ export function isTerminalFailureDocument(doc: {
   );
 }
 
-export function isActiveProcessingDocument(doc: {
-  status?: string | null;
-  current_stage?: string | null;
-}): boolean {
+export function isActiveProcessingDocument(doc: DocumentStatusInput): boolean {
   const display = getDocumentDisplayStatus(doc);
   if (isProcessingStatus(display)) return true;
   const legacy = doc.status?.toLowerCase();
