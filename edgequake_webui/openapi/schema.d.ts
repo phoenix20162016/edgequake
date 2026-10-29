@@ -10813,6 +10813,7 @@ export interface components {
          * @example {
          *       "embedding_dimension": {},
          *       "id": {},
+         *       "registered": {},
          *       "usages": []
          *     }
          */
@@ -10820,6 +10821,11 @@ export interface components {
             /** Format: int32 */
             embedding_dimension?: number | null;
             id: string;
+            /**
+             * @description False for a model the provider reported but nobody has registered yet. It is visible
+             *     on the card so a fresh pull is not invisible, but it is never eligible for a job.
+             */
+            registered?: boolean;
             usages: string[];
         };
         /**

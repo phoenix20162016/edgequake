@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.38.4] — 2026-10-29
+
+Patch on v0.38.3. Schema stays **224**. An upgrade from 0.38.3 applies no new migration:
+[`docs/operations/upgrade-to-0.38.4.md`](docs/operations/upgrade-to-0.38.4.md).
+
+**CD:** GHCR `edgequake`, `edgequake-frontend`, `edgequake-postgres` (`0.38.4`, `-pg16`, `-pg17`, `-pg18`), and `edgequake-keycloak` on tag `v0.38.4`.
+
+**SPEC-001 Acc:** not re-scored on this cut. This patch does not change mix retrieval. The latest valid medical-mid n=200 pack remains
+[`medical-mid-20261024T031725Z`](specs/001-benchmark/e2e/artifacts/history/medical-mid-20261024T031725Z/)
+(`valid: true`). EdgeQuake **0.8084**, LightRAG **0.7681**, delta **+0.0403**
+(95% bootstrap CI [-0.0241, +0.1036], n_paired 72). The interval includes 0,
+so this is a statistical tie. EdgeQuake does not claim a win.
+
+### Fixed
+
+- Refreshing a provider whose base URL already ends in `/v1` probed `/v1/v1/models` and then required a chat ping, so Mistral, OpenRouter, and NVIDIA refreshes failed with `chat ping failed` and newly pulled models stayed invisible. Discovery now joins the probe path once, and a model list counts as proof the provider answers.
+- A provider that exists only in the environment has no `provider_connections` row to hang models on, so its discovered models could never be registered. The refresh now writes that row from the environment before registration.
+- The data hierarchy panel kept reporting no lineage while ingestion was still finishing. A 404 during the run now reads as pending and polls until the record lands, including the window where finalize marks the document complete before the key-value write.
+- Tailwind scanned stale `.next-*` Turbopack caches and emitted broken utilities such as `width: 64!;`. Class scanning is scoped to `src/`, and table column widths use a prefix `!important`.
+- Long workspace names wrapped under the switcher chevron because the closed value was a flex row, which cancels line-clamp.
+- A connection database without a provider-offer relation no longer fails the offer gate, which unblocks the SPEC-163 roles proof.
+- The UI gate crashed when an eligible-model or settings-access payload was missing. Sigma now skips the canvas instead of calling `blendFunc` on a null WebGL context.
+
+### Changed
+
+- Deployment › Providers, Organization › Providers, and Workspace › Models share one refresh control. It posts the refresh, invalidates every catalog-derived query, and reports the added and removed models. The control appears only for a Platform Admin, matching the endpoint's `ApiRequireAdmin` gate.
+- Provider cards separate discovered models from registered ones, and a local provider (Ollama, LM Studio) probes with its URL alone.
+
+### Ops
+
+- The retrieval SLO check warms the HNSW cache before sampling and uses a shared-runner budget. The plan is unchanged; the 150 ms cap describes a quiet machine, which a busy GitHub runner cannot represent.
+
 ## [0.38.3] — 2026-10-27
 
 Patch on v0.38.2. Schema stays **224**. An upgrade from 0.38.2 applies no new migration:
