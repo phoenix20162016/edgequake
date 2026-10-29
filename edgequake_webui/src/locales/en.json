@@ -1192,6 +1192,11 @@
         "unchecked": "Not tested"
       },
       "refresh": "Refresh models",
+      "refreshShort": "Refresh",
+      "showDiscovered": "{{count}} found, not registered",
+      "hideDiscovered": "Hide found models",
+      "discovered": "Found but not registered",
+      "discoveredHint": "The provider reports these. Register one to make it usable for a job.",
       "refreshFailed": "Could not refresh models.",
       "refreshFailedAt": "Last refresh failed {{when}}",
       "refreshed": "Models refreshed",

@@ -109,15 +109,38 @@ export function useEmbeddingModels() {
   });
 }
 
-/** Invalidate discovery cache on backend and refetch model catalogs. */
+/**
+ * After a provider refresh, every view built from the model catalog must re-read.
+ *
+ * The catalog feeds more than the chat inventory: the eligible pickers, the resolved
+ * usages, the provider offers and the tenant catalog all derive from it. Refreshing only
+ * `llm-models` left the workspace Models page showing the previous models, so a refresh
+ * looked like it had done nothing. One list, used by every refresh entry point.
+ */
+export const MODEL_CATALOG_QUERY_KEYS: readonly (readonly string[])[] = [
+  ["llm-models"],
+  ["embedding-models"],
+  ["provider-health"],
+  // modelPolicyQueryKeys roots — spelled out to keep this module free of the policy hook.
+  ["eligible-models"],
+  ["effective-usages"],
+  ["tenant-model-catalog"],
+  ["tenant-model-policy"],
+  ["workspace-model-policy"],
+  ["tenant-provider-offer"],
+  ["workspace-provider-offer"],
+  ["deployment-providers"],
+];
+
+/** Invalidate discovery cache on backend and refetch every catalog-derived view. */
 export async function refreshDynamicModels(queryClient: {
   invalidateQueries: (opts: { queryKey: string[] }) => void;
-}) {
-  await refreshModelDiscovery();
-  queryClient.invalidateQueries({ queryKey: ["llm-models"] });
-  queryClient.invalidateQueries({ queryKey: ["embedding-models"] });
-  queryClient.invalidateQueries({ queryKey: ["provider-health"] });
-  queryClient.invalidateQueries({ queryKey: ["eligible-models"] });
+}): Promise<{ status: string; message: string }> {
+  const result = await refreshModelDiscovery();
+  for (const queryKey of MODEL_CATALOG_QUERY_KEYS) {
+    queryClient.invalidateQueries({ queryKey: [...queryKey] });
+  }
+  return result;
 }
 
 /**

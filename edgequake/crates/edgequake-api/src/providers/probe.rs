@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use utoipa::ToSchema;
 
-use crate::locality::{default_local_base_url, local_health_path};
+use crate::locality::default_local_base_url;
 use crate::ssrf::{validate_provider_url, SsrfPolicy};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
@@ -141,7 +141,9 @@ pub async fn probe_provider(req: ProbeRequest) -> ProbeResponse {
     let api_key = req.api_key.clone();
 
     let list_url = if shape == "ollama" {
-        format!("{base}{}", local_health_path("ollama"))
+        // `/api/tags` lists installed models. `/api/version` (the health path) does not, and
+        // using it here reported an empty but successful refresh.
+        format!("{base}{}", crate::locality::local_models_path("ollama"))
     } else if crate::providers::connection_shapes::requires_server_credentials(&shape) {
         return ProbeResponse {
             ok: false,
@@ -157,19 +159,26 @@ pub async fn probe_provider(req: ProbeRequest) -> ProbeResponse {
             list_ok: false,
         };
     } else {
-        format!("{base}/v1/models")
+        openai_compatible_url(&base, "models")
     };
 
     let list_res = apply_auth(client.get(&list_url), &scheme, api_key.as_deref())
         .send()
         .await;
     let (list_ok, models, list_kind, list_msg) = match list_res {
-        Ok(resp) if resp.status() == reqwest::StatusCode::UNAUTHORIZED => (
-            false,
-            vec![],
-            ProbeErrorKind::Unauthorized,
-            "401 listing models".into(),
-        ),
+        Ok(resp)
+            if matches!(
+                resp.status(),
+                reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN
+            ) =>
+        {
+            (
+                false,
+                vec![],
+                ProbeErrorKind::Unauthorized,
+                format!("{} listing models", resp.status().as_u16()),
+            )
+        }
         Ok(resp) if resp.status().is_success() => {
             let body = resp.json::<serde_json::Value>().await.unwrap_or_default();
             let models = extract_model_ids(&body);
@@ -208,10 +217,15 @@ pub async fn probe_provider(req: ProbeRequest) -> ProbeResponse {
         };
     }
 
-    let model = req
-        .model
-        .clone()
-        .unwrap_or_else(|| models.first().cloned().unwrap_or_else(|| "default".into()));
+    let explicit_model = req.model.clone();
+    let model = explicit_model.clone().unwrap_or_else(|| {
+        models
+            .iter()
+            .find(|id| !looks_non_chat_model(id))
+            .cloned()
+            .or_else(|| models.first().cloned())
+            .unwrap_or_else(|| "default".into())
+    });
 
     let chat_ok = ping_chat(&client, &scheme, api_key.as_deref(), &shape, &base, &model).await;
     let (embed_ok, dim) = ping_embed(
@@ -224,8 +238,16 @@ pub async fn probe_provider(req: ProbeRequest) -> ProbeResponse {
     )
     .await;
 
-    let mut kind = ProbeErrorKind::Ok;
-    let mut message = "provider reachable".to_string();
+    let mut kind = if list_ok {
+        ProbeErrorKind::Ok
+    } else {
+        list_kind
+    };
+    let mut message = if list_ok {
+        "provider reachable".to_string()
+    } else {
+        list_msg
+    };
     if let Some(expected) = req.expected_dimension {
         if let Some(got) = dim {
             if got != expected {
@@ -234,12 +256,13 @@ pub async fn probe_provider(req: ProbeRequest) -> ProbeResponse {
             }
         }
     }
-    if !chat_ok && kind == ProbeErrorKind::Ok {
+    // A refresh passes no model and only needs /models. Failing the whole probe because the
+    // first listed id cannot chat (embeddings, OCR, NIM not-enabled, …) wiped a good list.
+    if !chat_ok && kind == ProbeErrorKind::Ok && explicit_model.is_some() {
         kind = ProbeErrorKind::ShapeMismatch;
         message = "chat ping failed".into();
     }
-    if req
-        .model
+    if explicit_model
         .as_ref()
         .is_some_and(|m| !models.is_empty() && !models.iter().any(|x| x == m))
         && list_ok
@@ -248,11 +271,11 @@ pub async fn probe_provider(req: ProbeRequest) -> ProbeResponse {
         kind = ProbeErrorKind::ModelNotFound;
         message = format!(
             "model {} not in /v1/models",
-            req.model.as_deref().unwrap_or("")
+            explicit_model.as_deref().unwrap_or("")
         );
     }
 
-    let ok = kind == ProbeErrorKind::Ok && list_ok && chat_ok;
+    let ok = kind == ProbeErrorKind::Ok && list_ok && (chat_ok || explicit_model.is_none());
     ProbeResponse {
         ok,
         kind,
@@ -264,6 +287,44 @@ pub async fn probe_provider(req: ProbeRequest) -> ProbeResponse {
         embed_ok,
         list_ok,
     }
+}
+
+/// Join an OpenAI-compatible path onto a base that may already end in `/v1`.
+///
+/// Env defaults and the OpenAI Python SDK use `https://host/v1`. Appending `/v1/models`
+/// again produced `/v1/v1/models` (404) and every cloud refresh reported "chat ping failed".
+fn openai_compatible_url(base: &str, path: &str) -> String {
+    let base = base.trim_end_matches('/');
+    let path = path.trim_start_matches('/');
+    if base.ends_with("/v1") {
+        format!("{base}/{path}")
+    } else {
+        format!("{base}/v1/{path}")
+    }
+}
+
+fn looks_non_chat_model(model: &str) -> bool {
+    let id = model.to_ascii_lowercase();
+    const MARKERS: &[&str] = &[
+        "embed",
+        "tts",
+        "whisper",
+        "transcri",
+        "ocr",
+        "moderation",
+        "dall-e",
+        "imagen",
+        "flux",
+        "audio",
+        "voxtral",
+        "timestral",
+        "shieldstral",
+        "bge-",
+        "minilm",
+        "e5-",
+        "gte-",
+    ];
+    MARKERS.iter().any(|marker| id.contains(marker))
 }
 
 fn fail(start: Instant, kind: ProbeErrorKind, message: String) -> ProbeResponse {
@@ -348,7 +409,7 @@ async fn ping_chat(
         return r.map(|x| x.status().is_success()).unwrap_or(false);
     }
     let r = apply_auth(
-        client.post(format!("{base}/v1/chat/completions")),
+        client.post(openai_compatible_url(base, "chat/completions")),
         scheme,
         api_key,
     )
@@ -378,7 +439,7 @@ async fn ping_embed(
         "input": "dimension-probe"
     });
     let r = apply_auth(
-        client.post(format!("{base}/v1/embeddings")),
+        client.post(openai_compatible_url(base, "embeddings")),
         scheme,
         api_key,
     )
@@ -448,4 +509,133 @@ pub async fn probe_named_provider_reachable(name: &str) -> bool {
     };
     let r = probe_provider(req).await;
     r.list_ok || r.ok
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openai_compatible_url_tolerates_base_that_already_ends_in_v1() {
+        assert_eq!(
+            openai_compatible_url("https://api.mistral.ai/v1", "models"),
+            "https://api.mistral.ai/v1/models"
+        );
+        assert_eq!(
+            openai_compatible_url("https://api.mistral.ai/v1/", "chat/completions"),
+            "https://api.mistral.ai/v1/chat/completions"
+        );
+        assert_eq!(
+            openai_compatible_url("https://api.openai.com", "models"),
+            "https://api.openai.com/v1/models"
+        );
+        // Gemini's OpenAI-compat host ends in `/openai`, not `/v1`.
+        assert_eq!(
+            openai_compatible_url(
+                "https://generativelanguage.googleapis.com/v1beta/openai",
+                "models"
+            ),
+            "https://generativelanguage.googleapis.com/v1beta/openai/v1/models"
+        );
+    }
+
+    #[test]
+    fn non_chat_model_heuristic_skips_embed_and_ocr() {
+        assert!(looks_non_chat_model("mistral-embed"));
+        assert!(looks_non_chat_model("mistral-ocr-2512"));
+        assert!(!looks_non_chat_model("mistral-large-latest"));
+        assert!(!looks_non_chat_model("codestral-2508"));
+    }
+
+    /// The shape Ollama returns from `/api/tags`.
+    #[test]
+    fn parses_ollama_tag_listing() {
+        let body = serde_json::json!({
+            "models": [
+                { "name": "gemma3:12b", "model": "gemma3:12b", "size": 8_147_000_000u64 },
+                { "name": "nomic-embed-text:latest", "model": "nomic-embed-text:latest" }
+            ]
+        });
+        let ids = extract_model_ids(&body);
+        assert_eq!(ids, vec!["gemma3:12b", "nomic-embed-text:latest"]);
+    }
+
+    #[test]
+    fn parses_openai_model_listing() {
+        let body = serde_json::json!({ "data": [{ "id": "gpt-5-nano" }, { "id": "gpt-5.2" }] });
+        assert_eq!(extract_model_ids(&body), vec!["gpt-5-nano", "gpt-5.2"]);
+    }
+
+    /// `/api/version` carries no model list, which is why it cannot be the refresh source.
+    #[test]
+    fn version_payload_yields_no_models() {
+        let body = serde_json::json!({ "version": "0.40.12" });
+        assert!(extract_model_ids(&body).is_empty());
+    }
+
+    /// Live check that env-style bases ending in `/v1` list models (no `/v1/v1`).
+    /// `cargo test -p edgequake-api --lib providers::probe::tests::live_mistral_lists_with_v1_base -- --ignored --nocapture`
+    #[tokio::test]
+    #[ignore = "requires MISTRAL_API_KEY"]
+    async fn live_mistral_lists_with_v1_base() {
+        let key = std::env::var("MISTRAL_API_KEY")
+            .ok()
+            .filter(|value| !value.is_empty())
+            .expect("MISTRAL_API_KEY");
+        let response = probe_provider(ProbeRequest {
+            shape: "openai_chat".into(),
+            base_url: Some("https://api.mistral.ai/v1".into()),
+            model: None,
+            embedding_model: None,
+            api_key: Some(key),
+            auth_scheme: Some("bearer".into()),
+            allow_private_network: Some(false),
+            expected_dimension: None,
+        })
+        .await;
+        assert!(
+            response.list_ok,
+            "list failed: {} kind={:?}",
+            response.message,
+            response.kind
+        );
+        assert!(
+            !response.models.is_empty(),
+            "Mistral answered but returned no models"
+        );
+        assert!(
+            response.ok,
+            "refresh-shaped probe (no explicit model) must be ok when list works: {response:?}"
+        );
+        println!("mistral models: {} (first={:?})", response.models.len(), response.models.first());
+    }
+
+    /// Live check against a running Ollama. Run explicitly:
+    /// `cargo test -p edgequake-api --lib probe::tests::live_ollama -- --ignored --nocapture`
+    #[tokio::test]
+    #[ignore = "requires a running Ollama with models pulled"]
+    async fn live_ollama_lists_its_models() {
+        let response = probe_provider(ProbeRequest {
+            shape: "ollama".into(),
+            base_url: Some(
+                std::env::var("OLLAMA_HOST")
+                    .ok()
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or_else(|| "http://127.0.0.1:11434".into()),
+            ),
+            model: None,
+            embedding_model: None,
+            api_key: None,
+            auth_scheme: Some("none".into()),
+            allow_private_network: Some(true),
+            expected_dimension: None,
+        })
+        .await;
+        assert!(response.list_ok, "list failed: {}", response.message);
+        assert!(
+            !response.models.is_empty(),
+            "Ollama answered but returned no models; the refresh would clear the cache"
+        );
+        println!("ollama models: {:?}", response.models);
+    }
 }

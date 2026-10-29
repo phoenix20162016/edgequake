@@ -50,6 +50,18 @@ pub fn local_health_path(provider_name: &str) -> &'static str {
     }
 }
 
+/// Path that lists a local provider's installed models.
+///
+/// Not the health path: `/api/version` answers with a version string and no models, so
+/// using it to list made every Ollama refresh come back "ok, zero models" and wipe the
+/// cache. Ollama lists under `/api/tags`; every other local shape is OpenAI-compatible.
+pub fn local_models_path(provider_name: &str) -> &'static str {
+    match provider_name.trim().to_ascii_lowercase().as_str() {
+        "ollama" => "/api/tags",
+        _ => "/v1/models",
+    }
+}
+
 /// `local` when the URL host is loopback, localhost, or RFC1918/ULA. Otherwise `cloud`.
 ///
 /// Link-local and metadata addresses stay `cloud` so SSRF still denies them.
@@ -106,5 +118,21 @@ mod tests {
         assert_eq!(locality_for_url("http://10.1.2.3:8080"), "local");
         assert_eq!(locality_for_url("https://api.openai.com/v1"), "cloud");
         assert_eq!(locality_for_url("http://169.254.169.254/"), "cloud");
+    }
+
+    /// Regression: refresh used the health path, which answers with a version string and no
+    /// models, so every Ollama refresh returned "ok" with an empty list and cleared the cache.
+    #[test]
+    fn ollama_lists_models_under_api_tags_not_the_health_path() {
+        assert_eq!(local_models_path("ollama"), "/api/tags");
+        assert_eq!(local_health_path("ollama"), "/api/version");
+        assert_ne!(local_models_path("ollama"), local_health_path("ollama"));
+    }
+
+    #[test]
+    fn other_local_shapes_list_models_through_the_openai_route() {
+        assert_eq!(local_models_path("lmstudio"), "/v1/models");
+        assert_eq!(local_models_path("omlx"), "/v1/models");
+        assert_eq!(local_models_path("llamacpp"), "/v1/models");
     }
 }

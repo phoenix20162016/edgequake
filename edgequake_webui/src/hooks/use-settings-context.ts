@@ -98,3 +98,16 @@ export function useCanEditSelectedWorkspace(): boolean {
   const { data } = useSettingsAccess(tenantId, workspaceId);
   return data ? toSettingsAccess(data).workspaceManage : false;
 }
+
+/**
+ * Whether the caller is a Platform admin.
+ *
+ * Refresh and provider registration are platform operations, so any control that calls them
+ * must ask this first; otherwise a workspace admin sees a button that answers `403`.
+ */
+export function useIsInstanceAdmin(): boolean {
+  const tenantId = useTenantStore((s) => s.selectedTenantId);
+  const workspaceId = useTenantStore((s) => s.selectedWorkspaceId);
+  const { data } = useSettingsAccess(tenantId, workspaceId);
+  return data ? toSettingsAccess(data).instanceAdmin : false;
+}

@@ -37,6 +37,19 @@ export type SettingsSectionId =
  */
 export type SettingsGate = "everyone" | "workspaceEditor" | "tenantManage" | "instanceAdmin";
 
+/**
+ * How much of the content column a section may use (SPEC-175 shell width).
+ *
+ * - `form`: rows of label + one control. A long measure would leave the control
+ *   stranded far from its label, so the column stays narrow.
+ * - `wide`: grids, matrices and tag lists. These only become readable when the
+ *   column grows, so the section claims the whole content area.
+ *
+ * The shell owns the number; the registry only names the intent, so a section
+ * never hard-codes a pixel width (DRY, one place to change).
+ */
+export type SettingsSectionWidth = "form" | "wide";
+
 export interface SettingsScopeDef {
   id: SettingsScope;
   label: string;
@@ -55,6 +68,8 @@ export interface SettingsSectionDef {
   gate: SettingsGate;
   /** Words that find this section in search, beyond its label. */
   keywords: readonly string[];
+  /** Defaults to `form`; only matrices and card galleries opt into `wide`. */
+  width?: SettingsSectionWidth;
 }
 
 export const SETTINGS_SCOPES: readonly SettingsScopeDef[] = [
@@ -94,6 +109,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     scope: "workspace",
     label: "Models",
     segment: "models",
+    // Provider tag lists, the usage table and the 7-job narrowing matrix all need room.
+    width: "wide",
     gate: "everyone",
     keywords: [
       "model", "models", "llm", "extract", "query", "answer", "summary", "vision", "vlm",
@@ -105,6 +122,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     scope: "workspace",
     label: "Ingestion",
     segment: "ingestion",
+    // Two editors side by side once the column is wide enough.
+    width: "wide",
     gate: "workspaceEditor",
     keywords: ["pdf", "parser", "chunk", "chunking", "budget", "entity types", "language", "vision prompt", "gleaning"],
   },
@@ -113,6 +132,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     scope: "workspace",
     label: "Access",
     segment: "access",
+    // Profile list rows with summaries benefit from a wider measure.
+    width: "wide",
     gate: "workspaceEditor",
     keywords: ["labels", "clearance", "document access", "vocabulary", "profile", "enforcement"],
   },
@@ -129,6 +150,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     scope: "organization",
     label: "Providers",
     segment: "providers",
+    // Provider tag lists plus the 7-job ceiling matrix.
+    width: "wide",
     gate: "tenantManage",
     keywords: ["provider", "providers", "ceiling", "model", "anthropic", "openai", "offer"],
   },
@@ -145,6 +168,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     scope: "deployment",
     label: "Connections",
     segment: "connections",
+    // Form fields in two columns, plus the saved-connection list.
+    width: "wide",
     gate: "instanceAdmin",
     keywords: ["connections", "api key", "base url", "provider key", "test", "secret"],
   },
@@ -153,6 +178,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     scope: "deployment",
     label: "Providers",
     segment: "providers",
+    // A gallery of provider cards with model chips.
+    width: "wide",
     gate: "instanceAdmin",
     keywords: ["provider", "offer", "withdraw", "model", "fleet provider"],
   },
@@ -161,6 +188,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     scope: "deployment",
     label: "Fleet",
     segment: "fleet",
+    // Provider health rows carry a lot of detail when expanded.
+    width: "wide",
     gate: "instanceAdmin",
     keywords: ["fleet", "server defaults", "health", "provider health", "priority", "env", "status"],
   },
@@ -192,6 +221,23 @@ export function getScope(id: SettingsScope): SettingsScopeDef {
 export function sectionsOf(scope: SettingsScope): readonly SettingsSectionDef[] {
   return SETTINGS_SECTIONS.filter((s) => s.scope === scope);
 }
+
+/** The width intent of a section; `form` unless the section opted into `wide`. */
+export function sectionWidth(id: SettingsSectionId): SettingsSectionWidth {
+  return getSection(id).width ?? "form";
+}
+
+/**
+ * The content-column width, in pixels, for one width intent.
+ *
+ * `form` caps the measure so a label and its control never drift apart.
+ * `wide` gives the section everything the viewport can spare, up to a ceiling
+ * that keeps prose lines readable on very large monitors.
+ */
+export const SETTINGS_CONTENT_WIDTH: Record<SettingsSectionWidth, number> = {
+  form: 720,
+  wide: 1600,
+};
 
 /**
  * Href for a section. Workspace sections use `/w/{slug}/settings/...` when the

@@ -15,7 +15,15 @@ import { SettingsSearch } from "@/components/settings/shell/settings-search";
 import { SettingsSectionRenderer } from "@/components/settings/sections";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettingsContext } from "@/hooks/use-settings-context";
-import { canOpenSection, getSection, scopeHref, sectionFromPathname, sectionHref } from "@/lib/settings/registry";
+import {
+  canOpenSection,
+  getSection,
+  scopeHref,
+  sectionFromPathname,
+  sectionHref,
+  sectionWidth,
+  SETTINGS_CONTENT_WIDTH,
+} from "@/lib/settings/registry";
 import { rememberedAppPath } from "@/lib/settings/return-path";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -31,6 +39,8 @@ export function SettingsShell({ workspaceSlug = null }: { workspaceSlug?: string
 
   const section = match ? getSection(match.section) : null;
   const canonicalHref = match ? sectionHref(match.section, workspaceSlug) : null;
+  // Wide sections (matrices, galleries) claim the full column; form sections keep a readable measure.
+  const contentWidth = match ? sectionWidth(match.section) : "form";
   // A workspace section waits for its workspace to resolve before the access gate decides.
   const workspaceLoading = section?.scope === "workspace" && workspaceState === "loading";
   const decided = !!section && accessReady && !workspaceLoading;
@@ -100,8 +110,10 @@ export function SettingsShell({ workspaceSlug = null }: { workspaceSlug?: string
           <main
             id="settings-main"
             aria-label="Settings content"
-            className="mx-auto w-full max-w-[720px] px-4 py-8 sm:px-8 md:px-10"
             data-testid="settings-content"
+            data-width={contentWidth}
+            className="mx-auto w-full px-4 py-8 sm:px-8 md:px-10"
+            style={{ maxWidth: SETTINGS_CONTENT_WIDTH[contentWidth] }}
           >
             {!section ? <UnknownSettingsPage /> : null}
             {section && !decided && !accessError ? <ContentSkeleton /> : null}

@@ -1159,6 +1159,11 @@
         "unchecked": "未测试"
       },
       "refresh": "刷新模型",
+      "refreshShort": "刷新",
+      "showDiscovered": "发现 {{count}} 个，未注册",
+      "hideDiscovered": "隐藏已发现的模型",
+      "discovered": "已发现但未注册",
+      "discoveredHint": "提供方报告了这些模型。注册其中一个即可用于任务。",
       "refreshFailed": "无法刷新模型。",
       "refreshFailedAt": "上次刷新失败 {{when}}",
       "refreshed": "模型已刷新",

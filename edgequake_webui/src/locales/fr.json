@@ -1159,6 +1159,11 @@
         "unchecked": "Non testé"
       },
       "refresh": "Actualiser les modèles",
+      "refreshShort": "Actualiser",
+      "showDiscovered": "{{count}} trouvés, non enregistrés",
+      "hideDiscovered": "Masquer les modèles trouvés",
+      "discovered": "Trouvés mais non enregistrés",
+      "discoveredHint": "Le fournisseur signale ces modèles. Enregistrez-en un pour pouvoir l’utiliser.",
       "refreshFailed": "Impossible d’actualiser les modèles.",
       "refreshFailedAt": "Échec de la dernière actualisation {{when}}",
       "refreshed": "Modèles actualisés",

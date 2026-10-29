@@ -52,20 +52,31 @@ export function WorkspaceRoleEditor({ readOnly = false }: WorkspaceRoleEditorPro
         {!workspace ? (
           <p className="text-sm text-muted-foreground">Select a workspace to see its models.</p>
         ) : (
-          <div className="divide-y" data-testid="model-roles-rows">
-            {USAGE_KEYS.map((usage) => (
-              <UsageRoleRow
-                key={usage}
-                usage={usage}
-                workspaceId={workspace.id}
-                draft={WRITABLE.has(usage) ? (roles.draft[usage] ?? EMPTY_ROLE) : undefined}
-                resolved={resolved.get(usage)}
-                connections={connectionOptions}
-                readOnly={readOnly}
-                onChange={(next) => roles.patchUsage(usage, next)}
-              />
-            ))}
-          </div>
+          <>
+            {/* Column names once, so seven stacked rows read as one table. Hidden when stacked. */}
+            <div
+              aria-hidden="true"
+              className="hidden border-b px-0 pb-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_minmax(0,1fr)] md:gap-3"
+            >
+              <span>Job</span>
+              <span>Model</span>
+              <span>Connection</span>
+            </div>
+            <div className="divide-y" data-testid="model-roles-rows">
+              {USAGE_KEYS.map((usage) => (
+                <UsageRoleRow
+                  key={usage}
+                  usage={usage}
+                  workspaceId={workspace.id}
+                  draft={WRITABLE.has(usage) ? (roles.draft[usage] ?? EMPTY_ROLE) : undefined}
+                  resolved={resolved.get(usage)}
+                  connections={connectionOptions}
+                  readOnly={readOnly}
+                  onChange={(next) => roles.patchUsage(usage, next)}
+                />
+              ))}
+            </div>
+          </>
         )}
         {readOnly ? (
           <p role="note" data-testid="model-roles-readonly" className="text-sm text-muted-foreground">
