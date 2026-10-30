@@ -1,46 +1,24 @@
 //! Workspace entity-type color map helpers (SPEC-102 / FEAT-102).
 //!
 //! Pure validation + metadata apply shared by postgres and in-memory workspace
-//! services.
+//! services. Hex parsing is delegated to [`crate::hex_color`] (one definition for
+//! every color setting).
 
 use std::collections::HashMap;
+
+use crate::hex_color::{canonicalize_hex_color, is_hex_color};
 
 /// Max entity-type color overrides per workspace.
 pub const MAX_ENTITY_TYPE_COLORS: usize = 50;
 
 /// True when `value` is `#RGB` or `#RRGGBB` (hex digits only).
 pub fn is_valid_entity_type_hex(value: &str) -> bool {
-    let v = value.trim();
-    let bytes = v.as_bytes();
-    if bytes.first() != Some(&b'#') {
-        return false;
-    }
-    let body = &bytes[1..];
-    if body.len() != 3 && body.len() != 6 {
-        return false;
-    }
-    body.iter().all(|b| b.is_ascii_hexdigit())
+    is_hex_color(value)
 }
 
 /// Expand `#RGB` → `#rrggbb` and lowercase `#RRGGBB`.
 pub fn canonicalize_entity_type_hex(value: &str) -> Option<String> {
-    let v = value.trim();
-    if !is_valid_entity_type_hex(v) {
-        return None;
-    }
-    let body = &v[1..];
-    if body.len() == 3 {
-        let mut out = String::with_capacity(7);
-        out.push('#');
-        for c in body.chars() {
-            let lower = c.to_ascii_lowercase();
-            out.push(lower);
-            out.push(lower);
-        }
-        Some(out)
-    } else {
-        Some(format!("#{}", body.to_ascii_lowercase()))
-    }
+    canonicalize_hex_color(value)
 }
 
 /// Normalize entity type key for color map (UPPERCASE, spaces/hyphens → `_`).

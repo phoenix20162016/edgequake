@@ -7,6 +7,7 @@
 
 import { AccessSection } from "@/components/settings/sections/access-section";
 import { AppearanceSection } from "@/components/settings/sections/appearance-section";
+import { BrandingSection } from "@/components/settings/sections/branding-section";
 import { BrowserDataSection } from "@/components/settings/sections/browser-data-section";
 import { ConnectionsSection } from "@/components/settings/sections/connections-section";
 import { DeploymentProvidersSection } from "@/components/settings/sections/deployment-providers-section";
@@ -29,6 +30,7 @@ const SECTION_COMPONENTS: Record<SettingsSectionId, ComponentType> = {
   ingestion: IngestionSection,
   access: AccessSection,
   people: PeopleSection,
+  branding: BrandingSection,
   "org-providers": OrganizationProvidersSection,
   secrets: SecretsSection,
   connections: ConnectionsSection,

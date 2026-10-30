@@ -46,33 +46,7 @@ fn generate_slug(name: &str) -> String {
 }
 
 fn tenant_to_response(tenant: &Tenant) -> TenantResponse {
-    TenantResponse {
-        id: tenant.tenant_id,
-        name: tenant.name.clone(),
-        slug: tenant.slug.clone(),
-        plan: format!("{}", tenant.plan),
-        is_active: tenant.is_active,
-        max_workspaces: tenant.max_workspaces,
-        default_llm_model: tenant.default_llm_model.clone(),
-        default_llm_provider: tenant.default_llm_provider.clone(),
-        default_llm_full_id: format!(
-            "{}/{}",
-            tenant.default_llm_provider, tenant.default_llm_model
-        ),
-        default_embedding_model: tenant.default_embedding_model.clone(),
-        default_embedding_provider: tenant.default_embedding_provider.clone(),
-        default_embedding_dimension: tenant.default_embedding_dimension,
-        default_embedding_full_id: format!(
-            "{}/{}",
-            tenant.default_embedding_provider, tenant.default_embedding_model
-        ),
-        default_vision_llm_model: tenant.default_vision_llm_model.clone(),
-        default_vision_llm_provider: tenant.default_vision_llm_provider.clone(),
-        default_reasoning_effort: tenant.default_reasoning_effort.clone(),
-        pdf_parser_backend: tenant.pdf_parser_backend.map(|b| b.as_str().to_string()),
-        created_at: tenant.created_at.to_rfc3339(),
-        updated_at: tenant.updated_at.to_rfc3339(),
-    }
+    TenantResponse::from_tenant(tenant)
 }
 
 fn workspace_to_response(workspace: &edgequake_core::Workspace) -> WorkspaceResponse {

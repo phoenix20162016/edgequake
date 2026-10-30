@@ -25,6 +25,7 @@ import { WorkspaceExtractionLanguageCard } from '@/components/workspace/workspac
 import { WorkspaceChunkingCard } from '@/components/workspace/workspace-chunking-card';
 import { WorkspaceExtractBudgetCard } from '@/components/workspace/workspace-extract-budget-card';
 import { WorkspaceExtractionModeCard } from '@/components/workspace/workspace-extraction-mode-card';
+import { PageShell } from '@/components/shared/page-shell';
 import { WorkspacePageHeader } from '@/components/workspace/workspace-page-header';
 import { WorkspaceActionsCard } from '@/components/workspace/workspace-actions-card';
 import { WorkspaceExtendedModelConfig } from '@/components/workspace/workspace-extended-model-config';
@@ -151,7 +152,7 @@ export default function WorkspacePage() {
 
   if (!selectedTenantId || !selectedWorkspaceId) {
     return (
-      <div className="container mx-auto p-page">
+      <PageShell>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FolderKanban className="h-12 w-12 text-muted-foreground mb-4" />
@@ -166,13 +167,13 @@ export default function WorkspacePage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PageShell>
     );
   }
 
   if (isLoadingWorkspace) {
     return (
-      <div className="container mx-auto p-page space-y-page">
+      <PageShell className="space-y-(--page-gap)">
         <Skeleton className="h-8 w-64" />
         <div className="grid min-w-0 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 [&>*]:min-w-0">
           {[...Array(4)].map((_, i) => (
@@ -180,13 +181,13 @@ export default function WorkspacePage() {
           ))}
         </div>
         <Skeleton className="h-64" />
-      </div>
+      </PageShell>
     );
   }
 
   if (!workspace) {
     return (
-      <div className="container mx-auto p-page">
+      <PageShell>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
@@ -201,7 +202,7 @@ export default function WorkspacePage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PageShell>
     );
   }
 
@@ -210,7 +211,7 @@ export default function WorkspacePage() {
     : [...ENTITY_PRESETS.general.types];
 
   return (
-    <div className="container mx-auto space-y-page p-page">
+    <PageShell className="space-y-(--page-gap)">
       <WorkspacePageHeader
         workspace={workspace}
         onRefresh={() => refetchWorkspace()}
@@ -297,6 +298,6 @@ export default function WorkspacePage() {
         documentCount={documentCount}
         onApplied={handleReconfigureApplied}
       />
-    </div>
+    </PageShell>
   );
 }

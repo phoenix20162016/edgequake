@@ -1,71 +1,150 @@
 /**
- * Documents inventory table column widths (SPEC-099 / table-fixed layout).
+ * Documents inventory table column geometry (SPEC-099 / table-fixed layout).
  *
- * Shared by header + body `<colgroup>` so columns stay aligned.
- * Title must claim an explicit % — an empty `<col />` collapses under
- * pressure and nowrap cells spill into Status (overlapping headers/badges).
+ * WHY pixel widths instead of percentages:
+ *   Percentages silently shrink the Actions column below the width the row
+ *   actions need. At a 943px table, `actions: "8%"` resolved to 75px while the
+ *   hover-revealed icon buttons needed 136px — the buttons overflowed the cell
+ *   and painted over the "Last Updated" column. Intrinsic pixel widths for every
+ *   secondary column keep the header, the rows and the action buttons in stable,
+ *   non-overlapping boxes at any container width. Title carries no width at all,
+ *   so `table-fixed` hands it every remaining pixel.
  *
- * Progressive disclosure (container queries on the inventory pane):
- *   ≥ 2xl (~42rem): all columns
- *   < 2xl: hide Updated; reweight
- *   < xl  (~36rem): hide Created too
- *   < lg  (~32rem): hide Entities + Cost; Title + Status + Actions only
+ * Progressive disclosure is derived from that same budget: each threshold is
+ * the container width at which the remaining columns still leave Title
+ * `TITLE_MIN_PX`. The CSS class strings below are written as literals because
+ * Tailwind's scanner only sees static text — `column-hide-class.test.ts` asserts
+ * they stay in sync with the computed breakpoints.
  */
 
-export const DOCUMENT_TABLE_COL_PERCENTS = {
-  default: {
-    checkbox: "3%",
-    title: "34%",
-    status: "18%",
-    entities: "10%",
-    created: "14%",
-    updated: "13%",
-    actions: "8%",
-  },
-  withCost: {
-    checkbox: "3%",
-    title: "28%",
-    status: "16%",
-    entities: "9%",
-    cost: "8%",
-    created: "12%",
-    updated: "12%",
-    actions: "12%",
-  },
+/** Icon button box used by row actions (icon-sm = 32px). */
+export const ROW_ACTION_BUTTON_PX = 32;
+/** Gap between row action buttons (gap-0.5 on the action cluster). */
+export const ROW_ACTION_GAP_PX = 2;
+/** Horizontal cell padding on the actions column (px-2 → 8px each side). */
+export const ROW_ACTION_CELL_PADDING_PX = 16;
+/** Slack for focus rings so they are never clipped by `overflow-hidden`. */
+const FOCUS_RING_SLACK_PX = 8;
+
+/**
+ * Horizontal padding the scroll container puts around the table (px-4 × 2).
+ * Container queries measure the *container*, so every threshold has to carry
+ * this offset or the table is told it has room it does not have.
+ */
+export const TABLE_SIDE_PADDING_PX = 32;
+
+/**
+ * Buttons the actions cell must hold side by side:
+ * Preview + (Open graph | Retry) + the overflow menu.
+ */
+export const ROW_ACTION_BUTTON_SLOTS = 3;
+
+/**
+ * Smallest Title column that still shows a meaningful filename fragment.
+ * Used to derive the progressive-disclosure thresholds below.
+ */
+export const TITLE_MIN_PX = 176;
+
+/** Minimum actions-column width that fits `slots` buttons plus padding. */
+export function rowActionsColumnWidthPx(
+  slots: number = ROW_ACTION_BUTTON_SLOTS,
+): number {
+  const buttons = slots * ROW_ACTION_BUTTON_PX + (slots - 1) * ROW_ACTION_GAP_PX;
+  return buttons + ROW_ACTION_CELL_PADDING_PX + FOCUS_RING_SLACK_PX;
+}
+
+/** Intrinsic column widths (px). Title is intentionally absent — it flexes. */
+export const DOCUMENT_TABLE_COL_PX = {
+  checkbox: 44,
+  status: 176,
+  entities: 84,
+  cost: 88,
+  created: 116,
+  updated: 128,
+  actions: rowActionsColumnWidthPx(),
 } as const;
 
-/** Sum of column percents — must be 100 for both layouts. */
-export function documentTableColPercentSum(showCostColumn: boolean): number {
-  const cols = showCostColumn
-    ? DOCUMENT_TABLE_COL_PERCENTS.withCost
-    : DOCUMENT_TABLE_COL_PERCENTS.default;
-  return Object.values(cols).reduce(
-    (sum, value) => sum + Number.parseFloat(value),
-    0,
-  );
+/** Status width once Entities and Created are gone and Title needs the room. */
+export const STATUS_COMPACT_PX = 152;
+/** Status width on phone-sized containers (badge turns icon-first). */
+export const STATUS_PHONE_PX = 104;
+
+type ColumnKey = keyof typeof DOCUMENT_TABLE_COL_PX;
+
+/**
+ * Container width (px) required to show a set of secondary columns while still
+ * leaving Title `TITLE_MIN_PX`.
+ */
+function containerWidthForColumns(columns: readonly ColumnKey[]): number {
+  const fixed = columns.reduce((sum, key) => sum + DOCUMENT_TABLE_COL_PX[key], 0);
+  return fixed + TITLE_MIN_PX + TABLE_SIDE_PADDING_PX;
 }
 
 /**
- * Container-query width overrides when secondary columns are hidden.
- * Applied to BOTH default and withCost layouts (cost itself hides below lg).
+ * Thresholds (container px) at which each column stops earning its width.
+ *
+ * Monotonic by construction:
+ *   updated > created > entities === compactStatus > phone
  */
-export const DOCUMENT_TABLE_NARROW_COL_CLASSES = {
-  // Important as a prefix (`!w-[…]`). A trailing `]!` can be scanned as an
-  // arbitrary value that ends with `!`, which emits invalid CSS like `width: 64!;`.
-  checkbox: "@max-2xl:!w-[4%] @max-lg:!w-[5%]",
-  title: "@max-2xl:!w-[38%] @max-xl:!w-[44%] @max-lg:!w-[52%]",
-  status: "@max-2xl:!w-[22%] @max-xl:!w-[28%] @max-lg:!w-[34%]",
-  entities: "@max-2xl:!w-[12%] @max-lg:hidden",
-  cost: "@max-lg:hidden",
-  created: "@max-2xl:!w-[16%] @max-xl:hidden",
-  updated: "@max-2xl:hidden",
-  actions: "@max-2xl:!w-[8%] @max-lg:!w-[9%]",
+export const DOCUMENT_TABLE_BREAKPOINTS = {
+  /** Below this, Last Updated is dropped. */
+  updated: containerWidthForColumns([
+    'checkbox',
+    'status',
+    'entities',
+    'created',
+    'updated',
+    'actions',
+  ]),
+  /** Below this, Created is dropped. */
+  created: containerWidthForColumns([
+    'checkbox',
+    'status',
+    'entities',
+    'created',
+    'actions',
+  ]),
+  /** Below this, Entities is dropped. */
+  entities: containerWidthForColumns(['checkbox', 'status', 'entities', 'actions']),
+  /** Below this, Status tightens so Title keeps its budget. */
+  compactStatus: containerWidthForColumns([
+    'checkbox',
+    'status',
+    'entities',
+    'actions',
+  ]),
+  /** Below this, Status tightens further for phone widths. */
+  phone: containerWidthForColumns(['checkbox', 'status', 'actions']),
 } as const;
 
-/** Hide entire column below this container max (match row cells). */
-export const DOCUMENT_TABLE_COL_HIDE = {
-  entities: "@max-lg:hidden",
-  cost: "@max-lg:hidden",
-  created: "@max-xl:hidden",
-  updated: "@max-2xl:hidden",
+/**
+ * Hide entire column below its breakpoint.
+ * Apply to header cell, body cell AND the matching `<col>` so the three never
+ * disagree about how many columns exist.
+ *
+ * NOTE: literal strings — see the file header. Values mirror
+ * `DOCUMENT_TABLE_BREAKPOINTS` (55rem / 47rem / 39.75rem) and are asserted by
+ * `document-table-columns.test.ts`.
+ */export const DOCUMENT_TABLE_COL_HIDE = {
+  entities: '@max-[39.75rem]:hidden',
+  cost: '@max-[39.75rem]:hidden',
+  created: '@max-[47rem]:hidden',
+  updated: '@max-[55rem]:hidden',
 } as const;
+
+/** Narrow-container width overrides for columns that stay visible. */
+export const DOCUMENT_TABLE_COL_NARROW = {
+  /** Narrower Status keeps Title readable once Entities is gone. */
+  status: '@max-[39.75rem]:!w-[9.5rem]',
+  /** Phone widths: Status becomes icon-first so the filename survives. */
+  statusPhone: '@max-[34.5rem]:!w-[6.5rem]',
+} as const;
+
+/** True when the actions column can host the configured button slots. */
+export function documentTableActionsFitsButtons(): boolean {
+  const content = DOCUMENT_TABLE_COL_PX.actions - ROW_ACTION_CELL_PADDING_PX;
+  const needed =
+    ROW_ACTION_BUTTON_SLOTS * ROW_ACTION_BUTTON_PX +
+    (ROW_ACTION_BUTTON_SLOTS - 1) * ROW_ACTION_GAP_PX;
+  return content >= needed;
+}

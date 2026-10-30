@@ -120,6 +120,10 @@ pub struct CreateTenantRequest {
     /// SPEC-109: default reasoning effort seed for new workspaces (`none`/`minimal`/`low`/…).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_reasoning_effort: Option<String>,
+
+    /// Tenant brand color (`#RRGGBB` / `#RGB`). Omit or `none` for the EdgeQuake default.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub primary_color: Option<String>,
 }
 
 /// Request to update a tenant.
@@ -155,6 +159,11 @@ pub struct UpdateTenantRequest {
     pub default_vision_llm_model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_vision_llm_provider: Option<String>,
+
+    /// Tenant brand color (`#RRGGBB` / `#RGB`). Empty or `none` clears it.
+    /// Omit to leave the current color unchanged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub primary_color: Option<String>,
 }
 
 // ── Workspace Requests ────────────────────────────────────────────────────

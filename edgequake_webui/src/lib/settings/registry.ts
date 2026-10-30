@@ -21,6 +21,7 @@ export type SettingsSectionId =
   | "ingestion"
   | "access"
   | "people"
+  | "branding"
   | "org-providers"
   | "secrets"
   | "connections"
@@ -144,6 +145,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     segment: "people",
     gate: "tenantManage",
     keywords: ["people", "members", "invite", "roles", "sso", "seats"],
+  },
+  {
+    id: "branding",
+    scope: "organization",
+    label: "Branding",
+    segment: "branding",
+    gate: "tenantManage",
+    keywords: ["brand", "branding", "color", "colour", "primary", "accent", "theme", "tenant", "organization"],
   },
   {
     id: "org-providers",

@@ -396,7 +396,11 @@
       "cost": "Cost",
       "created": "Created",
       "updated": "Last Updated",
-      "actions": "Actions"
+      "actions": "Actions",
+      "preview": "Preview",
+      "openGraph": "Open graph",
+      "retry": "Retry",
+      "moreActions": "More actions"
     },
     "actions": {
       "view": "View Details",
@@ -522,6 +526,16 @@
       "askAboutPage": "Ask about this page",
       "askAboutDocument": "Ask about this document",
       "askShort": "Ask"
+    },
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago",
+      "monthsAgo": "{{count}}mo ago",
+      "yearsAgo": "{{count}}y ago",
+      "unchanged": "Unchanged since upload",
+      "neverModified": "not modified since upload"
     }
   },
   "graph": {

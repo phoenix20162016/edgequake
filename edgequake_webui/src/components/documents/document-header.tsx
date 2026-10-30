@@ -137,7 +137,7 @@ export function DocumentHeader({
       <header className="eq-toolbar justify-between gap-3">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold leading-tight tracking-tight">{t('documents.title')}</h1>
+            <h1 className="text-[1.375rem] font-semibold leading-snug tracking-[-0.012em]">{t('documents.title')}</h1>
             {badgeText && (
               <Badge
                 variant="secondary"

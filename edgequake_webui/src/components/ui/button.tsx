@@ -5,7 +5,9 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-150 ease-out active:not-disabled:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  // WHY ring-ring (not ring/50): the 50% ring computed to ~0.11 alpha on buttons —
+  // a focus indicator that satisfies "has a ring" but not WCAG 2.4.7 visibility.
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-150 ease-out active:not-disabled:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
@@ -21,13 +23,14 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-lg gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-lg px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
-        // Mobile-optimized icon with 44px touch target (WCAG compliant)
+        default: "h-8 px-3 py-1.5 has-[>svg]:px-2.5",
+        sm: "h-7 rounded-md gap-1.5 px-2.5 has-[>svg]:px-2",
+        lg: "h-9 rounded-md px-4 has-[>svg]:px-3",
+        // 28px icon buttons: dense enough for a toolbar, still ≥24px (WCAG 2.5.8).
+        icon: "size-7",
+        "icon-sm": "size-6",
+        "icon-lg": "size-8",
+        // 44px touch target for touch-first surfaces.
         "icon-touch": "size-11",
       },
     },

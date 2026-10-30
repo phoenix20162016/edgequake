@@ -24,6 +24,7 @@ pub use document::{Document, DocumentStatus};
 pub use embedding::{DimensionMismatch, Embedding, EmbeddingConfig};
 pub use entity::GraphEntity;
 pub use multitenancy::{
+    parse_tenant_primary_color,
     CreateWorkspaceRequest,
     Membership,
     MembershipRole,

@@ -64,7 +64,7 @@ export function PipelineMonitor() {
         data-testid="spec100-pipeline-shell"
       >
         <div className="flex-shrink-0 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-          <div className="container mx-auto px-page py-3 max-w-7xl">
+          <div className="eq-gutter mx-auto w-full max-w-(--page-max) py-3">
             <PageHeader
               className="mb-0"
               title={t("pipeline.title", "Pipeline Monitor")}
@@ -104,7 +104,7 @@ export function PipelineMonitor() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div
-            className="container mx-auto p-page max-w-7xl"
+            className="eq-gutter mx-auto w-full max-w-(--page-max) pt-(--page-pad-top) pb-(--page-pad-bottom)"
             data-testid="spec100-pipeline-main"
           >
             <PipelineStagesCard />

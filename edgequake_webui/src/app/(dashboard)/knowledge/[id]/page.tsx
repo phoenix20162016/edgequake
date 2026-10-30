@@ -7,6 +7,7 @@
  * Shows content, status, entity count, error messages, and allows editing.
  */
 
+import { PageShell } from '@/components/shared/page-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,8 +140,8 @@ export default function KnowledgeDetailPage() {
   // SPEC-100: layout-matched skeleton (header + status + body); cold load only
   if (isLoading && !data) {
     return (
-      <div
-        className="flex flex-col gap-page p-page"
+      <PageShell
+        className="gap-(--page-gap)"
         data-testid="spec100-knowledge-detail-skeleton"
       >
         <div className="flex items-center gap-3">
@@ -150,7 +151,7 @@ export default function KnowledgeDetailPage() {
         </div>
         <Skeleton className="h-4 w-48" />
         <Skeleton className="min-h-[16rem] w-full" />
-      </div>
+      </PageShell>
     );
   }
 
@@ -174,7 +175,7 @@ export default function KnowledgeDetailPage() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="flex flex-col gap-page p-page">
+      <PageShell className="gap-(--page-gap)">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/knowledge">
@@ -350,7 +351,7 @@ export default function KnowledgeDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </PageShell>
     </ScrollArea>
   );
 }

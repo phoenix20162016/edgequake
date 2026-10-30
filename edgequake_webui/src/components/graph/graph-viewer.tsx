@@ -760,53 +760,58 @@ export function GraphViewer() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* Left Entity Browser - Hidden on mobile, shown on tablet+ */}
-      {!isMobile && <EntityBrowserPanel />}
-
-      {/* Main Graph Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Toolbar - compact; secondary actions collapse on mobile */}
-        <header 
-          className="eq-toolbar justify-between border-b px-2 sm:px-4 py-2 shrink-0 bg-card/90 backdrop-blur-sm"
-          data-tour="graph-header"
+    <div className="flex h-full flex-col overflow-hidden">
+      {/*
+        WHY the title lives here and not inside the canvas pane: it used to sit
+        in the right-hand toolbar, so on a 1440 viewport it rendered at x=532 —
+        past the entity rail — while every other route titles at the page gutter.
+        A page title is page chrome; panes own only their own controls.
+      */}
+      <div
+        className="eq-gutter flex shrink-0 items-center gap-2.5 border-b py-2.5"
+        data-tour="graph-header"
+      >
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileEntityDrawerOpen(true)}
+            aria-label="Open entity browser"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+        )}
+        <h1 className="truncate text-[1.375rem] font-semibold leading-snug tracking-[-0.012em]">
+          {isMobile ? 'Graph' : 'Knowledge Graph'}
+        </h1>
+        {effectiveIsLoading && (
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+        )}
+        {/* SPEC-100: always reserve count chip so load→data does not shove toolbar */}
+        <span
+          className="min-w-0 truncate rounded-md bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground"
+          data-testid="spec100-graph-count-slot"
         >
-          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
-            {/* Mobile menu button */}
-            {isMobile && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-9 w-9 shrink-0"
-                onClick={() => setMobileEntityDrawerOpen(true)}
-                aria-label="Open entity browser"
-              >
-                <Menu className="h-4 w-4" />
-              </Button>
-            )}
-            <h2 className="text-sm sm:text-base font-semibold tracking-tight truncate">
-              {isMobile ? 'Graph' : 'Knowledge Graph'}
-            </h2>
-            {effectiveIsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />}
-            {/* SPEC-100: always reserve count chip so load→data does not shove toolbar */}
-            {!isMobile && (
-              <span
-                className="min-w-0 max-w-full truncate text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md tabular-nums"
-                data-testid="spec100-graph-count-slot"
-              >
-                {headerNodeCount > 0 || headerEdgeCount > 0 || !isDocumentScoped
-                  ? `${headerNodeCount.toLocaleString()} nodes · ${headerEdgeCount.toLocaleString()} edges`
-                  : "— nodes · — edges"}
-              </span>
-            )}
-          </div>
-          <div className="eq-toolbar min-w-0 shrink-0">
+          {headerNodeCount > 0 || headerEdgeCount > 0 || !isDocumentScoped
+            ? `${headerNodeCount.toLocaleString()} nodes · ${headerEdgeCount.toLocaleString()} edges`
+            : "— nodes · — edges"}
+        </span>
+      </div>
+
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* Left Entity Browser - Hidden on mobile, shown on tablet+ */}
+        {!isMobile && <EntityBrowserPanel />}
+
+        {/* Main Graph Area */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {/* Pane toolbar — controls only, no page title. */}
+          <header className="eq-toolbar justify-end gap-2 border-b px-3 py-1.5 shrink-0 bg-card/90 backdrop-blur-sm">
+            <div className="eq-toolbar min-w-0">
             {/* Show filter button on mobile and tablet (right panel is hidden) */}
             {isSmallScreen && (
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-9 w-9"
                 onClick={() => setMobileDetailsDrawerOpen(true)}
                 aria-label="Open filters"
               >
@@ -887,7 +892,7 @@ export function GraphViewer() {
               </DropdownMenu>
             )}
           </div>
-        </header>
+          </header>
 
         <GraphDocumentFilterBar
           documentId={documentFilterId}
@@ -1210,6 +1215,7 @@ export function GraphViewer() {
           </ScrollArea>
         </SheetContent>
       </Sheet>
+      </div>
     </div>
   );
 }

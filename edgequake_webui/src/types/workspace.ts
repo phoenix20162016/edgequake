@@ -18,6 +18,11 @@ export interface Tenant {
   is_active?: boolean;
   /** Maximum workspaces allowed for this tenant. */
   max_workspaces?: number;
+  /**
+   * Tenant brand color as canonical `#rrggbb`. `null`/absent = EdgeQuake default accent.
+   * Drives the primary accent for every member of the tenant (WebUI theme).
+   */
+  primary_color?: string | null;
 
   // === Default LLM Configuration (SPEC-032) ===
 

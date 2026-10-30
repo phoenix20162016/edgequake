@@ -228,7 +228,11 @@
       "cost": "Coût",
       "created": "Créé",
       "updated": "Dernière mise à jour",
-      "actions": "Actions"
+      "actions": "Actions",
+      "preview": "Aperçu",
+      "openGraph": "Ouvrir le graphe",
+      "retry": "Réessayer",
+      "moreActions": "Plus d'actions"
     },
     "actions": {
       "view": "Voir les détails",
@@ -522,6 +526,16 @@
       "askAboutPage": "Poser une question sur cette page",
       "askAboutDocument": "Poser une question sur ce document",
       "askShort": "Demander"
+    },
+    "time": {
+      "justNow": "à l'instant",
+      "minutesAgo": "il y a {{count}} min",
+      "hoursAgo": "il y a {{count}} h",
+      "daysAgo": "il y a {{count}} j",
+      "monthsAgo": "il y a {{count}} mois",
+      "yearsAgo": "il y a {{count}} ans",
+      "unchanged": "Inchangé depuis l'import",
+      "neverModified": "non modifié depuis l'import"
     }
   },
   "graph": {

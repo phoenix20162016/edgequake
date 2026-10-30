@@ -31,10 +31,11 @@ import {
 import { cn } from '@/lib/utils';
 import {
   DOCUMENT_TABLE_COL_HIDE,
-  DOCUMENT_TABLE_COL_PERCENTS,
-  DOCUMENT_TABLE_NARROW_COL_CLASSES as NARROW,
+  DOCUMENT_TABLE_COL_NARROW as NARROW,
+  DOCUMENT_TABLE_COL_PX,
 } from '@/lib/documents/document-table-columns';
 import { INVENTORY_MIN_PX } from '@/lib/documents/intake-strip-state';
+import { hasModifiedDocument } from '@/lib/documents/format-document-time';
 import type { SortDirection, SortField } from '@/lib/documents/document-sort';
 import { useClearanceSettings } from '@/lib/clearance/use-clearance';
 import { useTenantStore } from '@/stores/use-tenant-store';
@@ -54,56 +55,50 @@ const ESTIMATED_ROW_HEIGHT = 46;
 const STICKY_HEAD_PX = 37;
 
 /**
- * Shared colgroup — percentage widths + progressive container-query hide.
- * Updated → Created → Entities/Cost as the inventory pane shrinks.
+ * Shared colgroup — intrinsic pixel widths for secondary columns, no width for
+ * Title (it absorbs the remainder). Identical in header and body so the two
+ * `table-fixed` layouts can never drift apart.
+ *
+ * WHY NOT percentages: see `document-table-columns.ts` — percentage widths
+ * shrank Actions below the width the row buttons need, so hover actions painted
+ * over the neighbouring column.
  */
-function TableColGroup({ showCostColumn }: { showCostColumn: boolean }) {
-  if (showCostColumn) {
-    const cols = DOCUMENT_TABLE_COL_PERCENTS.withCost;
-    return (
-      <colgroup>
-        <col className={NARROW.checkbox} style={{ width: cols.checkbox }} />
-        <col className={NARROW.title} style={{ width: cols.title }} />
-        <col className={NARROW.status} style={{ width: cols.status }} />
-        <col
-          className={cn(NARROW.entities, DOCUMENT_TABLE_COL_HIDE.entities)}
-          style={{ width: cols.entities }}
-        />
-        <col
-          className={cn(NARROW.cost, DOCUMENT_TABLE_COL_HIDE.cost)}
-          style={{ width: cols.cost }}
-        />
-        <col
-          className={cn(NARROW.created, DOCUMENT_TABLE_COL_HIDE.created)}
-          style={{ width: cols.created }}
-        />
-        <col
-          className={cn(NARROW.updated, DOCUMENT_TABLE_COL_HIDE.updated)}
-          style={{ width: cols.updated }}
-        />
-        <col className={NARROW.actions} style={{ width: cols.actions }} />
-      </colgroup>
-    );
-  }
-  const cols = DOCUMENT_TABLE_COL_PERCENTS.default;
+function TableColGroup({
+  showCostColumn,
+  showUpdatedColumn,
+}: {
+  showCostColumn: boolean;
+  showUpdatedColumn: boolean;
+}) {
   return (
     <colgroup>
-      <col className={NARROW.checkbox} style={{ width: cols.checkbox }} />
-      <col className={NARROW.title} style={{ width: cols.title }} />
-      <col className={NARROW.status} style={{ width: cols.status }} />
+      <col style={{ width: DOCUMENT_TABLE_COL_PX.checkbox }} />
+      <col />
       <col
-        className={cn(NARROW.entities, DOCUMENT_TABLE_COL_HIDE.entities)}
-        style={{ width: cols.entities }}
+        className={cn(NARROW.status, NARROW.statusPhone)}
+        style={{ width: DOCUMENT_TABLE_COL_PX.status }}
       />
       <col
-        className={cn(NARROW.created, DOCUMENT_TABLE_COL_HIDE.created)}
-        style={{ width: cols.created }}
+        className={cn(DOCUMENT_TABLE_COL_HIDE.entities)}
+        style={{ width: DOCUMENT_TABLE_COL_PX.entities }}
       />
+      {showCostColumn ? (
+        <col
+          className={cn(DOCUMENT_TABLE_COL_HIDE.cost)}
+          style={{ width: DOCUMENT_TABLE_COL_PX.cost }}
+        />
+      ) : null}
       <col
-        className={cn(NARROW.updated, DOCUMENT_TABLE_COL_HIDE.updated)}
-        style={{ width: cols.updated }}
+        className={cn(DOCUMENT_TABLE_COL_HIDE.created)}
+        style={{ width: DOCUMENT_TABLE_COL_PX.created }}
       />
-      <col className={NARROW.actions} style={{ width: cols.actions }} />
+      {showUpdatedColumn ? (
+        <col
+          className={cn(DOCUMENT_TABLE_COL_HIDE.updated)}
+          style={{ width: DOCUMENT_TABLE_COL_PX.updated }}
+        />
+      ) : null}
+      <col style={{ width: DOCUMENT_TABLE_COL_PX.actions }} />
     </colgroup>
   );
 }
@@ -231,6 +226,12 @@ export const DocumentTableSection = memo(function DocumentTableSection({
   const showTable = !isLoading && documents.length > 0;
   const isFiltered = Boolean(searchQuery) || statusFilter !== 'all';
 
+  // "Last Updated" earns its width only when something was actually updated —
+  // unless the user is sorting by it, in which case hiding the active sort
+  // column would make the row order inexplicable.
+  const showUpdatedColumn =
+    hasModifiedDocument(documents) || sortField === 'updated_at';
+
   // SPEC-099: must be a real flex child (not a Fragment). A Fragment breaks the
   // min-h-0 / flex-1 chain → virtualizer padding blows page height, header +
   // dropzone scroll away, and a large empty white band appears below rows.
@@ -292,7 +293,10 @@ export const DocumentTableSection = memo(function DocumentTableSection({
           <div className="sticky top-0 z-10 bg-background" data-testid="documents-table-head">
           <div className="overflow-hidden rounded-t-lg border border-b-0 border-border/70 bg-muted/30">
             <table className="w-full table-fixed caption-bottom text-sm [&_button]:text-xs [&_th]:h-9">
-              <TableColGroup showCostColumn={showCostColumn} />
+              <TableColGroup
+                showCostColumn={showCostColumn}
+                showUpdatedColumn={showUpdatedColumn}
+              />
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead scope="col" className="rounded-tl-lg w-11 overflow-hidden">
@@ -324,7 +328,7 @@ export const DocumentTableSection = memo(function DocumentTableSection({
                     activeField={sortField}
                     direction={sortDirection}
                     onSort={onSort}
-                    align="center"
+                    align="right"
                     className={cn('overflow-hidden', DOCUMENT_TABLE_COL_HIDE.entities)}
                   />
                   {showCostColumn ? (
@@ -334,7 +338,7 @@ export const DocumentTableSection = memo(function DocumentTableSection({
                       activeField={sortField}
                       direction={sortDirection}
                       onSort={onSort}
-                      align="center"
+                      align="right"
                       className={cn('overflow-hidden', DOCUMENT_TABLE_COL_HIDE.cost)}
                     />
                   ) : null}
@@ -346,14 +350,16 @@ export const DocumentTableSection = memo(function DocumentTableSection({
                     onSort={onSort}
                     className={cn('overflow-hidden', DOCUMENT_TABLE_COL_HIDE.created)}
                   />
-                  <SortableColumnHeader
-                    field="updated_at"
-                    label={t('documents.table.updated', 'Last Updated')}
-                    activeField={sortField}
-                    direction={sortDirection}
-                    onSort={onSort}
-                    className={cn('overflow-hidden', DOCUMENT_TABLE_COL_HIDE.updated)}
-                  />
+                  {showUpdatedColumn ? (
+                    <SortableColumnHeader
+                      field="updated_at"
+                      label={t('documents.table.updated', 'Last Updated')}
+                      activeField={sortField}
+                      direction={sortDirection}
+                      onSort={onSort}
+                      className={cn('overflow-hidden', DOCUMENT_TABLE_COL_HIDE.updated)}
+                    />
+                  ) : null}
                   <TableHead scope="col" className="rounded-tr-lg overflow-hidden">
                     <span className="sr-only">{t('documents.table.actions', 'Actions')}</span>
                   </TableHead>
@@ -376,7 +382,10 @@ export const DocumentTableSection = memo(function DocumentTableSection({
               aria-label={t('documents.table.ariaLabel', 'Documents list')}
             >
               <table className="w-full table-fixed caption-bottom text-sm">
-                <TableColGroup showCostColumn={showCostColumn} />
+                <TableColGroup
+                  showCostColumn={showCostColumn}
+                  showUpdatedColumn={showUpdatedColumn}
+                />
                 <TableBody>
                   {virtualItems.map((virtualRow) => {
                     const doc = documents[virtualRow.index];
@@ -398,6 +407,7 @@ export const DocumentTableSection = memo(function DocumentTableSection({
                         isBackground={isBackground}
                         isLiveRun={isLiveRun}
                         showCostColumn={showCostColumn}
+                        showUpdatedColumn={showUpdatedColumn}
                         rowMeasureRef={virtualizer.measureElement}
                         searchQuery={searchQuery}
                         onSelect={onSelectOne}

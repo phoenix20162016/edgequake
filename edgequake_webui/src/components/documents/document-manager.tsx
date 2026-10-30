@@ -969,7 +969,7 @@ export function DocumentManager() {
 
   const libraryZone = (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-clip" data-testid="workspace-library-root">
-      <div className="shrink-0 space-y-2 bg-background px-3 pt-1.5 pb-1">
+      <div className="shrink-0 space-y-2 bg-background px-3 pt-1.5 pb-1 eq-gutter">
         <DocumentToolbarSection
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -1100,7 +1100,7 @@ export function DocumentManager() {
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-clip">
         <div
-          className="min-h-0 shrink-0 max-h-[30dvh] overflow-y-auto overscroll-contain bg-background px-4 pt-4 pb-2"
+          className="eq-gutter min-h-0 max-h-[30dvh] shrink-0 overflow-y-auto overscroll-contain bg-background pt-4 pb-2"
           data-testid="documents-chrome"
         >
           <DocumentHeader

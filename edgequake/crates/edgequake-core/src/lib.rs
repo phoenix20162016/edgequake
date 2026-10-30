@@ -46,6 +46,7 @@ pub mod env;
 pub mod error;
 pub mod extract_budget_metadata;
 pub mod graph_mapping;
+pub mod hex_color;
 pub mod keyword_extractor;
 pub mod llm_roles;
 pub mod model_policy;

@@ -6660,6 +6660,8 @@ export interface components {
             name: string;
             /** @description Plan type (free, basic, pro, enterprise). */
             plan?: string | null;
+            /** @description Tenant brand color (`#RRGGBB` / `#RGB`). Omit or `none` for the EdgeQuake default. */
+            primary_color?: string | null;
             /** @description URL-friendly slug (auto-generated if not provided). */
             slug?: string | null;
         };
@@ -15540,6 +15542,7 @@ export interface components {
          *       "name": {},
          *       "pdf_parser_backend": {},
          *       "plan": {},
+         *       "primary_color": {},
          *       "slug": {},
          *       "updated_at": {}
          *     }
@@ -15587,6 +15590,8 @@ export interface components {
             pdf_parser_backend?: null | components["schemas"]["PdfParserBackendName"];
             /** @description Plan type. */
             plan: string;
+            /** @description Tenant brand color (`#rrggbb`). `null` means the EdgeQuake default accent. */
+            primary_color?: string | null;
             /** @description URL-friendly slug. */
             slug: string;
             /** @description Last update timestamp. */
@@ -15985,7 +15990,8 @@ export interface components {
          *       "is_active": {},
          *       "name": {},
          *       "pdf_parser_backend": {},
-         *       "plan": {}
+         *       "plan": {},
+         *       "primary_color": {}
          *     }
          */
         UpdateTenantRequest: {
@@ -16005,6 +16011,11 @@ export interface components {
             pdf_parser_backend?: null | components["schemas"]["PdfParserBackendUpdateName"];
             /** @description New plan. */
             plan?: string | null;
+            /**
+             * @description Tenant brand color (`#RRGGBB` / `#RGB`). Empty or `none` clears it.
+             *     Omit to leave the current color unchanged.
+             */
+            primary_color?: string | null;
         };
         /**
          * @description Update user request (PATCH /api/v1/users/{id}).

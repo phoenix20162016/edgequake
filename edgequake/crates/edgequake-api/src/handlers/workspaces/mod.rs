@@ -147,6 +147,7 @@ mod tests {
             default_vision_llm_provider: None,
             default_reasoning_effort: None,
             pdf_parser_backend: None,
+            primary_color: None,
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
         };

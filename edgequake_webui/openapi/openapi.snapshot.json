@@ -17611,6 +17611,13 @@
             ],
             "description": "Plan type (free, basic, pro, enterprise)."
           },
+          "primary_color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Tenant brand color (`#RRGGBB` / `#RGB`). Omit or `none` for the EdgeQuake default."
+          },
           "slug": {
             "type": [
               "string",
@@ -35306,6 +35313,13 @@
             "type": "string",
             "description": "Plan type."
           },
+          "primary_color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Tenant brand color (`#rrggbb`). `null` means the EdgeQuake default accent."
+          },
           "slug": {
             "type": "string",
             "description": "URL-friendly slug."
@@ -35333,6 +35347,7 @@
           "name": {},
           "pdf_parser_backend": {},
           "plan": {},
+          "primary_color": {},
           "slug": {},
           "updated_at": {}
         }
@@ -36149,6 +36164,13 @@
               "null"
             ],
             "description": "New plan."
+          },
+          "primary_color": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Tenant brand color (`#RRGGBB` / `#RGB`). Empty or `none` clears it.\nOmit to leave the current color unchanged."
           }
         },
         "example": {
@@ -36163,7 +36185,8 @@
           "is_active": {},
           "name": {},
           "pdf_parser_backend": {},
-          "plan": {}
+          "plan": {},
+          "primary_color": {}
         }
       },
       "UpdateUserRequest": {
