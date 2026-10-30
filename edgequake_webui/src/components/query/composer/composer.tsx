@@ -353,19 +353,6 @@ export function Composer({
             {modelSlot}
           </div>
 
-          {sendBlocked ? (
-            <p
-              id="query-choice-empty"
-              data-testid="query-choice-empty"
-              className="px-1 pb-1 text-[12.5px] text-[#6b6760] dark:text-[#9a968f]"
-            >
-              {sendBlockedHint
-                ?? t(
-                  "query.model.emptyEligible",
-                  "An admin needs to allow a model before you can ask.",
-                )}
-            </p>
-          ) : null}
           <div className="flex items-center gap-1 shrink-0">
             {settingsSlot}
             {showStop ? (
@@ -399,6 +386,19 @@ export function Composer({
             ) : null}
           </div>
         </div>
+        {sendBlocked ? (
+          <p
+            id="query-choice-empty"
+            data-testid="query-choice-empty"
+            className="px-3.5 pb-2 text-[12.5px] text-[#6b6760] dark:text-[#9a968f]"
+          >
+            {sendBlockedHint
+              ?? t(
+                "query.model.emptyEligible",
+                "An admin needs to allow a model before you can ask.",
+              )}
+          </p>
+        ) : null}
       </div>
     </form>
   );
