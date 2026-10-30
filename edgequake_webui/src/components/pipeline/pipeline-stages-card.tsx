@@ -21,6 +21,7 @@ import {
   scopedQueryKey,
   usePipelineWorkspace,
 } from "@/lib/pipeline/pipeline-workspace-context";
+import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, Clock, Layers, Loader2, StopCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -175,23 +176,26 @@ export function PipelineStagesCard() {
           })}
         </StatStrip>
 
-        {totalDocs > 0 && (
-          <div className="mt-4">
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Pipeline Progress</span>
-              <span>
-                {phaseCounts.completed} / {totalDocs} completed
-              </span>
-            </div>
-            <Progress
-              aria-label="Pipeline progress"
-              value={
-                totalDocs > 0 ? (phaseCounts.completed / totalDocs) * 100 : 0
-              }
-              className="h-2"
-            />
+        {/* Always mounted: it used to appear once documents arrived and pushed
+            every card below it down by ~44px (CLS). `invisible` keeps the slot. */}
+        <div
+          className={cn("mt-4", totalDocs === 0 && "invisible")}
+          aria-hidden={totalDocs === 0}
+        >
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span>Pipeline Progress</span>
+            <span>
+              {phaseCounts.completed} / {totalDocs} completed
+            </span>
           </div>
-        )}
+          <Progress
+            aria-label="Pipeline progress"
+            value={
+              totalDocs > 0 ? (phaseCounts.completed / totalDocs) * 100 : 0
+            }
+            className="h-2"
+          />
+        </div>
       </CardContent>
     </Card>
   );

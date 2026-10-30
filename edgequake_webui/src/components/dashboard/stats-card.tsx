@@ -81,14 +81,20 @@ export function StatsCard({
   href,
 }: StatsCardProps) {
   if (isLoading) {
+    // Mirrors the loaded cell's line boxes exactly (header 24 · value 28 ·
+    // caption 16, gaps 8/6). A taller skeleton made the strip jump 4px on load.
     return (
       <div className={cn(CELL, className)} aria-busy="true">
-        <div className="flex items-center gap-2">
+        <div className="flex h-6 items-center gap-2">
           <Skeleton className="h-6 w-6 rounded-md" />
           <Skeleton className="h-3.5 w-20" />
         </div>
-        <Skeleton className="mt-2.5 h-8 w-16" />
-        <Skeleton className="mt-2 h-3 w-28" />
+        <div className="mt-2 flex h-7 items-center">
+          <Skeleton className="h-6 w-16" />
+        </div>
+        <div className="mt-1.5 flex min-h-8 items-start">
+          <Skeleton className="h-3 w-28" />
+        </div>
       </div>
     );
   }
@@ -139,11 +145,13 @@ export function StatsCard({
           </div>
         )}
       </div>
-      {/* LS-03: zero hint guides new users; otherwise a one-line caption. */}
+      {/* LS-03: zero hint guides new users; otherwise a caption. Always two
+          lines tall: captions wrap at 2-column (phone) and 4-column widths alike,
+          and a wrap that appears after load would shift the whole strip (CLS). */}
       {value === 0 && zeroHint ? (
-        <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground" title={zeroHint}>{zeroHint}</p>
+        <p className="mt-1.5 min-h-8 line-clamp-2 text-xs text-muted-foreground" title={zeroHint}>{zeroHint}</p>
       ) : description ? (
-        <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground" title={description}>{description}</p>
+        <p className="mt-1.5 min-h-8 line-clamp-2 text-xs text-muted-foreground" title={description}>{description}</p>
       ) : null}
     </div>
   );

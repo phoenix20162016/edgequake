@@ -16,7 +16,15 @@ import { InviteDialog } from './invite-dialog';
 import type { MemberAction } from './member-actions-menu';
 import { MemberDetailSheet } from './member-detail-sheet';
 import { MembersTable } from './members-table';
-import { MembersAlone, MembersError, MembersNoMatch, MembersPager, MembersRestricted, MembersSkeleton } from './members-states';
+import {
+  MembersAlone,
+  MembersEmpty,
+  MembersError,
+  MembersNoMatch,
+  MembersPager,
+  MembersRestricted,
+  MembersSkeleton,
+} from './members-states';
 import { MembersSummary } from './members-summary';
 import { MembersToolbar } from './members-toolbar';
 import { PAGE_SIZE, useMemberFilters } from './use-member-filters';
@@ -82,7 +90,12 @@ export function MembersTab() {
   };
 
   const busy = actions.remove.isPending || actions.revoke.isPending || actions.update.isPending;
-  const onlyMe = !filters.filtered && data.summary.total <= 1 && data.members.every((m) => m.is_you);
+  // "Alone" = exactly one member, and it is the viewer. An empty list is not alone.
+  const onlyMe =
+    !filters.filtered &&
+    data.summary.total <= 1 &&
+    data.members.length === 1 &&
+    data.members[0].is_you === true;
 
   return (
     <div className="space-y-4" data-testid="members-tab">
@@ -105,7 +118,13 @@ export function MembersTab() {
       <MembersToolbar filters={filters} summary={data.summary} />
 
       {data.members.length === 0 ? (
-        <MembersNoMatch onClear={filters.clear} />
+        // An empty page is either a filter miss or an org with no members.
+        // Never show both: "No one matches" only when a filter is actually on.
+        filters.filtered ? (
+          <MembersNoMatch onClear={filters.clear} />
+        ) : (
+          <MembersEmpty canInvite={canInvite} onInvite={() => setInviteOpen(true)} />
+        )
       ) : (
         <div className={query.isFetching ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
           <MembersTable

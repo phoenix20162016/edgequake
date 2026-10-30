@@ -41,6 +41,14 @@ import { useTranslation } from 'react-i18next';
 
 type TimePeriod = '7d' | '30d' | '90d' | 'all';
 
+/**
+ * Reserved row heights, measured at 1440px. Each must be ≥ the skeleton AND
+ * the loaded/empty card, or the row shrinks/grows when data arrives:
+ * summary/budget skeleton ≈164px, loaded ≈170px; chart skeleton ≈292px.
+ */
+const TOP_ROW_MIN_H = 'min-h-[10.625rem]';
+const CHART_ROW_MIN_H = 'min-h-[18.25rem]';
+
 function statusFromBudget(budget: BudgetInfo) {
   const limit = budget.monthly_budget_usd;
   const used = budget.spent_usd;
@@ -148,16 +156,19 @@ export default function CostDashboardPage() {
         />
 
         <div className="space-y-page">
-          {/* Top row: Summary and Budget */}
+          {/* Top row: Summary and Budget. Each card reserves its loaded height
+              (TOP_ROW_MIN_H) so skeleton → data never pushes the charts (CLS). */}
           <div className="grid min-w-0 grid-cols-1 lg:grid-cols-3 gap-page [&>*]:min-w-0">
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 [&>*]:h-full">
               <CostSummaryCard
+                className={TOP_ROW_MIN_H}
                 summary={summary ?? null}
                 isLoading={isSummaryLoading && !summary}
               />
             </div>
-            <div>
+            <div className="[&>*]:h-full">
               <BudgetIndicator
+                className={TOP_ROW_MIN_H}
                 budget={budget ?? null}
                 status={budget ? statusFromBudget(budget) : null}
                 alerts={[]}
@@ -170,6 +181,7 @@ export default function CostDashboardPage() {
           <div className="grid min-w-0 grid-cols-1 lg:grid-cols-2 gap-page [&>*]:min-w-0">
             {/* Cost by operation */}
             <CostBreakdownChart
+              className={CHART_ROW_MIN_H}
               breakdown={summary ? {
                 total_cost: summary.total_cost,
                 by_stage: summary.by_operation?.map(op => ({
@@ -190,7 +202,7 @@ export default function CostDashboardPage() {
             />
 
             {/* Cost trend chart — SPEC-100: fixed h-48 for skeleton/empty/live */}
-            <Card data-testid="spec100-costs-trend">
+            <Card data-testid="spec100-costs-trend" className={CHART_ROW_MIN_H}>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />

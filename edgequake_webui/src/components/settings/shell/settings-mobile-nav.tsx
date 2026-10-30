@@ -18,6 +18,21 @@ import {
 } from "@/lib/settings/registry";
 import { useRouter } from "next/navigation";
 
+/**
+ * Same footprint as the two selects, shown while access is still resolving.
+ * Without it the header above the section grew ~50px when the nav mounted (CLS).
+ * `h-9` (not `h-8`): the SelectTrigger's `data-[size=default]:h-9` wins over `h-8`,
+ * so the rendered selects are 36px tall.
+ */
+export function MobileSettingsNavSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-2" aria-hidden="true" data-testid="settings-mobile-nav-skeleton">
+      <div className="h-9" />
+      <div className="h-9" />
+    </div>
+  );
+}
+
 export function MobileSettingsNav({
   access,
   activeSection,

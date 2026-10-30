@@ -91,11 +91,9 @@ export function CostSummaryCard({
         </CardHeader>
         <CardContent>
           <div className="eq-metric-grid gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-3 w-16" />
-              </div>
+            {/* Same order as the loaded grid: two large values, then two default. */}
+            {[true, true, false, false].map((large, i) => (
+              <StatItemSkeleton key={i} large={large} />
             ))}
           </div>
         </CardContent>
@@ -158,6 +156,21 @@ export function CostSummaryCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Placeholder with the same line boxes as StatItem (label row 16px + 4px gap +
+ * value line 32px for large / 28px for default), so loading → loaded is CLS-free.
+ */
+function StatItemSkeleton({ large }: { large: boolean }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex h-4 items-center">
+        <Skeleton className="h-3 w-16" />
+      </div>
+      <Skeleton className={cn('w-24', large ? 'h-8' : 'h-7')} />
+    </div>
   );
 }
 

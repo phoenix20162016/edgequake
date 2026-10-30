@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight, Lock, SearchX, UserPlus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, SearchX, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export function MembersSkeleton() {
@@ -68,25 +68,69 @@ export function MembersNoMatch({ onClear }: { onClear: () => void }) {
   );
 }
 
-/** Shown when you are alone in the organization — the moment an invite matters most. */
-export function MembersAlone({ canInvite, onInvite }: { canInvite: boolean; onInvite: () => void }) {
+/** One dashed call-to-action card, shared by the empty and "alone" states (DRY). */
+function InviteNudge({
+  testId,
+  icon: Icon,
+  title,
+  body,
+  canInvite,
+  onInvite,
+}: {
+  testId: string;
+  icon: LucideIcon;
+  title: string;
+  body: string;
+  canInvite: boolean;
+  onInvite: () => void;
+}) {
   const { t } = useTranslation();
   return (
     <div
-      data-testid="members-alone"
+      data-testid={testId}
       className="mt-4 flex flex-col items-center gap-2 rounded-lg border border-dashed bg-card px-4 py-8 text-center"
     >
-      <UserPlus className="size-6 text-muted-foreground" aria-hidden />
-      <h3 className="text-sm font-semibold">{t('members.alone.title', "It's just you for now")}</h3>
-      <p className="max-w-sm text-xs text-muted-foreground">
-        {t('members.alone.body', 'Invite teammates to share documents, graphs and answers in this organization.')}
-      </p>
+      <Icon className="size-6 text-muted-foreground" aria-hidden />
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <p className="max-w-sm text-xs text-muted-foreground">{body}</p>
       {canInvite && (
-        <Button size="sm" onClick={onInvite} data-testid="members-alone-invite">
+        <Button size="sm" onClick={onInvite} data-testid={`${testId}-invite`}>
           {t('members.invite.cta', 'Invite people')}
         </Button>
       )}
     </div>
+  );
+}
+
+/** Organization has no members at all (the viewer is not one of them). Not a filter miss. */
+export function MembersEmpty({ canInvite, onInvite }: { canInvite: boolean; onInvite: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-lg border bg-card">
+      <InviteNudge
+        testId="members-empty"
+        icon={Users}
+        title={t('members.empty.title', 'No members yet')}
+        body={t('members.empty.body', 'Invite people to share documents, graphs and answers in this organization.')}
+        canInvite={canInvite}
+        onInvite={onInvite}
+      />
+    </div>
+  );
+}
+
+/** Shown when you are alone in the organization — the moment an invite matters most. */
+export function MembersAlone({ canInvite, onInvite }: { canInvite: boolean; onInvite: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <InviteNudge
+      testId="members-alone"
+      icon={UserPlus}
+      title={t('members.alone.title', "It's just you for now")}
+      body={t('members.alone.body', 'Invite teammates to share documents, graphs and answers in this organization.')}
+      canInvite={canInvite}
+      onInvite={onInvite}
+    />
   );
 }
 

@@ -680,6 +680,7 @@
     }
   },
   "query": {
+    "hintVisible": "Enter to send · Shift+Enter for a new line · @ to pick a document",
     "title": "Query",
     "subtitle": "Ask questions about your knowledge graph",
     "handoff": {
@@ -1991,6 +1992,10 @@
       "title": "No one matches these filters",
       "body": "Try a different name, role or status.",
       "clear": "Clear filters"
+    },
+    "empty": {
+      "title": "No members yet",
+      "body": "Invite people to share documents, graphs and answers in this organization."
     },
     "alone": {
       "title": "It's just you for now",

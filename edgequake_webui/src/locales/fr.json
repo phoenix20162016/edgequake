@@ -680,6 +680,7 @@
     "zoomOut": "Zoom arrière"
   },
   "query": {
+    "hintVisible": "Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne · @ pour choisir un document",
     "title": "Requête",
     "subtitle": "Posez des questions sur votre graphe de connaissances",
     "handoff": {
@@ -1991,6 +1992,10 @@
       "title": "Personne ne correspond à ces filtres",
       "body": "Essayez un autre nom, rôle ou statut.",
       "clear": "Effacer les filtres"
+    },
+    "empty": {
+      "title": "Aucun membre pour l’instant",
+      "body": "Invitez des personnes à partager documents, graphes et réponses dans cette organisation."
     },
     "alone": {
       "title": "Vous êtes seul pour l'instant",

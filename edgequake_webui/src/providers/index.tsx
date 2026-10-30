@@ -74,11 +74,15 @@ export function AppProviders({ children }: AppProvidersProps) {
             <WebSocketProvider>
               <KeyboardShortcutsProvider>
                 {children}
-                <Toaster 
-                  richColors 
-                  position="top-right" 
+                {/* Clear the 48px app header (h-12): toasts must not cover
+                    the status pill, search or account controls. */}
+                <Toaster
+                  richColors
+                  position="top-right"
                   duration={3000}
                   closeButton
+                  offset={{ top: '3.75rem', right: '1rem' }}
+                  mobileOffset={{ top: '3.75rem', left: '0.75rem', right: '0.75rem' }}
                 />
               </KeyboardShortcutsProvider>
             </WebSocketProvider>

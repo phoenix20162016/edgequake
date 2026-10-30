@@ -118,9 +118,11 @@ export function Header() {
           EdgeQuake
         </span>
 
+        {/* Placeholder keeps the chip's footprint before mount; a content-sized
+            chip appearing after hydration would shift the centred search (CLS). */}
         <div className="hidden md:flex">
-          <ClientOnly fallback={null}>
-            <HeaderTenantSelector />
+          <ClientOnly fallback={<div className="h-8 w-64" aria-hidden="true" />}>
+            <HeaderTenantSelector className="w-64" />
           </ClientOnly>
         </div>
       </div>
@@ -133,7 +135,9 @@ export function Header() {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="min-w-0 rounded-md px-2 py-1 transition-colors hover:bg-muted/50 sm:min-w-[8.5rem]">
+              {/* Fixed width (not min-width): "Checking…" → "API v0.38.4" must not
+                  reflow the centred search trigger beside it (CLS). */}
+              <div className="min-w-0 rounded-md px-2 py-1 transition-colors hover:bg-muted/50 sm:w-36">
                 <ConnectionIndicator state={connectionState} label={connectionLabel} />
               </div>
             </TooltipTrigger>
@@ -141,7 +145,7 @@ export function Header() {
           </Tooltip>
         </TooltipProvider>
 
-        <ClientOnly fallback={null}>
+        <ClientOnly fallback={<span className="size-7" aria-hidden="true" />}>
           <LanguageSelector />
         </ClientOnly>
 

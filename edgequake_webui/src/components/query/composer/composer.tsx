@@ -386,19 +386,28 @@ export function Composer({
             ) : null}
           </div>
         </div>
-        {sendBlocked ? (
-          <p
-            id="query-choice-empty"
-            data-testid="query-choice-empty"
-            className="px-3.5 pb-2 text-[12.5px] text-[#6b6760] dark:text-[#9a968f]"
-          >
-            {sendBlockedHint
-              ?? t(
-                "query.model.emptyEligible",
-                "An admin needs to allow a model before you can ask.",
-              )}
-          </p>
-        ) : null}
+        {/* One reserved footer line. The blocked-send reason and the keyboard
+            hint share it, so the reason appearing/disappearing (model load)
+            never moves the composer (CLS). */}
+        <div className="flex min-h-7 items-center px-3.5 pb-2">
+          {sendBlocked ? (
+            <p
+              id="query-choice-empty"
+              data-testid="query-choice-empty"
+              className="text-xs leading-5 text-muted-foreground"
+            >
+              {sendBlockedHint
+                ?? t(
+                  "query.model.emptyEligible",
+                  "An admin needs to allow a model before you can ask.",
+                )}
+            </p>
+          ) : (
+            <p className="text-xs leading-5 text-muted-foreground/80" aria-hidden="true">
+              {t("query.hintVisible", "Enter to send · Shift+Enter for a new line · @ to pick a document")}
+            </p>
+          )}
+        </div>
       </div>
     </form>
   );

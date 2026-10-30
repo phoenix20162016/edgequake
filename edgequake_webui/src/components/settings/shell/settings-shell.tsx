@@ -9,7 +9,10 @@
  */
 
 import { AccessBadge } from "@/components/settings/shell/access-badge";
-import { MobileSettingsNav } from "@/components/settings/shell/settings-mobile-nav";
+import {
+  MobileSettingsNav,
+  MobileSettingsNavSkeleton,
+} from "@/components/settings/shell/settings-mobile-nav";
 import { SettingsNav } from "@/components/settings/shell/settings-nav";
 import { SettingsSearch } from "@/components/settings/shell/settings-search";
 import { SettingsSectionRenderer } from "@/components/settings/sections";
@@ -93,7 +96,8 @@ export function SettingsShell({ workspaceSlug = null }: { workspaceSlug?: string
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="space-y-3 border-b px-4 py-3 md:hidden">
-          <div className="flex items-center justify-between gap-2">
+          {/* min-h-6 holds the row at the badge's height so the badge mounting doesn't nudge the content. */}
+          <div className="flex min-h-6 items-center justify-between gap-2">
             <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               Back to app
@@ -101,8 +105,12 @@ export function SettingsShell({ workspaceSlug = null }: { workspaceSlug?: string
             {accessReady ? <AccessBadge access={access} /> : null}
           </div>
           <SettingsSearch access={access} workspaceSlug={workspaceSlug} />
-          {accessReady && match ? (
-            <MobileSettingsNav access={access} activeSection={match.section} workspaceSlug={workspaceSlug} />
+          {match ? (
+            accessReady ? (
+              <MobileSettingsNav access={access} activeSection={match.section} workspaceSlug={workspaceSlug} />
+            ) : (
+              <MobileSettingsNavSkeleton />
+            )
           ) : null}
         </div>
 

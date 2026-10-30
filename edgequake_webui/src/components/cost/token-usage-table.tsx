@@ -33,6 +33,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import type { StageCostBreakdown } from '@/types/cost';
 import { ArrowDown, ArrowUp, Hash, Zap } from 'lucide-react';
 
@@ -65,6 +66,44 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(2)}`;
 }
 
+/** Placeholder rows: the skeleton mirrors the loaded table's line boxes (CLS). */
+const SKELETON_ROWS = [0, 1, 2] as const;
+
+/** Static title shared by the loading and loaded states. */
+function TokenUsageTitle() {
+  return (
+    <CardTitle className="flex items-center gap-2">
+      <Hash className="h-4 w-4" />
+      Token Usage Details
+    </CardTitle>
+  );
+}
+
+/** Static column headers shared by the loading and loaded states. */
+function TokenUsageColumnHeader() {
+  return (
+    <TableHeader>
+      <TableRow>
+        <TableHead>Stage</TableHead>
+        <TableHead className="text-right">
+          <div className="flex items-center justify-end gap-1">
+            <ArrowDown className="h-3 w-3" />
+            Input
+          </div>
+        </TableHead>
+        <TableHead className="text-right">
+          <div className="flex items-center justify-end gap-1">
+            <ArrowUp className="h-3 w-3" />
+            Output
+          </div>
+        </TableHead>
+        <TableHead className="text-right">Calls</TableHead>
+        <TableHead className="text-right">Cost</TableHead>
+      </TableRow>
+    </TableHeader>
+  );
+}
+
 /**
  * Detailed table showing token usage by operation/stage.
  */
@@ -77,10 +116,27 @@ export function TokenUsageTable({
     return (
       <Card className={className}>
         <CardHeader className="pb-2">
-          <Skeleton className="h-5 w-32" />
+          <TokenUsageTitle />
+          {/* h-5 = the loaded CardDescription line, so the header height is identical. */}
+          <CardDescription className="h-5">
+            <Skeleton className="h-4 w-32" />
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-64 w-full" />
+          <Table>
+            <TokenUsageColumnHeader />
+            <TableBody>
+              {SKELETON_ROWS.map((row) => (
+                <TableRow key={row}>
+                  {Array.from({ length: 5 }, (_, cell) => (
+                    <TableCell key={cell} className={cell === 0 ? undefined : 'text-right'}>
+                      <Skeleton className={cn('h-5', cell === 0 ? 'w-24' : 'ml-auto w-12')} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     );
@@ -111,35 +167,14 @@ export function TokenUsageTable({
   return (
     <Card className={className}>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2">
-          <Hash className="h-4 w-4" />
-          Token Usage Details
-        </CardTitle>
-        <CardDescription>
+        <TokenUsageTitle />
+        <CardDescription className="h-5">
           {formatTokens(totals.inputTokens + totals.outputTokens)} total tokens
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Stage</TableHead>
-              <TableHead className="text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <ArrowDown className="h-3 w-3" />
-                  Input
-                </div>
-              </TableHead>
-              <TableHead className="text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <ArrowUp className="h-3 w-3" />
-                  Output
-                </div>
-              </TableHead>
-              <TableHead className="text-right">Calls</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TokenUsageColumnHeader />
           <TableBody>
             {stages.map((stage) => (
               <TableRow key={stage.stage}>
