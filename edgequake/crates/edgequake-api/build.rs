@@ -1,36 +1,15 @@
 //! Build script for edgequake-api — build metadata + OpenAPI path SSOT (SPEC-027 phase 15).
 
+include!("../../build_meta.rs");
+
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
 
 fn main() {
     emit_build_metadata();
-    generate_openapi_paths_inc();
-}
-
-fn emit_build_metadata() {
-    let build_timestamp = utc_now();
-    println!("cargo:rustc-env=EDGEQUAKE_BUILD_TIMESTAMP={build_timestamp}");
-
-    let git_hash = git_short_hash().unwrap_or_else(|| "unknown".to_string());
-    println!("cargo:rustc-env=EDGEQUAKE_GIT_HASH={git_hash}");
-
-    let git_branch = git_branch().unwrap_or_else(|| "unknown".to_string());
-    println!("cargo:rustc-env=EDGEQUAKE_GIT_BRANCH={git_branch}");
-
-    let build_number = build_timestamp
-        .replace(['-', ':'], "")
-        .replace('T', ".")
-        .replace('Z', "");
-    println!("cargo:rustc-env=EDGEQUAKE_BUILD_NUMBER={build_number}");
-
     println!("cargo:rustc-env=UTOIPA_PIN_VERSION=5.4.0");
-
-    println!("cargo:rerun-if-changed=../../.git/HEAD");
-    println!("cargo:rerun-if-changed=../../.git/refs/");
-    println!("cargo:rerun-if-changed=build.rs");
+    // OpenAPI inventory reads every handler. Directory scan is intentional.
     println!("cargo:rerun-if-changed=src/handlers");
+    generate_openapi_paths_inc();
 }
 
 /// Scan `src/handlers/**` for `#[utoipa::path]` + `pub async fn` and emit `openapi_paths.inc`.
@@ -323,40 +302,6 @@ pub const OPENAPI_GENERATED_HANDLER_COUNT: usize = {generated_count};
 "#
     );
     fs::write(out_dir.join("openapi_path_count.rs"), check).expect("write path count");
-}
-
-fn utc_now() -> String {
-    let output = Command::new("date")
-        .args(["-u", "+%Y-%m-%dT%H:%M:%SZ"])
-        .output();
-    match output {
-        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
-        _ => "unknown".to_string(),
-    }
-}
-
-fn git_short_hash() -> Option<String> {
-    let output = Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
-        .output()
-        .ok()?;
-    if output.status.success() {
-        Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    } else {
-        None
-    }
-}
-
-fn git_branch() -> Option<String> {
-    let output = Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .output()
-        .ok()?;
-    if output.status.success() {
-        Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    } else {
-        None
-    }
 }
 
 #[cfg(test)]
