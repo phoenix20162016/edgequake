@@ -11,7 +11,6 @@ use edgequake_core::{CreateWorkspaceRequest, Tenant, TenantPlan, UpdateWorkspace
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::handlers::workspaces_types::{TenantResponse, WorkspaceResponse};
@@ -220,6 +219,7 @@ async fn create_first_run_admin(
     {
         use chrono::Utc;
         use edgequake_auth::Role;
+        use uuid::Uuid;
 
         use crate::handlers::auth::{persist_user_record, UserRecord};
         use crate::state::PostgresRuntime;
