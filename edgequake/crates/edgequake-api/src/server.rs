@@ -54,27 +54,58 @@ const CORS_FAIL_CLOSED_METHODS: [Method; 7] = [
 ];
 
 /// Explicit request headers for fail-closed CORS (SPEC-083 S-10).
-fn cors_fail_closed_headers() -> [HeaderName; 8] {
+///
+/// `EDGEQUAKE_DEV_MODE=false` uses this list. A name the browser puts in
+/// `Access-Control-Request-Headers` that is missing here fails the preflight.
+/// The set is the WebUI (`buildHeaders`, `If-Match` on offer saves) plus the
+/// browser-facing API headers (`X-Filename`, `Prefer`, setup token, attribution).
+fn cors_fail_closed_headers() -> Vec<HeaderName> {
     [
         header::AUTHORIZATION,
         header::RANGE,
         header::CONTENT_TYPE,
         header::ACCEPT,
+        header::IF_MATCH,
+        HeaderName::from_static("prefer"),
         HeaderName::from_static("x-api-key"),
         HeaderName::from_static("x-tenant-id"),
         HeaderName::from_static("x-workspace-id"),
+        HeaderName::from_static("x-user-id"),
         HeaderName::from_static("x-request-id"),
+        HeaderName::from_static("x-correlation-id"),
+        HeaderName::from_static("x-filename"),
+        HeaderName::from_static("x-edgequake-client"),
+        HeaderName::from_static("x-edgequake-confirm"),
+        HeaderName::from_static("x-edgequake-setup-token"),
+        HeaderName::from_static("x-edgequake-app-id"),
+        HeaderName::from_static("x-edgequake-app-name"),
+        HeaderName::from_static("x-edgequake-app-url"),
+        HeaderName::from_static("x-edgequake-tenant-id"),
+        HeaderName::from_static("x-edgequake-request-id"),
+        HeaderName::from_static("traceparent"),
+        HeaderName::from_static("tracestate"),
     ]
+    .into()
 }
 
-/// Response headers a cross-origin PDF viewer must read to use byte-range loading.
-fn cors_exposed_headers() -> [HeaderName; 4] {
+/// Response headers script on another origin is allowed to read.
+///
+/// PDF range loading needs the content-range family. The WebUI also reads
+/// `x-request-id` and `traceparent` off the response; without this list the
+/// browser hides them on a split origin.
+fn cors_exposed_headers() -> Vec<HeaderName> {
     [
         header::CONTENT_RANGE,
         header::ACCEPT_RANGES,
         header::CONTENT_LENGTH,
         header::CONTENT_ENCODING,
+        HeaderName::from_static("x-request-id"),
+        HeaderName::from_static("traceparent"),
+        HeaderName::from_static("tracestate"),
+        HeaderName::from_static("x-retrieval-id"),
+        HeaderName::from_static("x-retrieval-fingerprint"),
     ]
+    .into()
 }
 
 /// Apply methods, headers, and credentials.

@@ -74,6 +74,122 @@ async fn issue_277_options_preflight_returns_allowed_origin() {
     );
 }
 
+/// Headers a browser client of this API puts on a non-simple request.
+const BROWSER_REQUEST_HEADERS: &[&str] = &[
+    "authorization",
+    "content-type",
+    "if-match",
+    "prefer",
+    "range",
+    "traceparent",
+    "tracestate",
+    "x-api-key",
+    "x-correlation-id",
+    "x-edgequake-app-id",
+    "x-edgequake-app-name",
+    "x-edgequake-app-url",
+    "x-edgequake-client",
+    "x-edgequake-confirm",
+    "x-edgequake-request-id",
+    "x-edgequake-setup-token",
+    "x-edgequake-tenant-id",
+    "x-filename",
+    "x-request-id",
+    "x-tenant-id",
+    "x-user-id",
+    "x-workspace-id",
+];
+
+/// Response headers the WebUI reads from a cross-origin response.
+const BROWSER_EXPOSED_HEADERS: &[&str] = &[
+    "accept-ranges",
+    "content-encoding",
+    "content-length",
+    "content-range",
+    "traceparent",
+    "tracestate",
+    "x-request-id",
+    "x-retrieval-fingerprint",
+    "x-retrieval-id",
+];
+
+/// WebUI and browser API clients send these. Fail-closed CORS must allow them
+/// or the call fails when `EDGEQUAKE_DEV_MODE=false`.
+#[tokio::test]
+async fn issue_277_preflight_allows_webui_headers_outside_dev_mode() {
+    let app = build_production_cors_app(production_cors_state());
+    let requested = BROWSER_REQUEST_HEADERS.join(",");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/api/v1/documents")
+                .header("Origin", ALLOWED_ORIGIN)
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", requested)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        cors_header(&response, "access-control-allow-origin"),
+        Some(ALLOWED_ORIGIN),
+        "preflight must succeed for the WebUI header set"
+    );
+    let allowed = cors_header(&response, "access-control-allow-headers")
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    for name in BROWSER_REQUEST_HEADERS {
+        assert!(
+            allowed.split(',').any(|h| h.trim() == *name),
+            "fail-closed CORS dropped {name}; allow-headers={allowed}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn issue_277_exposes_headers_the_webui_reads() {
+    let app = build_production_cors_app(production_cors_state());
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/health")
+                .header("Origin", ALLOWED_ORIGIN)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        cors_header(&response, "access-control-allow-origin"),
+        Some(ALLOWED_ORIGIN)
+    );
+    let exposed = cors_header(&response, "access-control-expose-headers")
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    for name in BROWSER_EXPOSED_HEADERS {
+        assert!(
+            exposed.split(',').any(|h| h.trim() == *name),
+            "cross-origin script cannot read {name}; expose-headers={exposed}"
+        );
+    }
+    assert!(
+        cors_header(&response, "x-request-id").is_some(),
+        "health response must carry x-request-id for the WebUI error path"
+    );
+    assert!(
+        cors_header(&response, "traceparent").is_some(),
+        "health response must carry traceparent so the WebUI can adopt it"
+    );
+}
+
 #[tokio::test]
 async fn issue_277_openapi_json_includes_cors_for_allowed_origin() {
     let app = build_production_cors_app(production_cors_state());

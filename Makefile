@@ -963,6 +963,12 @@ dev: kill-app check-deps check-ports ## Start full development stack without aut
 	$(LOAD_EFF_DB_URL); \
 	$(APPLY_LANGFUSE_ENV_EFFECTIVE); \
 	$(VISIBLE_MIGRATE_STEP); \
+	_EQ_BIN=""; \
+	_TDIR="$${CARGO_TARGET_DIR:-$$(cd $(BACKEND_DIR) && cargo metadata --no-deps --format-version 1 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["target_directory"])' 2>/dev/null)}"; \
+	if [ -n "$$_TDIR" ] && [ -x "$$_TDIR/debug/edgequake" ]; then _EQ_BIN="$$_TDIR/debug/edgequake"; \
+	elif [ -x "$(BACKEND_DIR)/target/debug/edgequake" ]; then _EQ_BIN="$(BACKEND_DIR)/target/debug/edgequake"; fi; \
+	if [ -n "$$_EQ_BIN" ]; then echo "$(GREEN)→ Using binary $$_EQ_BIN (no second compile)$(RESET)"; fi; \
+	_run_server() { if [ -n "$$_EQ_BIN" ]; then exec "$$_EQ_BIN"; else exec cargo run; fi; }; \
 	echo "$(YELLOW)→ Freeing port $$BACKEND_PORT before backend start (OrbStack/Docker skipped)$(RESET)"; \
 	$(SAFE_KILL_LISTEN_PORTS) "$$BACKEND_PORT"; \
 	sleep 0.3; \
@@ -992,7 +998,7 @@ dev: kill-app check-deps check-ports ## Start full development stack without aut
 		EDGEQUAKE_ORIGINAL_STORE_SECRET_ACCESS_KEY="$(MINIO_APP_PASSWORD)" \
 		EDGEQUAKE_ORIGINAL_STORE_ALLOW_HTTP="$(ORIGINAL_STORE_ALLOW_HTTP)" \
 		EDGEQUAKE_ORIGINAL_STORE_PATH_STYLE="$(ORIGINAL_STORE_PATH_STYLE)" \
-		cargo run 2>&1 | sed 's/^/[backend] /') & \
+		_run_server 2>&1 | sed 's/^/[backend] /') & \
 	BACKEND_PID=$$!; \
 	else \
 		(cd $(BACKEND_DIR) && \
@@ -1021,7 +1027,7 @@ dev: kill-app check-deps check-ports ## Start full development stack without aut
 			EDGEQUAKE_ORIGINAL_STORE_SECRET_ACCESS_KEY="$(MINIO_APP_PASSWORD)" \
 			EDGEQUAKE_ORIGINAL_STORE_ALLOW_HTTP="$(ORIGINAL_STORE_ALLOW_HTTP)" \
 			EDGEQUAKE_ORIGINAL_STORE_PATH_STYLE="$(ORIGINAL_STORE_PATH_STYLE)" \
-			cargo run 2>&1 | sed 's/^/[backend] /') & \
+			_run_server 2>&1 | sed 's/^/[backend] /') & \
 		BACKEND_PID=$$!; \
 	fi; \
 	echo "$(YELLOW)→ Starting frontend on port $$FRONTEND_PORT...$(RESET)"; \
@@ -1502,6 +1508,12 @@ backend-dev: db-wait ## Run backend in development mode with PostgreSQL (uses .e
 	fi
 	@	$(LOAD_EFF_DB_URL); \
 	$(VISIBLE_MIGRATE_STEP); \
+	_EQ_BIN=""; \
+	_TDIR="$${CARGO_TARGET_DIR:-$$(cd $(BACKEND_DIR) && cargo metadata --no-deps --format-version 1 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["target_directory"])' 2>/dev/null)}"; \
+	if [ -n "$$_TDIR" ] && [ -x "$$_TDIR/debug/edgequake" ]; then _EQ_BIN="$$_TDIR/debug/edgequake"; \
+	elif [ -x "$(BACKEND_DIR)/target/debug/edgequake" ]; then _EQ_BIN="$(BACKEND_DIR)/target/debug/edgequake"; fi; \
+	if [ -n "$$_EQ_BIN" ]; then echo "$(GREEN)→ Using binary $$_EQ_BIN (no second compile)$(RESET)"; fi; \
+	_run_server() { if [ -n "$$_EQ_BIN" ]; then exec "$$_EQ_BIN"; else exec cargo run; fi; }; \
 	$(APPLY_LANGFUSE_ENV_EFFECTIVE); \
 	cd $(BACKEND_DIR) && \
 		PORT="$(BACKEND_PORT)" \
@@ -1522,7 +1534,7 @@ backend-dev: db-wait ## Run backend in development mode with PostgreSQL (uses .e
 		OLLAMA_MODEL="gemma4:latest" \
 		OLLAMA_EMBEDDING_MODEL="embeddinggemma:latest" \
 		OLLAMA_CONTEXT_LENGTH="$${OLLAMA_CONTEXT_LENGTH:-8192}" \
-		cargo run
+		_run_server
 
 backend-db: db-wait ## Run backend with PostgreSQL storage (uses .env configuration)
 	@echo "$(BLUE)Starting backend with PostgreSQL storage (explicit)...$(RESET)"
@@ -1531,6 +1543,12 @@ backend-db: db-wait ## Run backend with PostgreSQL storage (uses .env configurat
 	fi
 	@	$(LOAD_EFF_DB_URL); \
 	$(VISIBLE_MIGRATE_STEP); \
+	_EQ_BIN=""; \
+	_TDIR="$${CARGO_TARGET_DIR:-$$(cd $(BACKEND_DIR) && cargo metadata --no-deps --format-version 1 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["target_directory"])' 2>/dev/null)}"; \
+	if [ -n "$$_TDIR" ] && [ -x "$$_TDIR/debug/edgequake" ]; then _EQ_BIN="$$_TDIR/debug/edgequake"; \
+	elif [ -x "$(BACKEND_DIR)/target/debug/edgequake" ]; then _EQ_BIN="$(BACKEND_DIR)/target/debug/edgequake"; fi; \
+	if [ -n "$$_EQ_BIN" ]; then echo "$(GREEN)→ Using binary $$_EQ_BIN (no second compile)$(RESET)"; fi; \
+	_run_server() { if [ -n "$$_EQ_BIN" ]; then exec "$$_EQ_BIN"; else exec cargo run; fi; }; \
 	$(APPLY_LANGFUSE_ENV_EFFECTIVE); \
 	cd $(BACKEND_DIR) && \
 		PORT="$(BACKEND_PORT)" \
@@ -1551,7 +1569,7 @@ backend-db: db-wait ## Run backend with PostgreSQL storage (uses .env configurat
 		OLLAMA_MODEL="gemma4:latest" \
 		OLLAMA_EMBEDDING_MODEL="embeddinggemma:latest" \
 		OLLAMA_CONTEXT_LENGTH="$${OLLAMA_CONTEXT_LENGTH:-8192}" \
-		cargo run
+		_run_server
 
 # OODA-03: In-memory storage has been REMOVED for production consistency.
 # This target now fails with guidance to use PostgreSQL instead.
