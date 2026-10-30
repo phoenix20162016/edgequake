@@ -4,6 +4,8 @@
 //! The large graph matches the reported failure: 166,067 nodes and 268,144 edges.
 //! Skipped unless `DATABASE_URL` points at a server that can `CREATE EXTENSION age`.
 
+#![cfg(feature = "postgres")]
+
 use std::time::{Duration, Instant};
 
 use edgequake_api::state::migration_bootstrap::run_postgres_expandable_migrations;

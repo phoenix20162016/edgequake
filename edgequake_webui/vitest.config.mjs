@@ -4,12 +4,13 @@ import { defineConfig } from "vitest/config";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const alias = {
+  "@": path.resolve(__dirname, "./src"),
+  "bun:test": path.resolve(__dirname, "./vitest.bun-shim.ts"),
+};
+
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
+  resolve: { alias },
   test: {
     globals: true,
     projects: [
@@ -20,9 +21,7 @@ export default defineConfig({
           include: ["src/**/*.test.ts"],
           exclude: ["src/**/*.test.tsx", "src/**/*.dom.test.ts"],
         },
-        resolve: {
-          alias: { "@": path.resolve(__dirname, "./src") },
-        },
+        resolve: { alias },
       },
       {
         name: "unit-jsdom",
@@ -31,9 +30,7 @@ export default defineConfig({
           include: ["src/**/*.test.tsx", "src/**/*.dom.test.ts"],
           setupFiles: ["./vitest.setup.ts"],
         },
-        resolve: {
-          alias: { "@": path.resolve(__dirname, "./src") },
-        },
+        resolve: { alias },
       },
     ],
   },

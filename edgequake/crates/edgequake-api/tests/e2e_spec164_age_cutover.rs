@@ -5,6 +5,8 @@
 //! on a server where `age` is missing from `pg_available_extensions`.
 //! `EDGEQUAKE_SPEC164_NO_AGE=1` skips the mirror proof that needs the extension.
 
+#![cfg(feature = "postgres")]
+
 use std::time::Instant;
 
 use edgequake_api::state::migration_bootstrap::{
