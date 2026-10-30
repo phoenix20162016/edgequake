@@ -33,6 +33,19 @@ const PIPELINE_LABELS: Record<string, string> = {
   partial_success: 'Partial',
 };
 
+/**
+ * Statuses that can carry a serving fence.
+ *
+ * WHY a whitelist: only a document that finished extraction has a meaningful
+ * "indexed but not yet queryable" state. Applying the fence to every status
+ * made failures and cancellations claim a success outcome.
+ */
+const SERVING_FENCE_STATUSES = new Set<string>([
+  'completed',
+  'indexed',
+  'partial_success',
+]);
+
 function pipelineLabel(status: string): string {
   return PIPELINE_LABELS[status] ?? status;
 }
@@ -43,11 +56,8 @@ function pipelineLabel(status: string): string {
  */
 export function ServingFenceBadge({
   queryReady,
-  visuallyHidden = false,
 }: {
   queryReady: boolean | null | undefined;
-  /** Keep SPEC-091 selectors without duplicating visible "Ready" in compact cells. */
-  visuallyHidden?: boolean;
 }) {
   if (typeof queryReady !== 'boolean') return null;
   if (queryReady) {
@@ -55,7 +65,6 @@ export function ServingFenceBadge({
       <span
         data-testid="spec091-serving-fence-badge"
         data-query-ready="true"
-        className={visuallyHidden ? 'sr-only' : undefined}
       >
         Ready
       </span>
@@ -138,7 +147,15 @@ export function EnhancedStatusBadge({
 
   const stalledMs = documentStalledForMs(document);
   const queryReady = document.query_ready;
-  const hasFence = typeof queryReady === 'boolean';
+  // WHY the fence only composes onto SUCCESS statuses:
+  // `query_ready` describes the serving fence — a successful document that the
+  // query layer has not admitted yet. It says nothing about failures. The old
+  // guard was `typeof queryReady === 'boolean'`, so a document with
+  // `status: "failed", query_ready: false` rendered an amber
+  // "Indexed · not queryable" badge: the failure was silently rewritten into a
+  // success-with-a-caveat. Failures must keep their own red identity.
+  const hasFence =
+    typeof queryReady === 'boolean' && SERVING_FENCE_STATUSES.has(displayStatus);
 
   // Idle/completed fence composition — single cell, no peer pills.
   if (hasFence) {
@@ -166,9 +183,11 @@ export function EnhancedStatusBadge({
       >
         {queryReady ? (
           compact ? (
+            /* Compact: ONE copy of the word "Ready". The status-badge hook wraps
+               the visible fence element instead of duplicating its text —
+               duplicating it made the cell read "ReadyReady…". */
             <span data-testid="status-badge">
-              Ready
-              <ServingFenceBadge queryReady={true} visuallyHidden />
+              <ServingFenceBadge queryReady={true} />
             </span>
           ) : (
             <>
@@ -193,8 +212,8 @@ export function EnhancedStatusBadge({
             <ServingFenceBadge queryReady={false} />
           </>
         )}
-        {/* Visually compose full label for screen readers via aria-label; keep text scannable */}
-        <span className="sr-only">{label}</span>
+        {/* The Badge's aria-label above is the single accessible name; an
+            extra sr-only copy made the cell read "Ready Ready Completed · Ready". */}
       </Badge>
     );
   }

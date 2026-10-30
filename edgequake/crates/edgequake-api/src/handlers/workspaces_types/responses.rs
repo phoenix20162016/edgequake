@@ -60,10 +60,50 @@ pub struct TenantResponse {
     #[schema(value_type = Option<crate::handlers::PdfParserBackendName>, example = "edgeparse-ocr")]
     pub pdf_parser_backend: Option<String>,
 
+    /// Tenant brand color (`#rrggbb`). `null` means the EdgeQuake default accent.
+    pub primary_color: Option<String>,
+
     /// Creation timestamp.
     pub created_at: String,
     /// Last update timestamp.
     pub updated_at: String,
+}
+
+impl TenantResponse {
+    /// The one tenant → wire mapping used by every tenant endpoint.
+    ///
+    /// WHY: five handlers used to rebuild this struct by hand, so a new tenant field
+    /// had to be remembered in each copy. Mapping in one place keeps them in lockstep.
+    pub fn from_tenant(tenant: &edgequake_core::Tenant) -> Self {
+        Self {
+            id: tenant.tenant_id,
+            name: tenant.name.clone(),
+            slug: tenant.slug.clone(),
+            plan: format!("{}", tenant.plan),
+            is_active: tenant.is_active,
+            max_workspaces: tenant.max_workspaces,
+            default_llm_model: tenant.default_llm_model.clone(),
+            default_llm_provider: tenant.default_llm_provider.clone(),
+            default_llm_full_id: format!(
+                "{}/{}",
+                tenant.default_llm_provider, tenant.default_llm_model
+            ),
+            default_embedding_model: tenant.default_embedding_model.clone(),
+            default_embedding_provider: tenant.default_embedding_provider.clone(),
+            default_embedding_dimension: tenant.default_embedding_dimension,
+            default_embedding_full_id: format!(
+                "{}/{}",
+                tenant.default_embedding_provider, tenant.default_embedding_model
+            ),
+            default_vision_llm_model: tenant.default_vision_llm_model.clone(),
+            default_vision_llm_provider: tenant.default_vision_llm_provider.clone(),
+            default_reasoning_effort: tenant.default_reasoning_effort.clone(),
+            pdf_parser_backend: tenant.pdf_parser_backend.map(|b| b.as_str().to_string()),
+            primary_color: tenant.primary_color.clone(),
+            created_at: tenant.created_at.to_rfc3339(),
+            updated_at: tenant.updated_at.to_rfc3339(),
+        }
+    }
 }
 
 /// Workspace response DTO.

@@ -25,8 +25,8 @@ export function WorkspacePageHeader({
     <PageHeader
       className="mb-0"
       title={
-        <span className="inline-flex items-center gap-2.5">
-          {workspace.name}
+        <span className="inline-flex flex-wrap items-center gap-2.5">
+          <span>{workspace.name}</span>
           <Badge variant={workspace.is_active ? "default" : "secondary"} className="font-medium">
             {workspace.is_active
               ? t("common.active", "Active")

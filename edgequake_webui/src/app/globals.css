@@ -269,13 +269,52 @@
   --info-foreground: #151514;
 }
 
+/* ============================================================
+ * PAGE FRAME — ONE shared content edge
+ *
+ * WHY: every page previously invented its own inset (px-3 / px-4 /
+ * px-6 / `container mx-auto p-page`), so the page title, the toolbar
+ * and the first content block started on three different vertical
+ * lines (measured 268 / 276 / 297 px on a 1440 viewport). Nothing
+ * read as one surface. A page frame has exactly four decisions —
+ * horizontal inset, max width, vertical rhythm, scroll ownership —
+ * and all four now resolve from this block.
+ *
+ * `--gutter` is the single horizontal content edge: the page title,
+ * toolbars, tables, stat strips and full-bleed workspace chrome all
+ * start on this line. Media queries below narrow it once.
+ * ============================================================ */
+:root {
+  --gutter: 24px;
+  --page-max: 1200px;
+  --page-pad-top: 24px;
+  --page-pad-bottom: 48px;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --gutter: 16px;
+    --page-pad-top: 16px;
+    --page-pad-bottom: 32px;
+  }
+}
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    /* Solid ring, not 50% alpha: the previous `outline-ring/50` measured
+       ~0.11 alpha on buttons, i.e. a focus indicator that was technically
+       present but invisible (WCAG 2.4.7 / 1.4.11). */
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Apply the shared edge to any horizontal chrome band. */
+@utility eq-gutter {
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
 }
 
 /* SPEC-143: page anchors from <!-- edgequake-page:N --> (must be observable). */

@@ -164,6 +164,10 @@ impl WorkspaceServiceImpl {
         if let Some(backend) = tenant.pdf_parser_backend {
             map["pdf_parser_backend"] = serde_json::json!(backend.as_str());
         }
+        // Tenant brand color: omitted when unset, so an update that clears it drops the key.
+        if let Some(ref color) = tenant.primary_color {
+            map["primary_color"] = serde_json::json!(color);
+        }
         map
     }
 }

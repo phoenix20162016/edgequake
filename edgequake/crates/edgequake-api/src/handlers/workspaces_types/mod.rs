@@ -37,6 +37,7 @@ mod tests {
     #[test]
     fn test_create_tenant_request_serialization() {
         let req = CreateTenantRequest {
+            primary_color: None,
             name: "Acme Corp".to_string(),
             slug: Some("acme".to_string()),
             description: Some("Test tenant".to_string()),
@@ -61,6 +62,7 @@ mod tests {
     #[test]
     fn test_update_tenant_request_serialization() {
         let req = UpdateTenantRequest {
+            primary_color: None,
             name: Some("New Name".to_string()),
             description: None,
             plan: Some("enterprise".to_string()),
@@ -194,6 +196,7 @@ mod tests {
             default_vision_llm_provider: None,
             default_reasoning_effort: None,
             pdf_parser_backend: None,
+            primary_color: None,
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
         };

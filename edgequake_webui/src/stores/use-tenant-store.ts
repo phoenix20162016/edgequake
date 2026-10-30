@@ -37,6 +37,11 @@ interface TenantState {
   needsOnboarding: boolean;
   /** Tracks if store has been hydrated from localStorage */
   _hasHydrated: boolean;
+  /**
+   * Last known brand color per tenant id (`null` = default). Persisted so the accent
+   * paints on reload before the tenant list returns. Written only by `setTenants`.
+   */
+  primaryColorByTenant: Record<string, string | null>;
 }
 
 interface TenantActions {
@@ -65,6 +70,7 @@ const initialState: TenantState = {
   isInitialized: false,
   needsOnboarding: false,
   _hasHydrated: false,
+  primaryColorByTenant: {},
 };
 
 export const useTenantStore = create<TenantStore>()(
@@ -72,7 +78,14 @@ export const useTenantStore = create<TenantStore>()(
     (set, get) => ({
       ...initialState,
 
-      setTenants: (tenants) => set({ tenants }),
+      setTenants: (tenants) =>
+        set((state) => ({
+          tenants,
+          primaryColorByTenant: {
+            ...state.primaryColorByTenant,
+            ...Object.fromEntries(tenants.map((t) => [t.id, t.primary_color ?? null])),
+          },
+        })),
 
       setWorkspaces: (workspaces) => set({ workspaces }),
 
@@ -121,6 +134,7 @@ export const useTenantStore = create<TenantStore>()(
       partialize: (state) => ({
         selectedTenantId: state.selectedTenantId,
         selectedWorkspaceId: state.selectedWorkspaceId,
+        primaryColorByTenant: state.primaryColorByTenant,
       }),
       /**
        * Migration function for handling schema changes
@@ -210,6 +224,17 @@ export const useTenantStore = create<TenantStore>()(
 export const useSelectedTenant = () => {
   const { tenants, selectedTenantId } = useTenantStore();
   return tenants.find((t) => t.id === selectedTenantId) || null;
+};
+
+/**
+ * Brand color of the selected tenant: the live tenant record when loaded, otherwise the
+ * persisted last-known value. `null` means the EdgeQuake default accent.
+ */
+export const selectTenantPrimaryColor = (state: TenantStore): string | null => {
+  if (!state.selectedTenantId) return null;
+  const tenant = state.tenants.find((t) => t.id === state.selectedTenantId);
+  if (tenant) return tenant.primary_color ?? null;
+  return state.primaryColorByTenant[state.selectedTenantId] ?? null;
 };
 
 export const useSelectedWorkspace = () => {

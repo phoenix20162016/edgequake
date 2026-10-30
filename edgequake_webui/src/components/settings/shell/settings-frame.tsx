@@ -38,11 +38,11 @@ export function SettingsFrame({
           <h1
             ref={headingRef}
             tabIndex={-1}
-            className="text-xl font-semibold tracking-tight text-foreground outline-none"
+            className="text-[1.375rem] font-semibold leading-snug tracking-[-0.012em] text-foreground outline-none"
           >
             {title}
           </h1>
-          {lead ? <p className="mt-1 max-w-prose text-sm text-muted-foreground">{lead}</p> : null}
+          {lead ? <p className="mt-1 max-w-[70ch] text-sm leading-relaxed text-muted-foreground">{lead}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </header>

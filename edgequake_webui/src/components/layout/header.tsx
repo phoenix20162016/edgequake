@@ -111,7 +111,7 @@ export function Header() {
           : t('header.apiCheckingHint', 'Checking connection...');
 
   return (
-    <header className="flex h-12 min-w-0 items-center gap-2 overflow-hidden border-b bg-card/95 backdrop-blur-sm px-3 shrink-0">
+    <header className="eq-gutter flex h-12 min-w-0 shrink-0 items-center gap-2 overflow-hidden border-b bg-card/95 backdrop-blur-sm">
       <div className="flex min-w-0 items-center gap-3">
         <MobileSidebar />
         <span className="text-base font-semibold md:hidden" aria-hidden="true">

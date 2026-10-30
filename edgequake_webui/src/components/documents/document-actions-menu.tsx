@@ -12,7 +12,7 @@ import { resolveDetailLifecycle } from '@/lib/documents/detail-lifecycle';
 import { canCancelDocument, isDeleteFailedDocument } from '@/lib/documents/document-run-state';
 import { needsReuploadNotReprocess } from '@/lib/pipeline/pipeline-document-state';
 import type { Document } from '@/types';
-import { Copy, Eye, MoreVertical, RefreshCw, StopCircle, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, Eye, MoreVertical, RefreshCw, StopCircle, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { isPdfDocument } from './reprocess-dialog';
@@ -26,6 +26,8 @@ import { useState } from 'react';
 interface DocumentActionsMenuProps {
   /** The document this menu acts on */
   doc: Document;
+  /** Callback to open the document detail page */
+  onViewDetails?: (doc: Document) => void;
   /** Callback to view PDF document */
   onViewPdf: (doc: Document) => void;
   /** Callback to cancel document processing */
@@ -53,6 +55,7 @@ interface DocumentActionsMenuProps {
  */
 export function DocumentActionsMenu({
   doc,
+  onViewDetails,
   onViewPdf,
   onCancel,
   onReprocess,
@@ -90,11 +93,25 @@ export function DocumentActionsMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More actions">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('documents.table.moreActions', 'More actions')}
+            title={t('documents.table.moreActions', 'More actions')}
+          >
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {/* Row quick actions carry Preview / Open graph / Retry. The full
+              detail page entry lives here so the row keeps a 3-slot budget. */}
+          {onViewDetails ? (
+            <DropdownMenuItem onClick={() => onViewDetails(doc)}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              {t('documents.actions.view', 'View Details')}
+            </DropdownMenuItem>
+          ) : null}
+
           {/* OODA-31: Copy document ID */}
           <DropdownMenuItem onClick={handleCopyId}>
             <Copy className="h-4 w-4 mr-2" />

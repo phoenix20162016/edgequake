@@ -175,3 +175,25 @@ describe("settings breadcrumbs", () => {
     expect(crumbs("/graph/abc")).toEqual([null, null]);
   });
 });
+
+describe("settings registry — branding (tenant brand color)", () => {
+  it("is an Organization section that only tenant managers can open", () => {
+    expect(getSection("branding").scope).toBe("organization");
+    expect(canOpenSection(SUPER, getSection("branding"))).toBe(true);
+    expect(canOpenSection(WS_ADMIN, getSection("branding"))).toBe(false);
+    expect(canOpenSection(MEMBER, getSection("branding"))).toBe(false);
+  });
+
+  it("routes to /settings/organization/branding and back", () => {
+    expect(sectionHref("branding")).toBe("/settings/organization/branding");
+    expect(sectionFromPathname("/settings/organization/branding")).toEqual({
+      section: "branding",
+      workspaceSlug: null,
+    });
+  });
+
+  it("is found by search for its color wording, and only for tenant managers", () => {
+    expect(searchSections(SUPER, "brand color").map((h) => h.section.id)).toEqual(["branding"]);
+    expect(searchSections(WS_ADMIN, "brand")).toHaveLength(0);
+  });
+});

@@ -117,6 +117,12 @@ impl TenantRow {
             .get("pdf_parser_backend")
             .and_then(|v| v.as_str())
             .and_then(edgequake_pdf::PdfParserBackend::from_env_str);
+        // Re-canonicalize on read so a hand-edited row can never leak a malformed color.
+        let primary_color = self
+            .metadata
+            .get("primary_color")
+            .and_then(|v| v.as_str())
+            .and_then(crate::hex_color::canonicalize_hex_color);
 
         Tenant {
             tenant_id: self.tenant_id,
@@ -139,6 +145,7 @@ impl TenantRow {
             default_vision_llm_model,
             default_reasoning_effort,
             pdf_parser_backend,
+            primary_color,
         }
     }
 }

@@ -175,7 +175,7 @@ export default function WorkspacePage() {
   if (!selectedTenantId || !selectedWorkspaceId) {
     return (
       <ScrollArea className="h-full">
-        <div className="container mx-auto p-page">
+        <PageShell>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FolderKanban className="h-12 w-12 text-muted-foreground mb-4" />
@@ -190,7 +190,7 @@ export default function WorkspacePage() {
               </p>
             </CardContent>
           </Card>
-        </div>
+        </PageShell>
       </ScrollArea>
     );
   }
@@ -198,8 +198,8 @@ export default function WorkspacePage() {
   if (isLoadingWorkspace) {
     return (
       <ScrollArea className="h-full">
-        <div
-          className="container mx-auto space-y-page p-page"
+        <PageShell
+          className="space-y-(--page-gap)"
           data-testid="spec100-workspace-skeleton"
         >
           <Skeleton className="h-10 w-72" />
@@ -210,7 +210,7 @@ export default function WorkspacePage() {
           </div>
           <Skeleton className="min-h-[16rem] w-full" />
           <Skeleton className="min-h-[12rem] w-full" />
-        </div>
+        </PageShell>
       </ScrollArea>
     );
   }
@@ -218,7 +218,7 @@ export default function WorkspacePage() {
   if (!workspace) {
     return (
       <ScrollArea className="h-full">
-        <div className="container mx-auto p-page">
+        <PageShell>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
@@ -237,7 +237,7 @@ export default function WorkspacePage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </PageShell>
       </ScrollArea>
     );
   }
@@ -248,7 +248,7 @@ export default function WorkspacePage() {
 
   return (
     <ScrollArea className="h-full">
-      <PageShell className="space-y-page">
+      <PageShell className="space-y-(--page-gap)">
         <WorkspacePageHeader
           workspace={workspace}
           onRefresh={() => refetchWorkspace()}

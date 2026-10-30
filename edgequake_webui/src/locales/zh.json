@@ -228,7 +228,11 @@
       "cost": "费用",
       "created": "创建时间",
       "updated": "最后更新",
-      "actions": "操作"
+      "actions": "操作",
+      "preview": "预览",
+      "openGraph": "打开图谱",
+      "retry": "重试",
+      "moreActions": "更多操作"
     },
     "actions": {
       "view": "查看详情",
@@ -522,6 +526,16 @@
       "askAboutPage": "就此页提问",
       "askAboutDocument": "就此文档提问",
       "askShort": "提问"
+    },
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}} 分钟前",
+      "hoursAgo": "{{count}} 小时前",
+      "daysAgo": "{{count}} 天前",
+      "monthsAgo": "{{count}} 个月前",
+      "yearsAgo": "{{count}} 年前",
+      "unchanged": "自上传后未更改",
+      "neverModified": "上传后未修改"
     }
   },
   "graph": {

@@ -63,7 +63,7 @@ export function SettingsShell({ workspaceSlug = null }: { workspaceSlug?: string
     <div className="flex min-h-0 flex-1 overflow-hidden" data-testid="settings-shell">
       <aside
         aria-label="Settings navigation"
-        className="hidden w-[248px] shrink-0 flex-col gap-4 overflow-y-auto border-r bg-muted/20 p-4 md:flex"
+        className="hidden w-[248px] shrink-0 flex-col gap-4 overflow-y-auto border-r bg-muted/20 py-4 pr-4 pl-(--gutter) md:flex"
       >
         <Link
           href={backHref}
@@ -112,7 +112,11 @@ export function SettingsShell({ workspaceSlug = null }: { workspaceSlug?: string
             aria-label="Settings content"
             data-testid="settings-content"
             data-width={contentWidth}
-            className="mx-auto w-full px-4 py-8 sm:px-8 md:px-10"
+            /* WHY no mx-auto: centring a 720px column inside a 1188px pane parked the
+               section title at x=650, 374px away from the sidebar rule and from every
+               other route's 276px content edge — it read as an empty column. The
+               reference shell left-aligns the reading column on the content gutter. */
+            className="eq-gutter w-full py-8"
             style={{ maxWidth: SETTINGS_CONTENT_WIDTH[contentWidth] }}
           >
             {!section ? <UnknownSettingsPage /> : null}

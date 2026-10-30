@@ -130,6 +130,26 @@ export async function createTenant(data: CreateTenantRequest): Promise<Tenant> {
   return api.post<Tenant>("/tenants", data);
 }
 
+/**
+ * Partial tenant update (`PUT /tenants/{id}`). Omitted fields are left unchanged.
+ */
+export interface UpdateTenantRequest {
+  name?: string;
+  description?: string;
+  /** `#rrggbb` / `#rgb` to set, or `none` (or empty) to clear to the EdgeQuake default. */
+  primary_color?: string;
+}
+
+/**
+ * Update a tenant. Requires tenant manage rights (owner or admin of the tenant).
+ */
+export async function updateTenant(
+  tenantId: string,
+  data: UpdateTenantRequest,
+): Promise<Tenant> {
+  return api.put<Tenant>(`/tenants/${encodeURIComponent(tenantId)}`, data);
+}
+
 export async function getWorkspaces(tenantId: string): Promise<Workspace[]> {
   return fetchAllPages(async (offset, limit) => {
     const response = await api.get<WorkspaceListResponse | Workspace[]>(

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use super::workspace::Workspace;
+use crate::hex_color::canonicalize_hex_color;
 
 /// A tenant represents an organization or customer in the multi-tenant system.
 ///
@@ -79,6 +80,11 @@ pub struct Tenant {
     /// `None` falls through to env → Vision. Values: vision | edgeparse | auto.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pdf_parser_backend: Option<edgequake_pdf::PdfParserBackend>,
+
+    /// Tenant brand color (`#rrggbb`, canonical lowercase). `None` = EdgeQuake default.
+    /// Drives the primary accent across the WebUI for every member of this tenant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_color: Option<String>,
 }
 
 impl Tenant {
@@ -117,6 +123,7 @@ impl Tenant {
             default_vision_llm_model: None,
             default_reasoning_effort: None,
             pdf_parser_backend: None,
+            primary_color: None,
         }
     }
 
@@ -233,6 +240,21 @@ impl Tenant {
     }
 }
 
+/// Parse a user-supplied tenant brand color.
+///
+/// - `""` or `"none"` (case-insensitive) → `Ok(None)`: clear to the EdgeQuake default.
+/// - `#RGB` / `#RRGGBB` → `Ok(Some("#rrggbb"))` (canonical lowercase).
+/// - anything else → `Err` (the API maps this to 400).
+pub fn parse_tenant_primary_color(raw: &str) -> Result<Option<String>, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("none") {
+        return Ok(None);
+    }
+    canonicalize_hex_color(trimmed).map(Some).ok_or_else(|| {
+        format!("Invalid primary_color '{raw}'. Expected #RRGGBB or #RGB, or 'none' to clear")
+    })
+}
+
 /// Tenant subscription plans.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -304,6 +326,39 @@ impl std::str::FromStr for TenantPlan {
             "pro" => Ok(TenantPlan::Pro),
             "enterprise" => Ok(TenantPlan::Enterprise),
             _ => Err(format!("Unknown plan: {}", s)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod primary_color_tests {
+    use super::parse_tenant_primary_color;
+
+    #[test]
+    fn empty_and_none_clear_the_color() {
+        assert_eq!(parse_tenant_primary_color("").unwrap(), None);
+        assert_eq!(parse_tenant_primary_color("   ").unwrap(), None);
+        assert_eq!(parse_tenant_primary_color("none").unwrap(), None);
+        assert_eq!(parse_tenant_primary_color("NONE").unwrap(), None);
+    }
+
+    #[test]
+    fn valid_hex_is_canonicalized() {
+        assert_eq!(
+            parse_tenant_primary_color("#4B5BD6").unwrap().as_deref(),
+            Some("#4b5bd6")
+        );
+        assert_eq!(
+            parse_tenant_primary_color(" #0F0 ").unwrap().as_deref(),
+            Some("#00ff00")
+        );
+    }
+
+    #[test]
+    fn invalid_values_are_rejected_with_context() {
+        for bad in ["blue", "#12", "#gggggg", "rgb(1,2,3)"] {
+            let err = parse_tenant_primary_color(bad).unwrap_err();
+            assert!(err.contains("Invalid primary_color"), "{bad}: {err}");
         }
     }
 }

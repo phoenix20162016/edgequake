@@ -16,6 +16,7 @@ import { I18nProvider } from './i18n-provider';
 import { KeyboardShortcutsProvider } from './keyboard-shortcuts-provider';
 import { QueryProvider } from './query-provider';
 import { TenantProvider } from './tenant-provider';
+import { TenantThemeProvider } from './tenant-theme-provider';
 import { ThemeProvider } from './theme-provider';
 import { WebSocketProvider } from './websocket-provider';
 
@@ -31,6 +32,7 @@ interface AppProvidersProps {
  * 2. ThemeProvider - Theme must be available early to prevent flash
  * 3. I18nProvider - Internationalization
  * 4. TenantProvider - Tenant/workspace context initialization (handles hydration internally)
+ *    TenantThemeProvider - applies the selected tenant's brand color (inside TenantProvider)
  * 5. WebSocketProvider - Real-time updates
  * 6. KeyboardShortcutsProvider - Keyboard shortcuts
  * 
@@ -68,6 +70,7 @@ export function AppProviders({ children }: AppProvidersProps) {
       <ThemeProvider>
         <I18nProvider>
           <TenantProvider>
+            <TenantThemeProvider />
             <WebSocketProvider>
               <KeyboardShortcutsProvider>
                 {children}

@@ -28,20 +28,21 @@ import {
     isTerminalFailureDocument,
 } from '@/lib/utils/document-status';
 import type { Document } from '@/types';
-import { formatDistanceToNow } from 'date-fns';
+import { describeDocumentTimes } from '@/lib/documents/format-document-time';
 import {
-    File,
-    FileCode,
-    FileImage,
-    FileSpreadsheet,
-    FileText,
-    FileType,
+  File,
+  FileCode,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  FileType,
 } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CostCell } from './cost-cell';
 import { DocumentActionsMenu } from './document-actions-menu';
 import { DOCUMENT_TABLE_COL_HIDE } from '@/lib/documents/document-table-columns';
+import { DocumentTimeCell } from './document-time-cell';
 import { EnhancedStatusBadge } from './enhanced-status-badge';
 import { ErrorMessagePopover } from './error-message-popover';
 import { ExtractionModeBadge } from './extraction-mode-badge';
@@ -187,6 +188,8 @@ export interface DocumentTableRowProps {
   isDeleting?: boolean;
   /** SPEC-099: Cost column opt-in */
   showCostColumn?: boolean;
+  /** Last Updated column — dropped when every row is unmodified (see section). */
+  showUpdatedColumn?: boolean;
   /** Virtualizer measure callback (reads data-index). */
   rowMeasureRef?: (node: Element | null) => void;
 }
@@ -218,9 +221,10 @@ export const DocumentTableRow = memo(function DocumentTableRow({
   isCancelling,
   isDeleting = false,
   showCostColumn = false,
+  showUpdatedColumn = true,
   rowMeasureRef,
 }: DocumentTableRowProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const displayStatus = getDocumentDisplayStatus(doc);
 
   // WHY: Visual distinction for document status
@@ -249,6 +253,17 @@ export const DocumentTableRow = memo(function DocumentTableRow({
   const { icon: FileIcon, color } = getFileTypeIcon(doc.file_name);
   const displayTitle =
     doc.title || doc.file_name || `Document ${doc.id.slice(0, 8)}`;
+
+  // Both time columns resolve from one descriptor so they can never disagree
+  // about which timestamp they describe (see format-document-time.ts).
+  const times = describeDocumentTimes(doc, {
+    locale: i18n.language,
+    t,
+  });
+
+  // Entity count: `0` is real data, `undefined` is unknown. Collapsing both to
+  // "-" hid genuinely empty extractions and misaligned the numeric column.
+  const entityCount = doc.entity_count ?? doc.chunk_count ?? null;
 
   return (
     <TableRow
@@ -331,21 +346,25 @@ export const DocumentTableRow = memo(function DocumentTableRow({
         </div>
       </TableCell>
 
-      {/* Entity Count */}
+      {/* Entities — an em dash (not "-") so "no data" reads as intentional. */}
       <TableCell
         className={cn(
-          'overflow-hidden text-center tabular-nums',
+          'overflow-hidden text-right tabular-nums text-muted-foreground',
           DOCUMENT_TABLE_COL_HIDE.entities,
         )}
       >
-        {doc.entity_count ?? doc.chunk_count ?? '-'}
+        {entityCount === null ? (
+          <span className="text-muted-foreground/60">&mdash;</span>
+        ) : (
+          entityCount.toLocaleString()
+        )}
       </TableCell>
 
       {/* Cost — SPEC-099: only when showCostColumn */}
       {showCostColumn ? (
         <TableCell
           className={cn(
-            'overflow-hidden text-center',
+            'overflow-hidden text-right',
             DOCUMENT_TABLE_COL_HIDE.cost,
           )}
         >
@@ -353,49 +372,48 @@ export const DocumentTableRow = memo(function DocumentTableRow({
         </TableCell>
       ) : null}
 
-      {/* Created Date */}
+      {/* Created — absolute date answers "when did this arrive?" */}
       <TableCell
         className={cn(
-          'max-w-0 overflow-hidden text-muted-foreground',
+          'overflow-hidden text-muted-foreground',
           DOCUMENT_TABLE_COL_HIDE.created,
         )}
       >
-        {doc.created_at ? (
-          <span
-            className="block truncate whitespace-nowrap"
-            title={new Date(doc.created_at).toLocaleString()}
-          >
-            {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}
-          </span>
-        ) : (
-          '-'
-        )}
+        <DocumentTimeCell
+          value={times.created}
+          fullValue={times.createdTitle}
+          label={t('documents.table.created', 'Created')}
+        />
       </TableCell>
 
-      {/* Last Updated Date — shows when doc was last reprocessed/rebuilt */}
+      {/* Last Updated — relative time, only when it differs from Created */}
+      {showUpdatedColumn ? (
+        <TableCell
+          className={cn(
+            'overflow-hidden text-muted-foreground',
+            DOCUMENT_TABLE_COL_HIDE.updated,
+          )}
+        >
+          <DocumentTimeCell
+            value={times.updated}
+            fullValue={times.updatedTitle}
+            hint={
+              times.updated
+                ? undefined
+                : t('documents.time.unchanged', 'Unchanged since upload')
+            }
+            label={t('documents.table.updated', 'Last Updated')}
+          />
+        </TableCell>
+      ) : null}
+
+      {/* Actions — column width is budgeted for exactly 3 icon buttons. */}
       <TableCell
-        className={cn(
-          'max-w-0 overflow-hidden text-muted-foreground',
-          DOCUMENT_TABLE_COL_HIDE.updated,
-        )}
+        className="overflow-hidden py-1"
+        onClick={(e) => e.stopPropagation()}
       >
-        {(doc.updated_at || doc.processed_at) ? (
-          <span
-            className="block truncate whitespace-nowrap"
-            title={new Date(doc.updated_at ?? doc.processed_at!).toLocaleString()}
-          >
-            {formatDistanceToNow(new Date(doc.updated_at ?? doc.processed_at!), { addSuffix: true })}
-          </span>
-        ) : (
-          '-'
-        )}
-      </TableCell>
-
-      {/* Actions */}
-      <TableCell className="overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <QuickActionButtons
           doc={doc}
-          onViewDetails={onViewDetails}
           onPreview={onClick}
           onViewInGraph={onViewInGraph}
           onRetry={onRetry}
@@ -403,6 +421,7 @@ export const DocumentTableRow = memo(function DocumentTableRow({
         >
           <DocumentActionsMenu
             doc={doc}
+            onViewDetails={onViewDetails}
             onViewPdf={onViewPdf}
             onCancel={onCancel}
             onReprocess={onReprocess}

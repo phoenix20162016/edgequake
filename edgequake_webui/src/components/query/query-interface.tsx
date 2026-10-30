@@ -202,12 +202,12 @@ export function QueryInterface() {
       <div ref={rootRef} className="flex h-full min-h-0">
         <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
           <header
-            className="eq-toolbar justify-between border-b px-page py-2 shrink-0 bg-background/80 backdrop-blur-sm"
+            className="eq-toolbar eq-gutter justify-between border-b py-2 shrink-0 bg-background/80 backdrop-blur-sm"
             role="banner"
           >
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               {!historyDock ? <MobileHistoryPanel /> : null}
-              <h1 className="shrink-0 text-base sm:text-lg font-semibold tracking-tight">
+              <h1 className="shrink-0 text-[1.375rem] font-semibold leading-snug tracking-[-0.012em]">
                 {t("query.title", "Query")}
               </h1>
               <span className="hidden min-w-0 truncate whitespace-nowrap text-xs text-muted-foreground xl:inline">

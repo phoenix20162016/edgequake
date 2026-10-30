@@ -90,6 +90,7 @@ import {
     getTenant,
     getTenants,
     getWorkspace,
+    updateTenant,
     getWorkspaces,
     getWorkspaceStats,
 } from "./workspaces";
@@ -103,6 +104,7 @@ export const edgequakeApi = {
   getTenants,
   getTenant,
   createTenant,
+  updateTenant,
   getWorkspaces,
   getWorkspace,
   getWorkspaceStats,

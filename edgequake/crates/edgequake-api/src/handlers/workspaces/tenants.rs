@@ -147,6 +147,12 @@ pub async fn create_tenant(
         tenant.default_reasoning_effort = Some(effort.to_string());
     }
 
+    // Brand color is validated before anything is written (invalid → 400, no tenant row).
+    if let Some(raw) = request.primary_color.as_deref() {
+        tenant.primary_color =
+            edgequake_core::types::parse_tenant_primary_color(raw).map_err(ApiError::BadRequest)?;
+    }
+
     // Store tenant via workspace service (SPEC-104 A+: conflict enforced in core).
     let requested_id = tenant.tenant_id;
     let created_tenant = state
@@ -204,35 +210,7 @@ pub async fn create_tenant(
         }
     }
 
-    let response = TenantResponse {
-        id: created_tenant.tenant_id,
-        name: created_tenant.name.clone(),
-        slug: created_tenant.slug.clone(),
-        plan: format!("{}", created_tenant.plan),
-        is_active: created_tenant.is_active,
-        max_workspaces: created_tenant.max_workspaces,
-        default_llm_model: created_tenant.default_llm_model.clone(),
-        default_llm_provider: created_tenant.default_llm_provider.clone(),
-        default_llm_full_id: format!(
-            "{}/{}",
-            created_tenant.default_llm_provider, created_tenant.default_llm_model
-        ),
-        default_embedding_model: created_tenant.default_embedding_model.clone(),
-        default_embedding_provider: created_tenant.default_embedding_provider.clone(),
-        default_embedding_dimension: created_tenant.default_embedding_dimension,
-        default_embedding_full_id: format!(
-            "{}/{}",
-            created_tenant.default_embedding_provider, created_tenant.default_embedding_model
-        ),
-        default_vision_llm_model: created_tenant.default_vision_llm_model.clone(),
-        default_vision_llm_provider: created_tenant.default_vision_llm_provider.clone(),
-        default_reasoning_effort: created_tenant.default_reasoning_effort.clone(),
-        pdf_parser_backend: created_tenant
-            .pdf_parser_backend
-            .map(|b| b.as_str().to_string()),
-        created_at: created_tenant.created_at.to_rfc3339(),
-        updated_at: created_tenant.updated_at.to_rfc3339(),
-    };
+    let response = TenantResponse::from_tenant(&created_tenant);
 
     tracing::info!(
         tenant_id = %created_tenant.tenant_id,
@@ -296,30 +274,7 @@ pub async fn list_tenants(
 
         let items: Vec<TenantResponse> = tenants
             .into_iter()
-            .map(|t| TenantResponse {
-                id: t.tenant_id,
-                name: t.name.clone(),
-                slug: t.slug.clone(),
-                plan: format!("{}", t.plan),
-                is_active: t.is_active,
-                max_workspaces: t.max_workspaces,
-                default_llm_model: t.default_llm_model.clone(),
-                default_llm_provider: t.default_llm_provider.clone(),
-                default_llm_full_id: format!("{}/{}", t.default_llm_provider, t.default_llm_model),
-                default_embedding_model: t.default_embedding_model.clone(),
-                default_embedding_provider: t.default_embedding_provider.clone(),
-                default_embedding_dimension: t.default_embedding_dimension,
-                default_embedding_full_id: format!(
-                    "{}/{}",
-                    t.default_embedding_provider, t.default_embedding_model
-                ),
-                default_vision_llm_model: t.default_vision_llm_model.clone(),
-                default_vision_llm_provider: t.default_vision_llm_provider.clone(),
-                default_reasoning_effort: t.default_reasoning_effort.clone(),
-                pdf_parser_backend: t.pdf_parser_backend.map(|b| b.as_str().to_string()),
-                created_at: t.created_at.to_rfc3339(),
-                updated_at: t.updated_at.to_rfc3339(),
-            })
+            .map(|t| TenantResponse::from_tenant(&t))
             .collect();
 
         Ok(Json(TenantListResponse {
@@ -360,33 +315,7 @@ pub async fn get_tenant(
         .map_err(|e| ApiError::Internal(e.to_string()))?
         .ok_or_else(|| ApiError::NotFound(format!("Tenant {} not found", tenant_id)))?;
 
-    let response = TenantResponse {
-        id: tenant.tenant_id,
-        name: tenant.name.clone(),
-        slug: tenant.slug.clone(),
-        plan: format!("{}", tenant.plan),
-        is_active: tenant.is_active,
-        max_workspaces: tenant.max_workspaces,
-        default_llm_model: tenant.default_llm_model.clone(),
-        default_llm_provider: tenant.default_llm_provider.clone(),
-        default_llm_full_id: format!(
-            "{}/{}",
-            tenant.default_llm_provider, tenant.default_llm_model
-        ),
-        default_embedding_model: tenant.default_embedding_model.clone(),
-        default_embedding_provider: tenant.default_embedding_provider.clone(),
-        default_embedding_dimension: tenant.default_embedding_dimension,
-        default_embedding_full_id: format!(
-            "{}/{}",
-            tenant.default_embedding_provider, tenant.default_embedding_model
-        ),
-        default_vision_llm_model: tenant.default_vision_llm_model.clone(),
-        default_vision_llm_provider: tenant.default_vision_llm_provider.clone(),
-        default_reasoning_effort: tenant.default_reasoning_effort.clone(),
-        pdf_parser_backend: tenant.pdf_parser_backend.map(|b| b.as_str().to_string()),
-        created_at: tenant.created_at.to_rfc3339(),
-        updated_at: tenant.updated_at.to_rfc3339(),
-    };
+    let response = TenantResponse::from_tenant(&tenant);
 
     Ok(Json(response))
 }
@@ -447,6 +376,11 @@ pub async fn update_tenant(
                 pdf_parser_backend
             )));
         }
+    }
+    // Brand color: `none` / empty clears to the EdgeQuake default; invalid → 400.
+    if let Some(raw) = request.primary_color.as_deref() {
+        tenant.primary_color =
+            edgequake_core::types::parse_tenant_primary_color(raw).map_err(ApiError::BadRequest)?;
     }
     // A changed embedding model recomputes the dimension from its card (SPEC-178).
     let card_dimension = crate::services::model_policy_enforcement::ensure_tenant_choice(
@@ -518,33 +452,7 @@ pub async fn update_tenant(
         .await
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
-    let response = TenantResponse {
-        id: updated.tenant_id,
-        name: updated.name.clone(),
-        slug: updated.slug.clone(),
-        plan: format!("{}", updated.plan),
-        is_active: updated.is_active,
-        max_workspaces: updated.max_workspaces,
-        default_llm_model: updated.default_llm_model.clone(),
-        default_llm_provider: updated.default_llm_provider.clone(),
-        default_llm_full_id: format!(
-            "{}/{}",
-            updated.default_llm_provider, updated.default_llm_model
-        ),
-        default_embedding_model: updated.default_embedding_model.clone(),
-        default_embedding_provider: updated.default_embedding_provider.clone(),
-        default_embedding_dimension: updated.default_embedding_dimension,
-        default_embedding_full_id: format!(
-            "{}/{}",
-            updated.default_embedding_provider, updated.default_embedding_model
-        ),
-        default_vision_llm_model: updated.default_vision_llm_model.clone(),
-        default_vision_llm_provider: updated.default_vision_llm_provider.clone(),
-        default_reasoning_effort: updated.default_reasoning_effort.clone(),
-        pdf_parser_backend: updated.pdf_parser_backend.map(|b| b.as_str().to_string()),
-        created_at: updated.created_at.to_rfc3339(),
-        updated_at: updated.updated_at.to_rfc3339(),
-    };
+    let response = TenantResponse::from_tenant(&updated);
 
     Ok(Json(response))
 }

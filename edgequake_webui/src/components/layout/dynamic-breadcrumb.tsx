@@ -148,7 +148,7 @@ export function DynamicBreadcrumb({ customSegments }: DynamicBreadcrumbProps) {
 
   return (
     <div
-      className="h-9 shrink-0 border-b px-4 bg-muted/20 flex items-center"
+      className="eq-gutter flex h-9 shrink-0 items-center border-b bg-muted/20"
       data-testid="breadcrumb-bar"
     >
     <Breadcrumb>
