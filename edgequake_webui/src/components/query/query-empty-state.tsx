@@ -18,18 +18,14 @@ import {
 } from "@/lib/query/query-empty-copy";
 import type { QueryMode } from "@/types/query";
 import { apiClient } from "@/lib/api/client";
+import { getWorkspaceStats } from "@/lib/api/edgequake/workspaces";
+import { useTenantStore } from "@/stores/use-tenant-store";
 
 export interface QueryEmptyStateProps {
   onSuggestionClick?: (text: string) => void;
   /** Active query mode — Chat (bypass) uses chatbot copy, not KG copy. */
   mode?: QueryMode;
 }
-
-type StatsPayload = {
-  entity_count?: number;
-  document_count?: number;
-  relationship_count?: number;
-};
 
 type EntityHit = { name?: string; label?: string; entity_type?: string };
 
@@ -42,11 +38,13 @@ export const QueryEmptyState = memo(function QueryEmptyState({
   const isChat = isChatQueryMode(mode);
   const copy = getQueryEmptyCopy(mode);
 
+  const selectedWorkspaceId = useTenantStore((s) => s.selectedWorkspaceId);
+
   const { data: stats } = useQuery({
-    queryKey: ["workspace-stats-empty"],
-    queryFn: () => apiClient<StatsPayload>("/workspaces/current/stats").catch(() => null),
+    queryKey: ["workspace-stats-empty", selectedWorkspaceId],
+    queryFn: () => getWorkspaceStats(selectedWorkspaceId!).catch(() => null),
     staleTime: 60_000,
-    enabled: !isChat,
+    enabled: !isChat && !!selectedWorkspaceId,
   });
 
   const { data: topEntities } = useQuery({
